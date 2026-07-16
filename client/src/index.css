@@ -1,0 +1,368 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-canvas font-body text-ink antialiased;
+    background-image:
+      radial-gradient(circle at top left, rgba(242, 198, 109, 0.28), transparent 28%),
+      radial-gradient(circle at right 15%, rgba(39, 82, 69, 0.14), transparent 24%),
+      linear-gradient(180deg, #fbf8f1 0%, #f3ece0 100%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-3xl border border-white/70 bg-white/80 shadow-soft backdrop-blur;
+  }
+
+  .input {
+    @apply w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20;
+  }
+
+  .select {
+    @apply input appearance-none;
+  }
+
+  .textarea {
+    @apply input min-h-28 resize-none;
+  }
+
+  .chip {
+    @apply inline-flex items-center rounded-full bg-pine/10 px-3 py-1 text-xs font-medium text-pine;
+  }
+}
+
+/* ─── Homepage keyframe animations ─── */
+
+@keyframes floatBounce {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-14px) rotate(3deg);
+  }
+  66% {
+    transform: translateY(6px) rotate(-2deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% center;
+  }
+  50% {
+    background-position: 100% center;
+  }
+  100% {
+    background-position: 0% center;
+  }
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes orbitSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes heroFloat {
+  0%, 100% {
+    transform: translateY(0px) rotateX(0deg) rotateY(0deg);
+  }
+  25% {
+    transform: translateY(-10px) rotateX(1deg) rotateY(-1deg);
+  }
+  50% {
+    transform: translateY(-18px) rotateX(0deg) rotateY(1deg);
+  }
+  75% {
+    transform: translateY(-8px) rotateX(-1deg) rotateY(0deg);
+  }
+}
+
+@keyframes sparkleFloat {
+  0%, 100% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+  20% {
+    opacity: 0.8;
+    transform: translateY(-8px) scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: translateY(-20px) scale(0.8);
+  }
+  80% {
+    opacity: 0.7;
+    transform: translateY(-10px) scale(1.2);
+  }
+}
+
+@keyframes shineSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  50%, 100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes meshDrift1 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(40px, -60px) scale(1.2);
+  }
+  66% {
+    transform: translate(-30px, 30px) scale(0.9);
+  }
+}
+
+@keyframes meshDrift2 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(-50px, 50px) scale(1.25);
+  }
+}
+
+/* ─── 3D Rotating Carousel & Hero Disappearance ─── */
+
+/* 3D Carousel container structures */
+.carousel-container {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+  position: relative;
+  width: 100%;
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.carousel-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
+}
+
+.carousel-card {
+  position: absolute;
+  transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+  transform-style: preserve-3d;
+  cursor: pointer;
+  will-change: transform, opacity, z-index;
+}
+
+/* 3D position states */
+.card-front {
+  transform: translate3d(0, 0, 80px) rotateY(0deg) scale(1);
+  z-index: 30;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.card-right {
+  transform: translate3d(140px, 0, -80px) rotateY(-22deg) scale(0.82);
+  z-index: 20;
+  opacity: 0.55;
+  pointer-events: auto;
+}
+
+.card-left {
+  transform: translate3d(-140px, 0, -80px) rotateY(22deg) scale(0.82);
+  z-index: 20;
+  opacity: 0.55;
+  pointer-events: auto;
+}
+
+/* Hero container height collapse transition */
+.hero-transition {
+  transition: max-height 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+              padding 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+              margin 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              border-width 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 1200px; /* High enough to house the auto-height hero */
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.hero-collapsing {
+  max-height: 0px !important;
+  opacity: 0 !important;
+  padding-top: 0px !important;
+  padding-bottom: 0px !important;
+  margin-top: 0px !important;
+  margin-bottom: 0px !important;
+  border-width: 0px !important;
+  transform: scale(0.96) translateY(-24px) !important;
+  pointer-events: none !important;
+}
+
+/* Staggered exit keyframe definitions */
+@keyframes disappearLeft {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-45px);
+  }
+}
+
+@keyframes disappearRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(45px);
+  }
+}
+
+@keyframes disappearScale {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+}
+
+@keyframes disappearDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(35px);
+  }
+}
+
+@keyframes disappearFade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Staggered disappear animation classes for exit choreography */
+.animate-disappear-left-title {
+  animation: disappearLeft 0.5s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+}
+
+.animate-disappear-left-sub {
+  animation: disappearLeft 0.5s cubic-bezier(0.76, 0, 0.24, 1) 0.08s forwards;
+}
+
+.animate-disappear-left-search {
+  animation: disappearLeft 0.55s cubic-bezier(0.76, 0, 0.24, 1) 0.16s forwards;
+}
+
+.animate-disappear-right-nav {
+  animation: disappearRight 0.5s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+}
+
+.animate-disappear-card-0 {
+  animation: disappearScale 0.55s cubic-bezier(0.76, 0, 0.24, 1) 0.08s forwards;
+}
+
+.animate-disappear-card-1 {
+  animation: disappearScale 0.55s cubic-bezier(0.76, 0, 0.24, 1) 0.14s forwards;
+}
+
+.animate-disappear-card-2 {
+  animation: disappearScale 0.55s cubic-bezier(0.76, 0, 0.24, 1) 0.2s forwards;
+}
+
+.animate-disappear-rings {
+  animation: disappearScale 0.6s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+}
+
+.animate-disappear-orbs {
+  animation: disappearFade 0.65s ease-in-out forwards;
+}
+
+.animate-disappear-strip {
+  animation: disappearDown 0.6s cubic-bezier(0.76, 0, 0.24, 1) 0.12s forwards;
+}
+
+.animate-disappear-badge-1 {
+  animation: disappearScale 0.5s cubic-bezier(0.76, 0, 0.24, 1) 0.06s forwards;
+}
+
+.animate-disappear-badge-2 {
+  animation: disappearScale 0.5s cubic-bezier(0.76, 0, 0.24, 1) 0.12s forwards;
+}
+
+.animate-disappear-badge-3 {
+  animation: disappearScale 0.5s cubic-bezier(0.76, 0, 0.24, 1) 0.04s forwards;
+}
+
+.animate-disappear-badge-4 {
+  animation: disappearScale 0.5s cubic-bezier(0.76, 0, 0.24, 1) 0.18s forwards;
+}
+
+
+

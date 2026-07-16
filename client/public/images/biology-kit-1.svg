@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Biology practical kit</title>
+  <desc id="desc">Illustration of a biology practical kit with microscope, slides, and tools.</desc>
+  <rect width="1200" height="900" fill="#f3f1e8"/>
+  <rect x="0" y="620" width="1200" height="280" fill="#d1e0db"/>
+  <rect x="180" y="180" width="380" height="500" rx="34" fill="#2f5d62"/>
+  <rect x="220" y="224" width="300" height="180" rx="22" fill="#d8f1ef"/>
+  <rect x="220" y="438" width="126" height="186" rx="18" fill="#f7fbfa"/>
+  <rect x="362" y="438" width="158" height="86" rx="18" fill="#f7fbfa"/>
+  <rect x="362" y="538" width="158" height="86" rx="18" fill="#f7fbfa"/>
+  <circle cx="770" cy="330" r="78" fill="#13232f"/>
+  <rect x="740" y="350" width="58" height="200" rx="22" fill="#13232f"/>
+  <rect x="680" y="520" width="180" height="52" rx="24" fill="#ec6f36"/>
+  <rect x="620" y="572" width="312" height="34" rx="17" fill="#455a64"/>
+  <rect x="930" y="270" width="110" height="260" rx="22" fill="#f2c66d"/>
+  <circle cx="985" cy="320" r="24" fill="#fff3cf"/>
+  <rect x="958" y="360" width="54" height="118" rx="16" fill="#fff3cf"/>
+  <rect x="620" y="700" width="156" height="26" rx="13" fill="#86a89e"/>
+  <rect x="804" y="700" width="196" height="26" rx="13" fill="#86a89e"/>
+</svg>

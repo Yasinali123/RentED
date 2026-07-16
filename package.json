@@ -1,0 +1,19 @@
+{
+  "name": "rented",
+  "private": true,
+  "version": "1.0.0",
+  "description": "RentEd - Student Rental Hub",
+  "scripts": {
+    "dev": "concurrently \"npm.cmd --prefix server run dev\" \"npm.cmd --prefix client run dev\"",
+    "build": "npm.cmd --prefix client run build",
+    "start": "npm.cmd run build && npm.cmd --prefix server run start",
+    "client:dev": "npm.cmd --prefix client run dev",
+    "client:build": "npm.cmd --prefix client run build",
+    "server:dev": "npm.cmd --prefix server run dev",
+    "server:start": "npm.cmd --prefix server run start",
+    "seed": "npm.cmd --prefix server run seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

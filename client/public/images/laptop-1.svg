@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Student laptop on a desk</title>
+  <desc id="desc">Illustration of a laptop open on a study desk with books and a coffee mug.</desc>
+  <rect width="1200" height="900" fill="#f6efe1"/>
+  <rect x="0" y="620" width="1200" height="280" fill="#d6b48a"/>
+  <rect x="260" y="180" width="680" height="410" rx="28" fill="#243746"/>
+  <rect x="292" y="210" width="616" height="348" rx="18" fill="#c9eef0"/>
+  <rect x="350" y="260" width="230" height="180" rx="18" fill="#7eb7b1"/>
+  <rect x="608" y="260" width="220" height="26" rx="13" fill="#5a8492"/>
+  <rect x="608" y="310" width="180" height="20" rx="10" fill="#7b9aa5"/>
+  <rect x="608" y="350" width="200" height="20" rx="10" fill="#7b9aa5"/>
+  <rect x="608" y="390" width="150" height="20" rx="10" fill="#7b9aa5"/>
+  <rect x="180" y="590" width="840" height="48" rx="24" fill="#8ea5b0"/>
+  <rect x="425" y="638" width="350" height="22" rx="11" fill="#6c7b84"/>
+  <rect x="132" y="660" width="180" height="120" rx="18" fill="#ec6f36"/>
+  <rect x="148" y="680" width="148" height="18" rx="9" fill="#f7d4c1"/>
+  <rect x="148" y="712" width="116" height="16" rx="8" fill="#f7d4c1"/>
+  <rect x="910" y="652" width="98" height="128" rx="22" fill="#f2c66d"/>
+  <rect x="935" y="628" width="48" height="34" rx="12" fill="#f2c66d"/>
+  <rect x="952" y="670" width="14" height="72" rx="7" fill="#fff7e4"/>
+  <circle cx="470" cy="384" r="46" fill="#ffffff" fill-opacity="0.55"/>
+</svg>

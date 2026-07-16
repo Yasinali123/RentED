@@ -1,0 +1,12 @@
+
+> rented@1.0.0 start
+> npm --prefix server run start
+
+
+> rented-server@1.0.0 start
+> node src/server.js
+
+MongoDB connected
+RentEd API listening on port 5000
+[0mGET / [32m200[0m 7.463 ms - 413[0m
+[0mGET / [32m200[0m 1.224 ms - 413[0m
