@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Lock,
@@ -22,12 +22,27 @@ import {
   Smartphone
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { authApi, paymentApi, getErrorMessage } from "../../api/client";
+import { authApi, paymentApi, settingsApi, getErrorMessage } from "../../api/client";
 import Button from "../ui/Button";
 
 function UserSettingsView({ onRefresh }) {
   const { user, setUser, logout } = useAuth();
   const [activeSection, setActiveSection] = useState("account");
+  const [commissionRate, setCommissionRate] = useState(10);
+
+  useEffect(() => {
+    const fetchCommission = async () => {
+      try {
+        const settings = await settingsApi.get();
+        if (settings && typeof settings.commission_rate === "number") {
+          setCommissionRate(settings.commission_rate);
+        }
+      } catch (error) {
+        console.error("Failed to load platform commission rate:", error);
+      }
+    };
+    fetchCommission();
+  }, []);
 
   // Form states
   const [profileForm, setProfileForm] = useState({
@@ -1463,7 +1478,7 @@ function UserSettingsView({ onRefresh }) {
             <div className="divide-y divide-ink/5 border border-ink/5 rounded-2xl p-4 bg-white space-y-4">
               <div>
                 <h3 className="text-xs font-bold text-ink uppercase">1. Platform Rental Terms</h3>
-                <p className="text-[10px] text-ink/50 mt-1 leading-relaxed">By listing textbooks, smart devices, and hostel spaces, you consent to dispatcher POC routing protocols, OTP completion verifications, and platform commission fee deductions of 10%.</p>
+                <p className="text-[10px] text-ink/50 mt-1 leading-relaxed">By listing textbooks, smart devices, and hostel spaces, you consent to dispatcher POC routing protocols, OTP completion verifications, and platform commission fee deductions of {commissionRate}%.</p>
               </div>
               <div className="pt-3">
                 <h3 className="text-xs font-bold text-ink uppercase">2. Dispute Refund Policy</h3>

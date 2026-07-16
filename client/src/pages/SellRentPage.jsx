@@ -1,8 +1,8 @@
 import { Camera, CircleDollarSign, ClipboardList, PackagePlus } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { getErrorMessage, itemApi } from "../api/client";
+import { getErrorMessage, itemApi, settingsApi } from "../api/client";
 import Button from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
 
@@ -62,7 +62,22 @@ function SellRentPage() {
   const [feedback, setFeedback] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [processingPhoto, setProcessingPhoto] = useState("");
+  const [commissionRate, setCommissionRate] = useState(10);
   const isRoomCategory = form.category === "Rooms";
+
+  useEffect(() => {
+    const fetchCommissionRate = async () => {
+      try {
+        const settings = await settingsApi.get();
+        if (settings && typeof settings.commission_rate === "number") {
+          setCommissionRate(settings.commission_rate);
+        }
+      } catch (error) {
+        console.error("Failed to load platform commission rate:", error);
+      }
+    };
+    fetchCommissionRate();
+  }, []);
 
   const handleChange = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -170,6 +185,36 @@ function SellRentPage() {
                   <p className="mt-2 text-sm leading-6 text-ink/62">{item.description}</p>
                 </div>
               ))}
+            </div>
+
+            {/* Commission Policy Section */}
+            <div className="mt-6 rounded-3xl border border-pine/20 bg-pine/5 p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-pine/10 text-pine">
+                  <CircleDollarSign className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-bold text-pine">Commission Policy</h3>
+                  <p className="text-xs text-pine/70 font-medium">Fair, simple, and transparent</p>
+                </div>
+              </div>
+              <hr className="border-pine/10" />
+              <ul className="space-y-3">
+                <li className="flex items-start gap-2.5">
+                  <span className="text-lg shrink-0 select-none" role="img" aria-label="check">✅</span>
+                  <span className="text-sm font-semibold text-ink/85 leading-normal">Free to list your items.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-lg shrink-0 select-none" role="img" aria-label="check">✅</span>
+                  <span className="text-sm font-semibold text-ink/85 leading-normal">
+                    {commissionRate}% platform commission is deducted only after a successful sale or rental.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-lg shrink-0 select-none" role="img" aria-label="check">✅</span>
+                  <span className="text-sm font-semibold text-ink/85 leading-normal">No commission is charged if your item is not sold or rented.</span>
+                </li>
+              </ul>
             </div>
           </div>
         </div>

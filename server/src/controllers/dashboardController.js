@@ -375,11 +375,6 @@ export const getDashboard = asyncHandler(async (req, res) => {
 });
 
 export const getSystemSettings = asyncHandler(async (req, res) => {
-  if (req.user.role !== "admin") {
-    res.status(403);
-    throw new Error("Access denied: Admins only");
-  }
-
   const commissionRate = await getSetting("commission_rate", 10);
   const minDeposit = await getSetting("min_deposit", 100);
 

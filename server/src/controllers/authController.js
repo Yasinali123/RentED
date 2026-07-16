@@ -8,6 +8,7 @@ const sanitizeUser = (user) => ({
   _id: user._id,
   name: user.name,
   email: user.email,
+  phone: user.phone || "",
   role: user.role || "student",
   collegeId: user.collegeId,
   verifiedCollegeId: user.verifiedCollegeId,
@@ -42,10 +43,11 @@ const sanitizeUser = (user) => ({
 });
 
 export const signup = asyncHandler(async (req, res) => {
-  const { name, email, password, collegeId, country, state, city, institutionType, collegeName, campus, location, geometry, avatarUrl, role } = req.body;
+  const { name, email, phone, password, collegeId, country, state, city, institutionType, collegeName, campus, location, geometry, avatarUrl, role } = req.body;
   const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedPhone = String(phone || "").trim();
 
-  if (!name || !normalizedEmail || !password || !collegeId || !state || !city || !institutionType || !collegeName) {
+  if (!name || !normalizedEmail || !normalizedPhone || !password || !collegeId || !state || !city || !institutionType || !collegeName) {
     res.status(400);
     throw new Error("Please provide all required fields");
   }
@@ -60,6 +62,7 @@ export const signup = asyncHandler(async (req, res) => {
   const user = await User.create({
     name,
     email: normalizedEmail,
+    phone: normalizedPhone,
     passwordHash,
     collegeId,
     country: country || "India",
@@ -164,6 +167,57 @@ export const googleLogin = asyncHandler(async (req, res) => {
 });
 
 const otpStore = new Map();
+
+export const sendSignupOtp = asyncHandler(async (req, res) => {
+  const { email, phone } = req.body;
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedPhone = String(phone || "").trim();
+
+  if (!normalizedEmail || !normalizedPhone) {
+    res.status(400);
+    throw new Error("Email and phone number are required");
+  }
+
+  // Check if email already in use
+  const existingEmail = await User.findOne({ email: normalizedEmail });
+  if (existingEmail) {
+    res.status(409);
+    throw new Error("Email already in use");
+  }
+
+  // Generate 6 digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Store both email and phone in otpStore with expires time (10 minutes)
+  otpStore.set(`signup_${normalizedEmail}`, {
+    otp,
+    phone: normalizedPhone,
+    expires: Date.now() + 10 * 60 * 1000,
+  });
+
+  res.json({
+    success: true,
+    message: "Signup verification code generated",
+    otp,
+  });
+});
+
+export const verifySignupOtp = asyncHandler(async (req, res) => {
+  const { email, phone, otp } = req.body;
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedPhone = String(phone || "").trim();
+
+  const record = otpStore.get(`signup_${normalizedEmail}`);
+  if (!record || record.otp !== otp || record.phone !== normalizedPhone || record.expires < Date.now()) {
+    res.status(400);
+    throw new Error("Invalid or expired verification code");
+  }
+
+  res.json({
+    success: true,
+    message: "Contact details verified successfully",
+  });
+});
 
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
