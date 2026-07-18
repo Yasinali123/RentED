@@ -18,6 +18,14 @@ const collegeSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    latitude: {
+      type: Number,
+      required: false,
+    },
+    longitude: {
+      type: Number,
+      required: false,
+    },
   },
   { timestamps: true }
 );

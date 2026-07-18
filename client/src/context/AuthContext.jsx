@@ -9,19 +9,13 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("rented_token");
-
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
     authApi
       .me()
       .then((response) => {
         setUser(response.user);
       })
       .catch(() => {
+        setUser(null);
         localStorage.removeItem("rented_token");
       })
       .finally(() => {
@@ -31,10 +25,12 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (payload) => {
     const response = await authApi.login(payload).catch((error) => {
+      if (error?.response?.data?.needsVerification) {
+        throw error.response.data;
+      }
       throw new Error(getErrorMessage(error));
     });
 
-    localStorage.setItem("rented_token", response.token);
     setUser(response.user);
     return response.user;
   };
@@ -43,8 +39,13 @@ export const AuthProvider = ({ children }) => {
     const response = await authApi.signup(payload).catch((error) => {
       throw new Error(getErrorMessage(error));
     });
+    return response;
+  };
 
-    localStorage.setItem("rented_token", response.token);
+  const verifyEmail = async (payload) => {
+    const response = await authApi.verifyEmail(payload).catch((error) => {
+      throw new Error(getErrorMessage(error));
+    });
     setUser(response.user);
     return response.user;
   };
@@ -54,18 +55,22 @@ export const AuthProvider = ({ children }) => {
       throw new Error(getErrorMessage(error));
     });
 
-    localStorage.setItem("rented_token", response.token);
     setUser(response.user);
     return response.user;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (err) {
+      console.error("Failed calling logout endpoint:", err);
+    }
     localStorage.removeItem("rented_token");
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, googleLogin, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, verifyEmail, googleLogin, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );

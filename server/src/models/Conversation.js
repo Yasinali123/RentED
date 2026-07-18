@@ -7,6 +7,11 @@ const conversationSchema = new mongoose.Schema(
       ref: "Item",
       required: true,
     },
+    rentalRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "RentalRequest",
+      default: null,
+    },
     participants: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -21,6 +26,16 @@ const conversationSchema = new mongoose.Schema(
     lastMessageAt: {
       type: Date,
       default: Date.now,
+    },
+    unreadCount: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
+    status: {
+      type: String,
+      enum: ["active", "disputed", "completed"],
+      default: "active",
     },
   },
   { timestamps: true },

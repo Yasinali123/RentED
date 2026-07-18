@@ -103,6 +103,29 @@ const itemSchema = new mongoose.Schema(
         default: [0, 0],
       },
     },
+    pickupLatitude: {
+      type: Number,
+      default: null,
+    },
+    pickupLongitude: {
+      type: Number,
+      default: null,
+    },
+    pickupAddress: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    college: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    district: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     images: {
       type: [
         {
@@ -157,6 +180,10 @@ itemSchema.virtual("image").get(function () {
 
 itemSchema.index({ title: "text", description: "text", location: "text", campus: "text", city: "text", collegeName: "text" });
 itemSchema.index({ geometry: "2dsphere" });
+itemSchema.index({ title: 1 });
+itemSchema.index({ category: 1 });
+itemSchema.index({ collegeName: 1 });
+itemSchema.index({ tags: 1 });
 
 const Item = mongoose.model("Item", itemSchema);
 

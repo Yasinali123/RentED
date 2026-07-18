@@ -11,6 +11,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import MarketplacePage from "./pages/MarketplacePage";
 import SellRentPage from "./pages/SellRentPage";
 import SignupPage from "./pages/SignupPage";
+import EmailVerificationPage from "./pages/EmailVerificationPage";
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/verify-email" element={<EmailVerificationPage />} />
         <Route
           path="/dashboard"
           element={

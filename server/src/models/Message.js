@@ -12,11 +12,48 @@ const messageSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    receiver: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     text: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
+    message: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    attachments: {
+      image: {
+        type: String,
+        default: "",
+      },
+      document: {
+        type: String,
+        default: "",
+      },
+    },
+    seenStatus: {
+      type: String,
+      enum: ["sent", "delivered", "seen"],
+      default: "sent",
+    },
+    seenBy: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        seenAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   { timestamps: true },
 );

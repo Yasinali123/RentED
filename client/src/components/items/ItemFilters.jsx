@@ -1,17 +1,17 @@
 import { useAuth } from "../../context/AuthContext";
+import SearchAutocomplete from "../ui/SearchAutocomplete";
 
 function ItemFilters({ filters, onChange }) {
   const { user } = useAuth();
   
   return (
     <div className="panel p-5 grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6 items-end">
-      <div className="col-span-2 md:col-span-3 lg:col-span-2">
+      <div className="col-span-2 md:col-span-3 lg:col-span-2 relative">
         <label className="text-xs font-semibold uppercase text-ink/50 mb-1 block">Search</label>
-        <input
-          className="input w-full"
+        <SearchAutocomplete
+          initialValue={filters.q}
+          onSearch={(val) => onChange({ ...filters, q: val })}
           placeholder="Keyword..."
-          value={filters.q}
-          onChange={(e) => onChange({ ...filters, q: e.target.value })}
         />
       </div>
       
@@ -62,22 +62,23 @@ function ItemFilters({ filters, onChange }) {
         />
       </div>
 
-      {user?.geometry && (
-        <div>
-          <label className="text-xs font-semibold uppercase text-ink/50 mb-1 block">Distance (Near You)</label>
-          <select
-            className="select w-full"
-            value={filters.radius || ""}
-            onChange={(e) => onChange({ ...filters, radius: e.target.value })}
-          >
-            <option value="">Any distance</option>
-            <option value="10">Within 10 km</option>
-            <option value="25">Within 25 km</option>
-            <option value="50">Within 50 km</option>
-            <option value="100">Within 100 km</option>
-          </select>
-        </div>
-      )}
+      <div>
+        <label className="text-xs font-semibold uppercase text-ink/50 mb-1 block">Distance (Radius)</label>
+        <select
+          className="select w-full"
+          value={filters.radius || ""}
+          onChange={(e) => onChange({ ...filters, radius: e.target.value })}
+        >
+          <option value="">Any distance</option>
+          <option value="0.5">500 meters</option>
+          <option value="1">1 km</option>
+          <option value="2">2 km</option>
+          <option value="5">5 km</option>
+          <option value="10">10 km</option>
+          <option value="25">25 km</option>
+          <option value="50">50 km</option>
+        </select>
+      </div>
     </div>
   );
 }

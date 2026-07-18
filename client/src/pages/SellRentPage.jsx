@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import { getErrorMessage, itemApi, settingsApi } from "../api/client";
 import Button from "../components/ui/Button";
+import LocationPicker from "../components/maps/LocationPicker";
 import { useAuth } from "../context/AuthContext";
 
 const initialState = {
@@ -28,6 +29,7 @@ function SellRentPage() {
     ...initialState,
     location: user?.location || "",
   });
+  const [pickedLocation, setPickedLocation] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]); // [{ file, previewUrl }]
@@ -127,6 +129,17 @@ function SellRentPage() {
       formData.append("condition", form.condition);
       formData.append("brand", form.brand);
       formData.append("location", form.location);
+
+      if (pickedLocation) {
+        formData.append("pickupLatitude", String(pickedLocation.latitude));
+        formData.append("pickupLongitude", String(pickedLocation.longitude));
+        formData.append("pickupAddress", pickedLocation.address);
+        formData.append("college", pickedLocation.college);
+        formData.append("district", pickedLocation.district);
+        formData.append("city", pickedLocation.city);
+        formData.append("state", pickedLocation.state);
+        formData.append("country", pickedLocation.country);
+      }
 
       details.forEach((detail) => formData.append("details", detail));
       tags.forEach((tag) => formData.append("tags", tag));
@@ -287,13 +300,17 @@ function SellRentPage() {
               value={form.brand}
               onChange={(event) => handleChange("brand", event.target.value)}
             />
-            <input
-              className="input"
-              placeholder="Pickup location"
-              value={form.location}
-              required
-              onChange={(event) => handleChange("location", event.target.value)}
-            />
+            <div className="sm:col-span-2 space-y-2">
+              <label className="text-xs font-black uppercase tracking-wider text-ink/55">Hyperlocal Pickup Location (Map Picker)</label>
+              <LocationPicker
+                initialLat={user?.latitude}
+                initialLng={user?.longitude}
+                onChangeLocation={(loc) => {
+                  setPickedLocation(loc);
+                  handleChange("location", loc.address);
+                }}
+              />
+            </div>
           </div>
 
           <textarea

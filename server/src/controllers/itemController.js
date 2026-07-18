@@ -30,6 +30,14 @@ export const createItem = asyncHandler(async (req, res) => {
     details,
     campus,
     tags,
+    pickupLatitude,
+    pickupLongitude,
+    pickupAddress,
+    college,
+    district,
+    city: pickupCity,
+    state: pickupState,
+    country: pickupCountry
   } = req.body;
 
   if (!title || !description || !category) {
@@ -129,13 +137,20 @@ export const createItem = asyncHandler(async (req, res) => {
     rentalPrice: normalizedRentalPrice,
     salePrice: normalizedSalePrice,
     category,
-    country: req.user.country || "India",
-    state: req.user.state || "",
-    city: req.user.city || "",
-    collegeName: req.user.collegeName || "",
-    location: String(location || req.user.location || "").trim(),
+    country: pickupCountry || req.user.country || "India",
+    state: pickupState || req.user.state || "",
+    city: pickupCity || req.user.city || "",
+    collegeName: college || req.user.collegeName || "",
+    location: String(pickupAddress || location || req.user.location || "").trim(),
     campus: String(campus || req.user.campus || "").trim(),
-    geometry: req.user.geometry,
+    pickupLatitude: pickupLatitude ? Number(pickupLatitude) : req.user.latitude,
+    pickupLongitude: pickupLongitude ? Number(pickupLongitude) : req.user.longitude,
+    college: college || req.user.college || "",
+    district: district || req.user.district || "",
+    pickupAddress: String(pickupAddress || location || req.user.location || "").trim(),
+    geometry: (pickupLongitude && pickupLatitude)
+      ? { type: "Point", coordinates: [Number(pickupLongitude), Number(pickupLatitude)] }
+      : req.user.geometry,
     images: images,
     condition: condition || "Good",
     brand: String(brand || "").trim(),
@@ -168,6 +183,14 @@ export const getItems = asyncHandler(async (req, res) => {
     availableToday,
     sortBy,
   } = req.query;
+
+  // Check if we can resolve coordinates (either query parameters or req.user profile coordinates)
+  let latVal = lat ? Number(lat) : null;
+  let lngVal = lng ? Number(lng) : null;
+  if (!latVal && !lngVal && req.user && req.user.latitude && req.user.longitude) {
+    latVal = req.user.latitude;
+    lngVal = req.user.longitude;
+  }
 
   const query = { isApproved: { $ne: false } };
 
@@ -211,18 +234,6 @@ export const getItems = asyncHandler(async (req, res) => {
     query.availabilityStatus = "available";
   }
 
-  if (lat && lng && radius) {
-    query.geometry = {
-      $near: {
-        $geometry: {
-          type: "Point",
-          coordinates: [Number(lng), Number(lat)],
-        },
-        $maxDistance: Number(radius) * 1000,
-      },
-    };
-  }
-
   if (listingType && listingType !== "All") {
     if (listingType === "rent") {
       query.listingType = { $in: ["rent", "both"] };
@@ -233,27 +244,42 @@ export const getItems = asyncHandler(async (req, res) => {
     }
   }
 
-  const parsedLimit = Number.parseInt(limit, 10);
-  const itemsQuery = Item.find(query).populate("owner", itemOwnerProjection);
+  const parsedLimit = Number.parseInt(limit, 10) || 50;
+  let items = [];
 
-  // Apply sorting options
-  if (sortBy === "newest") {
-    itemsQuery.sort({ createdAt: -1 });
-  } else if (sortBy === "priceLow") {
-    itemsQuery.sort({ price: 1 });
-  } else if (sortBy === "priceHigh") {
-    itemsQuery.sort({ price: -1 });
+  if (latVal && lngVal) {
+    const maxDist = radius ? Number(radius) * 1000 : 25000000;
+    const pipeline = [
+      {
+        $geoNear: {
+          near: { type: "Point", coordinates: [lngVal, latVal] },
+          distanceField: "distance",
+          maxDistance: maxDist,
+          spherical: true,
+          query: query,
+        },
+      },
+    ];
+
+    const aggregated = await Item.aggregate(pipeline);
+    items = await Item.populate(aggregated, {
+      path: "owner",
+      select: itemOwnerProjection,
+    });
   } else {
-    itemsQuery.sort({ createdAt: -1 });
+    const itemsQuery = Item.find(query).populate("owner", itemOwnerProjection);
+    if (sortBy === "newest") {
+      itemsQuery.sort({ createdAt: -1 });
+    } else if (sortBy === "priceLow") {
+      itemsQuery.sort({ price: 1 });
+    } else if (sortBy === "priceHigh") {
+      itemsQuery.sort({ price: -1 });
+    } else {
+      itemsQuery.sort({ createdAt: -1 });
+    }
+    items = await itemsQuery;
   }
 
-  if (Number.isFinite(parsedLimit) && parsedLimit > 0) {
-    itemsQuery.limit(parsedLimit);
-  }
-
-  let items = await itemsQuery;
-
-  // Filter by price range in-memory if needed or directly
   if (priceMin || priceMax) {
     const min = priceMin ? Number(priceMin) : 0;
     const max = priceMax ? Number(priceMax) : Number.MAX_VALUE;
@@ -263,35 +289,74 @@ export const getItems = asyncHandler(async (req, res) => {
     });
   }
 
-  // Filter by Verified Seller
   if (verifiedSeller === "true") {
     items = items.filter((item) => item.owner?.verifiedCollegeId === true);
   }
 
-  // Proximity Sorting: Same College -> Same City -> Same State -> Nationwide
+  // Hyperlocal Priority Sorting Scoring
   if (req.user) {
-    const userCollege = String(req.user.collegeName || "").toLowerCase().trim();
-    const userCity = String(req.user.city || "").toLowerCase().trim();
-    const userState = String(req.user.state || "").toLowerCase().trim();
+    const uCollege = String(req.user.collegeName || "").toLowerCase().trim();
+    const uCampus = String(req.user.campus || "").toLowerCase().trim();
+    const uInstitution = String(req.user.institution || "").toLowerCase().trim();
+    const uCity = String(req.user.city || "").toLowerCase().trim();
+    const uDistrict = String(req.user.district || "").toLowerCase().trim();
+    const uState = String(req.user.state || "").toLowerCase().trim();
 
     items = items.sort((a, b) => {
       const getScore = (item) => {
-        const itemCollege = String(item.collegeName || "").toLowerCase().trim();
-        const itemCity = String(item.city || "").toLowerCase().trim();
-        const itemState = String(item.state || "").toLowerCase().trim();
+        const iCollege = String(item.collegeName || "").toLowerCase().trim();
+        const iCampus = String(item.campus || "").toLowerCase().trim();
+        const iInstitution = String(item.college || "").toLowerCase().trim();
+        const iCity = String(item.city || "").toLowerCase().trim();
+        const iDistrict = String(item.district || "").toLowerCase().trim();
+        const iState = String(item.state || "").toLowerCase().trim();
+        const dist = item.distance;
 
-        if (userCollege && itemCollege === userCollege) return 0;
-        if (userCity && itemCity === userCity) return 1;
-        if (userState && itemState === userState) return 2;
-        return 3;
+        if (uCollege && iCollege === uCollege) return 0;
+        if (uCampus && iCampus === uCampus) return 1;
+        if (uInstitution && iInstitution === uInstitution) return 2;
+        if (dist !== undefined && dist <= 5000) return 3; // within 5km radius
+        if (uCity && iCity === uCity) return 4;
+        if (dist !== undefined && dist <= 25000) return 5; // within 25km radius
+        if (uDistrict && iDistrict === uDistrict) return 6;
+        if (uState && iState === uState) return 7;
+        return 8;
       };
-      return getScore(a) - getScore(b);
+
+      const scoreA = getScore(a);
+      const scoreB = getScore(b);
+
+      if (scoreA !== scoreB) {
+        return scoreA - scoreB;
+      }
+      
+      if (a.distance !== undefined && b.distance !== undefined) {
+        return a.distance - b.distance;
+      }
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  } else if (latVal && lngVal) {
+    items = items.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+  }
+
+  if (sortBy === "popularity") {
+    items = items.sort((a, b) => (b.owner?.ratingsAverage || 0) - (a.owner?.ratingsAverage || 0));
+  } else if (sortBy === "priceLow") {
+    items = items.sort((a, b) => {
+      const ap = a.rentalPrice ?? a.salePrice ?? a.price;
+      const bp = b.rentalPrice ?? b.salePrice ?? b.price;
+      return ap - bp;
+    });
+  } else if (sortBy === "priceHigh") {
+    items = items.sort((a, b) => {
+      const ap = a.rentalPrice ?? a.salePrice ?? a.price;
+      const bp = b.rentalPrice ?? b.salePrice ?? b.price;
+      return bp - ap;
     });
   }
 
-  // Apply sorting by popularity if requested
-  if (sortBy === "popularity") {
-    items = items.sort((a, b) => (b.owner?.ratingsAverage || 0) - (a.owner?.ratingsAverage || 0));
+  if (Number.isFinite(parsedLimit) && parsedLimit > 0) {
+    items = items.slice(0, parsedLimit);
   }
 
   res.json(items);
@@ -359,7 +424,8 @@ export const updateItem = asyncHandler(async (req, res) => {
   const fields = [
     "title", "description", "category", "price", "rentalPrice", "salePrice",
     "condition", "brand", "location", "campus", "availabilityStatus",
-    "isApproved", "isFeatured"
+    "isApproved", "isFeatured", "pickupLatitude", "pickupLongitude", "pickupAddress",
+    "college", "district", "city", "state", "country"
   ];
   
   fields.forEach(field => {
@@ -367,6 +433,13 @@ export const updateItem = asyncHandler(async (req, res) => {
       item[field] = req.body[field];
     }
   });
+
+  if (req.body.pickupLatitude !== undefined && req.body.pickupLongitude !== undefined) {
+    item.geometry = {
+      type: "Point",
+      coordinates: [Number(req.body.pickupLongitude), Number(req.body.pickupLatitude)]
+    };
+  }
 
   if (req.body.details !== undefined) {
     item.details = parseArrayField(req.body.details).slice(0, 6);

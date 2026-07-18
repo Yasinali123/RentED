@@ -33,7 +33,7 @@ function SignupPage() {
   const [colleges, setColleges] = useState([]);
 
   // Verification flow states
-  const [isVerified, setIsVerified] = useState(false);
+  const [isVerified, setIsVerified] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
@@ -100,16 +100,12 @@ function SignupPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!isVerified) {
-      setError("Please verify your email and phone number first.");
-      return;
-    }
     setSubmitting(true);
     setError("");
 
     try {
       await signup(form);
-      navigate("/dashboard");
+      navigate("/verify-email", { state: { email: form.email } });
     } catch (submitError) {
       setError(submitError.message);
     } finally {

@@ -31,6 +31,7 @@ import Button from "../ui/Button";
 import { rentalApi, getErrorMessage } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import UserSettingsView from "./UserSettingsView";
+import NearbyMap from "../maps/NearbyMap";
 
 function PocDashboardView({ dashboard, onRefresh }) {
   const { user } = useAuth();
@@ -536,12 +537,20 @@ function PocDashboardView({ dashboard, onRefresh }) {
                       <span className="text-ink/45 font-semibold">Contacts & Navigation:</span>
                       <div className="flex items-center gap-2 mt-1">
                         <a 
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.deliveryAddress || task.item?.location || "")}`} 
+                          href={`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${task.item?.pickupLatitude || task.owner?.latitude || 23.0225},${task.item?.pickupLongitude || task.owner?.longitude || 72.5714};${task.renter?.latitude || 23.0300},${task.renter?.longitude || 72.5800}`} 
                           target="_blank" 
                           rel="noopener noreferrer" 
                           className="px-2.5 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 hover:bg-indigo-100 rounded-full font-bold inline-flex items-center gap-1"
                         >
-                          <Navigation className="h-3 w-3" /> Navigation Map
+                          <Navigation className="h-3 w-3" /> OSM Route
+                        </a>
+                        <a 
+                          href={`https://router.project-osrm.org/route/v1/driving/${task.item?.pickupLongitude || task.owner?.longitude || 72.5714},${task.item?.pickupLatitude || task.owner?.latitude || 23.0225};${task.renter?.longitude || 72.5800},${task.renter?.latitude || 23.0300}?overview=full&geometries=geojson`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100 rounded-full font-bold inline-flex items-center gap-1 text-[10px]"
+                        >
+                          OSRM JSON Route
                         </a>
                         <a href={`tel:${pocProfile.phone}`} className="px-2.5 py-1 bg-canvas hover:bg-ink/5 border border-ink/10 rounded-full font-bold inline-flex items-center gap-1">
                           Call
@@ -772,35 +781,55 @@ function PocDashboardView({ dashboard, onRefresh }) {
               <p className="text-xs text-ink/40">Suggested optimized sequence mapping to reduce travel distance on campus.</p>
             </div>
 
-            <div className="p-5 bg-gradient-to-br from-indigo-50/50 to-white border border-indigo-100 rounded-3xl max-w-md space-y-4">
-              <span className="text-[10px] font-black uppercase text-indigo-700 tracking-wider flex items-center gap-1">
-                <Compass className="h-4 w-4 text-accent animate-spin" /> Optimized Run sequence
-              </span>
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="p-5 bg-gradient-to-br from-indigo-50/50 to-white border border-indigo-100 rounded-3xl space-y-4">
+                <span className="text-[10px] font-black uppercase text-indigo-700 tracking-wider flex items-center gap-1">
+                  <Compass className="h-4 w-4 text-accent animate-spin" /> Optimized Run sequence
+                </span>
 
-              <div className="space-y-4 pl-3 border-l-2 border-dashed border-indigo-200">
-                <div className="relative flex items-start gap-3">
-                  <div className="absolute -left-[17px] top-1.5 h-2.5 w-2.5 rounded-full bg-indigo-600 border border-white" />
-                  <div>
-                    <p className="text-xs font-black text-ink">1. Seller Aiden (Engineering block)</p>
-                    <p className="text-[10px] text-ink/50 mt-0.5">Collect: Calculators</p>
+                <div className="space-y-4 pl-3 border-l-2 border-dashed border-indigo-200">
+                  <div className="relative flex items-start gap-3">
+                    <div className="absolute -left-[17px] top-1.5 h-2.5 w-2.5 rounded-full bg-indigo-600 border border-white" />
+                    <div>
+                      <p className="text-xs font-black text-ink">1. Seller Aiden (Engineering block)</p>
+                      <p className="text-[10px] text-ink/50 mt-0.5">Collect: Calculators</p>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="relative flex items-start gap-3">
-                  <div className="absolute -left-[17px] top-1.5 h-2.5 w-2.5 rounded-full bg-indigo-600 border border-white" />
-                  <div>
-                    <p className="text-xs font-black text-ink">2. Seller Rohan (Science library)</p>
-                    <p className="text-[10px] text-ink/50 mt-0.5">Collect: Topper Notes</p>
+                  
+                  <div className="relative flex items-start gap-3">
+                    <div className="absolute -left-[17px] top-1.5 h-2.5 w-2.5 rounded-full bg-indigo-600 border border-white" />
+                    <div>
+                      <p className="text-xs font-black text-ink">2. Seller Rohan (Science library)</p>
+                      <p className="text-[10px] text-ink/50 mt-0.5">Collect: Topper Notes</p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="relative flex items-start gap-3">
-                  <div className="absolute -left-[17px] top-1.5 h-2.5 w-2.5 rounded-full bg-indigo-600 border border-white" />
-                  <div>
-                    <p className="text-xs font-black text-ink">3. Buyer Mira (Girls hostel)</p>
-                    <p className="text-[10px] text-ink/50 mt-0.5">Deliver: Calculators</p>
+                  <div className="relative flex items-start gap-3">
+                    <div className="absolute -left-[17px] top-1.5 h-2.5 w-2.5 rounded-full bg-indigo-600 border border-white" />
+                    <div>
+                      <p className="text-xs font-black text-ink">3. Buyer Mira (Girls hostel)</p>
+                      <p className="text-[10px] text-ink/50 mt-0.5">Deliver: Calculators</p>
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="rounded-3xl overflow-hidden border border-ink/10 h-[300px]">
+                <NearbyMap 
+                  items={[...myAssignedTasks, ...myActiveDeliveries].map(o => ({
+                    _id: o._id,
+                    title: o.item?.title || "Item Handover Run",
+                    rentalPrice: o.item?.rentalPrice || 0,
+                    geometry: {
+                      type: "Point",
+                      coordinates: [
+                        o.item?.pickupLongitude || o.owner?.longitude || 72.5714,
+                        o.item?.pickupLatitude || o.owner?.latitude || 23.0225
+                      ]
+                    }
+                  }))} 
+                  height="300px" 
+                />
               </div>
             </div>
           </div>

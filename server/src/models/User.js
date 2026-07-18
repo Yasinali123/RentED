@@ -77,6 +77,34 @@ const userSchema = new mongoose.Schema(
         default: [0, 0],
       },
     },
+    latitude: {
+      type: Number,
+      default: null,
+    },
+    longitude: {
+      type: Number,
+      default: null,
+    },
+    college: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    institution: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    district: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    address: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     avatarUrl: {
       type: String,
       default: "",
@@ -148,6 +176,18 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: {
+      type: Date,
+      default: null,
+    },
     notifications: {
       type: Map,
       of: Boolean,
@@ -165,6 +205,10 @@ const userSchema = new mongoose.Schema(
         pushNotifications: true,
         smsNotifications: false,
       },
+    },
+    fcmTokens: {
+      type: [String],
+      default: [],
     },
     preferredDistance: {
       type: String,
@@ -200,6 +244,9 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+userSchema.index({ geometry: "2dsphere" });
+userSchema.index({ name: 1 });
 
 const User = mongoose.model("User", userSchema);
 

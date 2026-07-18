@@ -3,12 +3,14 @@ import RentalRequest from "../models/RentalRequest.js";
 import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
 import Coupon from "../models/Coupon.js";
+import Conversation from "../models/Conversation.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { notifyUser, notifyAdmins } from "../utils/notificationHelper.js";
 import { getSetting } from "../utils/settingsHelper.js";
 import emailService from "../services/emailService.js";
 import { baseLayout } from "../templates/baseLayout.js";
 import { createRefund } from "../services/paymentService.js";
+import { createAndStoreInvoice } from "../services/invoiceService.js";
 
 const populateRequest = (query) =>
   query
@@ -176,6 +178,20 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     couponCode: couponCode || "",
   });
 
+  // Automatically create a secure context-locked conversation for this order
+  await Conversation.create({
+    item: item._id,
+    rentalRequest: request._id,
+    participants: [renter._id, item.owner],
+    lastMessage: `Order placed. Chat initialized for ${normalizedRequestType === "purchase" ? "purchase" : "rental"}.`,
+    lastMessageAt: new Date(),
+    status: "active",
+    unreadCount: {
+      [renter._id.toString()]: 0,
+      [item.owner.toString()]: 0
+    }
+  });
+
   // Link transactions / Create new wallet payouts
   if (paymentMethod !== "cod") {
     if (isDirectPayment && paymentReference.startsWith("pay_")) {
@@ -224,6 +240,14 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     }
   } catch (err) {
     console.error("Failed to send order placement emails:", err.message);
+  }
+
+  // Auto-generate invoice PDF
+  try {
+    const fullOrder = await populateRequest(RentalRequest.findById(request._id));
+    await createAndStoreInvoice(fullOrder);
+  } catch (invoiceErr) {
+    console.error("[Invoice] Auto-generation failed:", invoiceErr.message);
   }
 
   const populatedRequest = await populateRequest(RentalRequest.findById(request._id));
@@ -356,6 +380,20 @@ export const claimDeliveryTask = asyncHandler(async (req, res) => {
   request.trackingStatus = "POC Assigned";
   request.trackingHistory.push({ status: "POC Assigned", location: `Assigned to POC: ${req.user.name}` });
   await request.save();
+
+  // Automatically add POC to the conversation
+  const conversation = await Conversation.findOne({ rentalRequest: request._id });
+  if (conversation) {
+    if (!conversation.participants.some(p => p.toString() === req.user._id.toString())) {
+      conversation.participants.push(req.user._id);
+      if (conversation.unreadCount) {
+        conversation.unreadCount.set(req.user._id.toString(), 0);
+      }
+      conversation.lastMessage = `POC ${req.user.name} added to the chat.`;
+      conversation.lastMessageAt = new Date();
+      await conversation.save();
+    }
+  }
 
   await notifyUser(request.renter, "POC Assigned", `Your POC "${req.user.name}" has been assigned to deliver your order.`);
   await notifyUser(request.owner, "POC Assigned", `POC "${req.user.name}" has claimed this pickup. Please prepare the item for pickup.`);
@@ -835,6 +873,8 @@ export const adminUpdateRental = asyncHandler(async (req, res) => {
     }
   }
 
+  const oldPoc = request.poc;
+
   if (pocId !== undefined) {
     if (pocId === "" || pocId === null) {
       request.poc = null;
@@ -854,6 +894,40 @@ export const adminUpdateRental = asyncHandler(async (req, res) => {
   }
 
   await request.save();
+
+  // Update conversation participants for POC assignment change
+  const conversation = await Conversation.findOne({ rentalRequest: request._id });
+  if (conversation) {
+    if (!request.poc) {
+      // Find and remove any POC participants
+      const users = await User.find({ _id: { $in: conversation.participants } });
+      const pocs = users.filter(u => u.role === "poc").map(u => u._id.toString());
+      if (pocs.length > 0) {
+        conversation.participants = conversation.participants.filter(p => !pocs.includes(p.toString()));
+        pocs.forEach(pId => conversation.unreadCount.delete(pId));
+        conversation.lastMessage = "POC unassigned from order chat.";
+        conversation.lastMessageAt = new Date();
+        await conversation.save();
+      }
+    } else if (request.poc && (!oldPoc || oldPoc.toString() !== request.poc.toString())) {
+      // Remove any existing POC participants first
+      const users = await User.find({ _id: { $in: conversation.participants } });
+      const oldPocs = users.filter(u => u.role === "poc").map(u => u._id.toString());
+      conversation.participants = conversation.participants.filter(p => !oldPocs.includes(p.toString()));
+      oldPocs.forEach(pId => conversation.unreadCount.delete(pId));
+
+      // Add the new POC participant
+      conversation.participants.push(request.poc);
+      if (conversation.unreadCount) {
+        conversation.unreadCount.set(request.poc.toString(), 0);
+      }
+      
+      const newPocUser = await User.findById(request.poc);
+      conversation.lastMessage = `POC ${newPocUser.name} assigned to order chat.`;
+      conversation.lastMessageAt = new Date();
+      await conversation.save();
+    }
+  }
   res.json(await populateRequest(RentalRequest.findById(request._id)));
 });
 
@@ -879,6 +953,20 @@ export const rejectDeliveryTask = asyncHandler(async (req, res) => {
     location: `Rejected by POC (${req.user.name}). Reason: ${reason || "None specified"}` 
   });
   await request.save();
+
+  // Remove POC from conversation
+  const conversation = await Conversation.findOne({ rentalRequest: request._id });
+  if (conversation) {
+    conversation.participants = conversation.participants.filter(
+      p => p.toString() !== req.user._id.toString()
+    );
+    if (conversation.unreadCount) {
+      conversation.unreadCount.delete(req.user._id.toString());
+    }
+    conversation.lastMessage = `POC ${req.user.name} rejected task and left chat.`;
+    conversation.lastMessageAt = new Date();
+    await conversation.save();
+  }
 
   await notifyAdmins("POC Rejected Assignment", `Order ${request._id} assignment was rejected by POC ${req.user.name}. Reason: "${reason || "None specified"}"`);
 

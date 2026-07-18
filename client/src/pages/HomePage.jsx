@@ -28,11 +28,12 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { itemApi } from "../api/client";
+import { itemApi, locationApi } from "../api/client";
 import ItemCard from "../components/items/ItemCard";
 import Button from "../components/ui/Button";
 import { landingStats } from "../data/sampleHighlights";
 import { useAuth } from "../context/AuthContext";
+import useCurrentLocation from "../hooks/useCurrentLocation";
 
 /* ───────────────────────────────── hooks ───────────────────────────────── */
 
@@ -699,6 +700,24 @@ function HomePage() {
   const [testimonialsRef, testimonialsVisible] = useScrollReveal(0.15);
   const [ctaRef, ctaVisible] = useScrollReveal(0.2);
 
+  const browserLoc = useCurrentLocation();
+
+  useEffect(() => {
+    if (user && browserLoc.latitude && browserLoc.longitude) {
+      if (!user.latitude || !user.longitude || !user.geometry || user.geometry.coordinates[0] === 0) {
+        locationApi
+          .saveUserLocation({
+            latitude: browserLoc.latitude,
+            longitude: browserLoc.longitude,
+          })
+          .then((data) => {
+            console.log("Logged-in user location automatically updated:", data.user);
+          })
+          .catch((err) => console.error("Auto-saving user location failed:", err));
+      }
+    }
+  }, [user, browserLoc.latitude, browserLoc.longitude]);
+
   useEffect(() => {
     itemApi.list({ limit: 4 }).then(setTrendingItems).catch(() => {});
     itemApi.list({ limit: 8 }).then(setNationwideItems).catch(() => {});
@@ -722,23 +741,23 @@ function HomePage() {
           )
           .catch(() => {});
       }
-      if (
-        user.geometry &&
-        user.geometry.coordinates &&
-        user.geometry.coordinates[0] !== 0
-      ) {
-        itemApi
-          .list({
-            lat: user.geometry.coordinates[1],
-            lng: user.geometry.coordinates[0],
-            radius: 50,
-            limit: 4,
-          })
-          .then(setNearbyItems)
-          .catch(() => {});
-      }
     }
-  }, [user]);
+
+    const activeLat = browserLoc.latitude || user?.latitude || user?.geometry?.coordinates?.[1];
+    const activeLng = browserLoc.longitude || user?.longitude || user?.geometry?.coordinates?.[0];
+
+    if (activeLat && activeLng) {
+      itemApi
+        .list({
+          lat: activeLat,
+          lng: activeLng,
+          radius: 50,
+          limit: 4,
+        })
+        .then(setNearbyItems)
+        .catch(() => {});
+    }
+  }, [user, browserLoc.latitude, browserLoc.longitude]);
 
   /* ─── render helpers ─── */
   const renderSection = (title, icon, items, viewAllLink) => {

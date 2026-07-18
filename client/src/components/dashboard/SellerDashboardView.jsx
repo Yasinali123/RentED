@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { DollarSign, Tag, ShoppingCart, Activity, Plus, Edit3, Trash2, CheckCircle2, XCircle, QrCode } from "lucide-react";
+import { DollarSign, Tag, ShoppingCart, Activity, Plus, Edit3, Trash2, CheckCircle2, XCircle, QrCode, FileText, RefreshCw } from "lucide-react";
 
 import ItemForm from "../items/ItemForm";
 import Button from "../ui/Button";
-import { itemApi, rentalApi, disputeApi, paymentApi, getErrorMessage } from "../../api/client";
+import { itemApi, rentalApi, disputeApi, paymentApi, invoiceApi, getErrorMessage } from "../../api/client";
 import UserSettingsView from "./UserSettingsView";
 
 function SellerDashboardView({ dashboard, onRefresh }) {
@@ -12,6 +12,22 @@ function SellerDashboardView({ dashboard, onRefresh }) {
   const [activeTab, setActiveTab] = useState("orders"); // "orders", "inventory", "new-listing"
   const [editingItem, setEditingItem] = useState(null);
   const [showQrCodeForOrder, setShowQrCodeForOrder] = useState(null);
+
+  // Invoice state
+  const [salesInvoices, setSalesInvoices] = useState([]);
+  const [salesInvoicesLoading, setSalesInvoicesLoading] = useState(false);
+
+  const fetchSalesInvoices = async () => {
+    setSalesInvoicesLoading(true);
+    try {
+      const data = await invoiceApi.getSalesInvoices();
+      setSalesInvoices(data);
+    } catch (err) {
+      console.error("Failed to fetch sales invoices:", err);
+    } finally {
+      setSalesInvoicesLoading(false);
+    }
+  };
 
   // Dispute state variables
   const [disputeOrderId, setDisputeOrderId] = useState("");
@@ -278,6 +294,18 @@ function SellerDashboardView({ dashboard, onRefresh }) {
           }`}
         >
           ⚙️ Settings
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("invoices");
+            setEditingItem(null);
+            fetchSalesInvoices();
+          }}
+          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
+            activeTab === "invoices" ? "border-accent text-accent" : "border-transparent text-ink/55 hover:text-ink"
+          }`}
+        >
+          🧾 Sales Invoices
         </button>
       </div>
 
@@ -726,6 +754,80 @@ function SellerDashboardView({ dashboard, onRefresh }) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === "invoices" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-accent" />
+              Sales Invoices
+            </h2>
+            <button onClick={fetchSalesInvoices} className="text-xs font-bold text-accent hover:underline flex items-center gap-1">
+              <RefreshCw className="h-3 w-3" /> Refresh
+            </button>
+          </div>
+
+          {salesInvoicesLoading ? (
+            <div className="panel p-10 text-center text-ink/50">
+              <p className="font-bold">Loading invoices...</p>
+            </div>
+          ) : salesInvoices.length === 0 ? (
+            <div className="panel p-10 text-center text-ink/50">
+              <FileText className="h-12 w-12 mx-auto text-ink/20 mb-3" />
+              <p className="font-bold">No sales invoices yet</p>
+              <p className="text-xs text-ink/40 mt-1">Invoices are generated when buyers place orders for your listings.</p>
+            </div>
+          ) : (
+            <div className="panel overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-ink/5">
+                    <th className="text-left p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Invoice #</th>
+                    <th className="text-left p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Item</th>
+                    <th className="text-left p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Buyer</th>
+                    <th className="text-left p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Type</th>
+                    <th className="text-right p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Amount</th>
+                    <th className="text-right p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Commission</th>
+                    <th className="text-left p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Date</th>
+                    <th className="text-right p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {salesInvoices.map((inv) => (
+                    <tr key={inv._id} className="border-b border-ink/5 hover:bg-canvas/50 transition-colors">
+                      <td className="p-3 font-mono text-xs font-bold text-accent">{inv.invoiceNumber}</td>
+                      <td className="p-3 font-semibold">{inv.item?.title || "—"}</td>
+                      <td className="p-3 text-xs">{inv.buyer?.name || "—"}</td>
+                      <td className="p-3">
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          inv.invoiceType === "rental" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"
+                        }`}>
+                          {inv.invoiceType}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right font-bold">Rs. {inv.totalAmount}</td>
+                      <td className="p-3 text-right text-xs text-ink/60">Rs. {inv.platformCommission}</td>
+                      <td className="p-3 text-xs text-ink/60">{new Date(inv.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
+                      <td className="p-3 text-right">
+                        {inv.pdfUrl && (
+                          <a
+                            href={inv.pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-full hover:bg-indigo-50 transition-colors"
+                          >
+                            📄 Download
+                          </a>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

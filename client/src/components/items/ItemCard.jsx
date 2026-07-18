@@ -58,6 +58,11 @@ function ItemCard({ item }) {
               {item.collegeName ? `${item.collegeName}, ${item.city}` : item.location}
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
+              {item.distance !== undefined && (
+                <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200" title="Geospatial Proximity">
+                  <MapPin className="h-3 w-3" /> {item.distance < 1000 ? `${Math.round(item.distance)} m away` : `${(item.distance / 1000).toFixed(1)} km away`}
+                </span>
+              )}
               {isSameCollege && (
                 <span className="flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-200">
                   <School className="h-3 w-3" /> Same College
@@ -69,6 +74,11 @@ function ItemCard({ item }) {
                 </span>
               )}
             </div>
+            {item.distance !== undefined && (
+              <p className="text-[10px] text-pine font-black uppercase tracking-wider mt-1.5">
+                Delivery: {item.distance / 1000 <= 1 ? "FREE" : `₹${item.distance / 1000 <= 3 ? 20 : item.distance / 1000 <= 5 ? 40 : item.distance / 1000 <= 10 ? 60 : 100}`}
+              </p>
+            )}
           </div>
           <div className="text-right text-sm">
             {rentalPrice !== null ? (

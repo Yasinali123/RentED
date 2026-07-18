@@ -11,6 +11,15 @@ function NotificationsList({ notifications, unreadCount, onRefresh, onClose }) {
     }
   };
 
+  const handleMarkRead = async (id) => {
+    try {
+      await notificationApi.readNotification({ id });
+      onRefresh();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleDelete = async (id) => {
     try {
       await notificationApi.delete(id);
@@ -32,7 +41,7 @@ function NotificationsList({ notifications, unreadCount, onRefresh, onClose }) {
           Notifications
           {unreadCount > 0 && (
             <span className="text-[10px] bg-accent text-white px-2 py-0.5 rounded-full font-bold">
-              {unreadCount} New
+              {unreadCount}
             </span>
           )}
         </h3>
@@ -54,8 +63,9 @@ function NotificationsList({ notifications, unreadCount, onRefresh, onClose }) {
         {notifications.map((n) => (
           <div
             key={n._id}
+            onClick={() => !n.isRead && handleMarkRead(n._id)}
             className={`p-3 rounded-xl border transition-all relative ${
-              n.isRead ? "bg-white/50 border-ink/5 text-ink/75" : "bg-accent/5 border-accent/10 text-ink font-semibold"
+              n.isRead ? "bg-white/50 border-ink/5 text-ink/75" : "bg-accent/5 border-accent/10 text-ink font-semibold hover:bg-accent/10 cursor-pointer"
             }`}
           >
             <div className="flex justify-between items-start gap-4">
@@ -67,7 +77,10 @@ function NotificationsList({ notifications, unreadCount, onRefresh, onClose }) {
                 </p>
               </div>
               <button
-                onClick={() => handleDelete(n._id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(n._id);
+                }}
                 className="p-1 hover:bg-red-50 text-ink/30 hover:text-red-500 rounded transition"
                 title="Delete alert"
               >

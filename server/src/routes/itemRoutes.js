@@ -2,7 +2,7 @@ import express from "express";
 
 import { createItem, getItemById, getItems, getMyItems, toggleWishlist, updateItem, deleteItem } from "../controllers/itemController.js";
 import { protect, optionalProtect } from "../middleware/authMiddleware.js";
-import { uploadPhotos } from "../middleware/uploadMiddleware.js";
+import { uploadPhotos } from "../middleware/upload.js";
 
 const router = express.Router();
 

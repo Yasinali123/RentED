@@ -1,5 +1,6 @@
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
+import { sendPushNotification } from "../services/notificationService.js";
 
 export const notifyUser = async (userId, title, message, type = "general") => {
   try {
@@ -9,6 +10,9 @@ export const notifyUser = async (userId, title, message, type = "general") => {
       message,
       type,
     });
+    
+    // Dispatch FCM push alert
+    await sendPushNotification(userId, title, message, { type });
   } catch (error) {
     console.error("Failed to create notification:", error.message);
   }

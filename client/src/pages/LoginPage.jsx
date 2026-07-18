@@ -22,7 +22,11 @@ function LoginPage() {
       await login(form);
       navigate(location.state?.from || "/dashboard");
     } catch (submitError) {
-      setError(submitError.message);
+      if (submitError?.needsVerification) {
+        navigate("/verify-email", { state: { email: submitError.email || form.email } });
+      } else {
+        setError(submitError.message || "Failed to log in.");
+      }
     } finally {
       setSubmitting(false);
     }

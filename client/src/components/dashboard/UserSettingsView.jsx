@@ -22,8 +22,9 @@ import {
   Smartphone
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { authApi, paymentApi, settingsApi, getErrorMessage } from "../../api/client";
+import { authApi, paymentApi, settingsApi, locationApi, getErrorMessage } from "../../api/client";
 import Button from "../ui/Button";
+import LocationPicker from "../maps/LocationPicker";
 
 function UserSettingsView({ onRefresh }) {
   const { user, setUser, logout } = useAuth();
@@ -141,6 +142,61 @@ function UserSettingsView({ onRefresh }) {
   const [supportMessage, setSupportMessage] = useState("");
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Active Sessions States
+  const [sessions, setSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
+  const fetchSessions = async () => {
+    setLoadingSessions(true);
+    try {
+      const data = await authApi.listSessions();
+      setSessions(data);
+    } catch (err) {
+      setErrorMsg(getErrorMessage(err));
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection === "sessions") {
+      fetchSessions();
+    }
+  }, [activeSection]);
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      const response = await authApi.deleteSession(sessionId);
+      if (response.loggedOut) {
+        logout();
+      } else {
+        setFeedbackMsg("Session revoked successfully.");
+        fetchSessions();
+      }
+    } catch (err) {
+      setErrorMsg(getErrorMessage(err));
+    }
+  };
+
+  const handleLogoutOther = async () => {
+    try {
+      await authApi.logoutOtherSessions();
+      setFeedbackMsg("Successfully logged out other devices.");
+      fetchSessions();
+    } catch (err) {
+      setErrorMsg(getErrorMessage(err));
+    }
+  };
+
+  const handleLogoutAll = async () => {
+    try {
+      await authApi.logoutAllSessions();
+      logout();
+    } catch (err) {
+      setErrorMsg(getErrorMessage(err));
+    }
+  };
 
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
@@ -330,6 +386,7 @@ function UserSettingsView({ onRefresh }) {
   // Sidebar config
   const sidebarItems = [
     { id: "account", label: "Account Settings", icon: User },
+    { id: "sessions", label: "Active Sessions", icon: Smartphone },
     { id: "privacy", label: "Privacy & Security", icon: Lock },
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "location", label: "Location Preferences", icon: MapPin },
@@ -387,6 +444,77 @@ function UserSettingsView({ onRefresh }) {
         {errorMsg && (
           <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-2xl text-red-700 text-xs font-semibold flex items-center gap-2 animate-fadeIn">
             <AlertTriangle className="h-4 w-4 shrink-0" /> {errorMsg}
+          </div>
+        )}
+
+        {/* Active Sessions Settings */}
+        {activeSection === "sessions" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-black text-ink uppercase tracking-wide">📱 Active Sessions</h2>
+              <p className="text-xs text-ink/40">Manage your active logins across devices and browsers. Revoke sessions to log out of other devices remotely.</p>
+            </div>
+
+            {loadingSessions ? (
+              <p className="text-xs text-ink/40">Loading active sessions...</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleLogoutOther}
+                    className="text-xs py-1.5 px-4 font-bold border border-ink/15 hover:bg-canvas/50"
+                  >
+                    Logout Other Devices
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={handleLogoutAll}
+                    className="text-xs py-1.5 px-4 font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100"
+                  >
+                    Logout All Devices
+                  </Button>
+                </div>
+
+                <div className="divide-y divide-ink/5 border border-ink/10 rounded-2xl overflow-hidden bg-canvas/20">
+                  {sessions.map((s) => (
+                    <div key={s._id} className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-ink">
+                            {s.browser} on {s.os} ({s.device})
+                          </span>
+                          {s.isCurrent && (
+                            <span className="bg-green-100 border border-green-300 text-green-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+                              Current Device
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-ink/50 mt-1 leading-normal">
+                          IP Address: <span className="font-mono text-ink/75">{s.ipAddress || "Unknown IP"}</span> • Logged in: {new Date(s.loginTime).toLocaleString()}
+                        </p>
+                        <p className="text-[10px] text-ink/35 truncate max-w-[280px] sm:max-w-md mt-0.5">
+                          {s.userAgent}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => handleRevokeSession(s._id)}
+                        className={`text-xs py-1 px-3 border border-red-100 text-red-600 hover:bg-red-50`}
+                      >
+                        {s.isCurrent ? "Logout Current" : "Revoke"}
+                      </Button>
+                    </div>
+                  ))}
+                  {sessions.length === 0 && (
+                    <p className="text-xs text-ink/40 p-4 text-center">No active sessions found.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -821,6 +949,52 @@ function UserSettingsView({ onRefresh }) {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
+              {/* Map Location Picker */}
+              <div className="p-4 border border-ink/5 bg-canvas/10 rounded-2xl sm:col-span-2 space-y-4">
+                <h3 className="text-xs font-black text-accent uppercase tracking-wider">Map Pin Location</h3>
+                <LocationPicker
+                  initialLat={user?.latitude || user?.geometry?.coordinates?.[1]}
+                  initialLng={user?.longitude || user?.geometry?.coordinates?.[0]}
+                  onChangeLocation={async (loc) => {
+                    setLocationForm({
+                      ...locationForm,
+                      country: loc.country,
+                      state: loc.state,
+                      city: loc.city,
+                      college: loc.college,
+                    });
+                    
+                    try {
+                      setFeedbackMsg("Saving location coordinates...");
+                      const data = await locationApi.saveUserLocation({
+                        latitude: loc.latitude,
+                        longitude: loc.longitude,
+                        college: loc.college,
+                        institution: loc.institution,
+                        city: loc.city,
+                        district: loc.district,
+                        state: loc.state,
+                        country: loc.country,
+                        address: loc.address
+                      });
+                      setUser({
+                        ...user,
+                        latitude: loc.latitude,
+                        longitude: loc.longitude,
+                        geometry: data.user.geometry,
+                        collegeName: loc.college,
+                        city: loc.city,
+                        state: loc.state,
+                        location: loc.address
+                      });
+                      setFeedbackMsg("Hyperlocal location saved successfully!");
+                    } catch (err) {
+                      setErrorMsg(getErrorMessage(err));
+                    }
+                  }}
+                />
+              </div>
+
               <div className="space-y-1">
                 <label className="text-xs font-black uppercase text-ink/50">Country</label>
                 <input

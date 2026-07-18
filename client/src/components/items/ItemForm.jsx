@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Sparkles, Camera, Trash2 } from "lucide-react";
 import Button from "../ui/Button";
+import LocationPicker from "../maps/LocationPicker";
 
 const initialState = {
   title: "",
@@ -18,6 +19,7 @@ const initialState = {
 };
 
 function ItemForm({ onSubmit, itemToEdit = null, onCancel = null }) {
+  const [pickedLocation, setPickedLocation] = useState(null);
   const [form, setForm] = useState(itemToEdit ? {
     title: itemToEdit.title || "",
     description: itemToEdit.description || "",
@@ -110,6 +112,17 @@ function ItemForm({ onSubmit, itemToEdit = null, onCancel = null }) {
       formData.append("campus", form.campus);
       formData.append("condition", form.condition);
       formData.append("brand", form.brand);
+
+      if (pickedLocation) {
+        formData.append("pickupLatitude", String(pickedLocation.latitude));
+        formData.append("pickupLongitude", String(pickedLocation.longitude));
+        formData.append("pickupAddress", pickedLocation.address);
+        formData.append("college", pickedLocation.college);
+        formData.append("district", pickedLocation.district);
+        formData.append("city", pickedLocation.city);
+        formData.append("state", pickedLocation.state);
+        formData.append("country", pickedLocation.country);
+      }
       
       details.forEach((d) => formData.append("details", d));
 
@@ -252,14 +265,18 @@ function ItemForm({ onSubmit, itemToEdit = null, onCancel = null }) {
           )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <input
-            className="input"
-            placeholder="Hostel Room / Building Street Location"
-            value={form.location}
-            onChange={(e) => setForm({ ...form, location: e.target.value })}
-            required
-          />
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Pickup Location (Map Picker)</label>
+            <LocationPicker
+              initialLat={itemToEdit?.pickupLatitude || itemToEdit?.geometry?.coordinates?.[1]}
+              initialLng={itemToEdit?.pickupLongitude || itemToEdit?.geometry?.coordinates?.[0]}
+              onChangeLocation={(loc) => {
+                setPickedLocation(loc);
+                setForm({ ...form, location: loc.address });
+              }}
+            />
+          </div>
           <input
             className="input"
             placeholder="College Campus Name (e.g. ADC)"

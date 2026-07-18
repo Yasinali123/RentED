@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Wallet, Heart, ShoppingBag, MapPin, School, Plus, Bookmark, List, RefreshCw } from "lucide-react";
+import { Wallet, Heart, ShoppingBag, MapPin, School, Plus, Bookmark, List, RefreshCw, FileText } from "lucide-react";
 
 import OrderTimeline from "./OrderTimeline";
 import ItemCard from "../items/ItemCard";
 import Button from "../ui/Button";
-import { rentalApi, authApi, disputeApi, reviewApi, paymentApi, getErrorMessage } from "../../api/client";
+import { rentalApi, authApi, disputeApi, reviewApi, paymentApi, invoiceApi, getErrorMessage } from "../../api/client";
 import UserSettingsView from "./UserSettingsView";
 
 function StudentDashboardView({ dashboard, onRefresh }) {
@@ -25,116 +25,33 @@ function StudentDashboardView({ dashboard, onRefresh }) {
   const [pocCommentInput, setPocCommentInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleDownloadInvoice = (order) => {
-    const invoiceNumber = `INV-${order._id.substring(order._id.length - 8).toUpperCase()}`;
-    const gstNumber = "27AAACR1234A1Z5";
-    const buyerName = order.renter?.name || "Student Buyer";
-    const buyerCollege = order.renter?.collegeName || order.item?.collegeName || "Campus Member";
-    const sellerName = order.owner?.name || "Student Seller";
-    const amount = order.totalPrice;
-    const commission = order.commissionAmount || Math.round(amount * 0.1);
-    
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>RentED Invoice - ${invoiceNumber}</title>
-          <style>
-            body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; padding: 40px; margin: 0; line-height: 1.5; }
-            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-            .logo { font-size: 24px; font-weight: 800; color: #4f46e5; }
-            .title { font-size: 20px; font-weight: 700; text-align: right; text-transform: uppercase; color: #64748b; }
-            .details { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; }
-            .section-title { font-size: 10px; font-weight: bold; color: #94a3b8; text-transform: uppercase; tracking-wider: 1px; margin-bottom: 5px; }
-            .info-block p { margin: 4px 0; font-size: 13px; }
-            .table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            .table th { background: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 12px; font-size: 11px; text-transform: uppercase; font-weight: 800; text-align: left; }
-            .table td { border-bottom: 1px solid #f1f5f9; padding: 12px; font-size: 13px; }
-            .summary-block { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; margin-top: 20px; }
-            .summary-row { display: flex; justify-content: space-between; width: 260px; font-size: 13px; }
-            .summary-row.total { font-size: 16px; font-weight: 800; border-top: 1px solid #cbd5e1; padding-top: 8px; color: #4f46e5; }
-            .footer { margin-top: 50px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <div class="logo">RentED</div>
-              <p style="font-size:12px;color:#64748b;margin:4px 0;">Hyperlocal Student Sharing Escrow Platform</p>
-            </div>
-            <div class="title">
-              Invoice
-              <p style="font-size:11px;color:#94a3b8;font-weight:normal;margin:4px 0 0 0;">No: ${invoiceNumber}</p>
-              <p style="font-size:11px;color:#94a3b8;font-weight:normal;margin:2px 0 0 0;">Date: ${new Date(order.createdAt).toLocaleDateString()}</p>
-            </div>
-          </div>
-          <div class="details">
-            <div class="info-block">
-              <p class="section-title">Billed To (Buyer)</p>
-              <p><strong>${buyerName}</strong></p>
-              <p>${buyerCollege}</p>
-              <p>Institution Member</p>
-            </div>
-            <div class="info-block" style="text-align: right;">
-              <p class="section-title">Sold By (Seller)</p>
-              <p><strong>${sellerName}</strong></p>
-              <p>RentED Partner Network</p>
-              <p>Platform GST Reg: ${gstNumber}</p>
-            </div>
-          </div>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>Category</th>
-                <th>Pricing Mode</th>
-                <th style="text-align: right;">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <strong>${order.item?.title || "Product Listing"}</strong>
-                  <div style="font-size:10px;color:#64748b;margin-top:2px;">Order ID: ${order._id}</div>
-                </td>
-                <td>${order.item?.category || "General"}</td>
-                <td>${order.requestType === "rental" ? "Rental duration" : "Direct Purchase"}</td>
-                <td style="text-align: right;">Rs. ${order.totalPrice}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="summary-block">
-            <div class="summary-row">
-              <span style="color:#64748b;">Subtotal</span>
-              <span>Rs. ${amount}</span>
-            </div>
-            <div class="summary-row">
-              <span style="color:#64748b;">GST (18% inclusive)</span>
-              <span>Rs. ${Math.round(amount * 0.18 * 100) / 100}</span>
-            </div>
-            <div class="summary-row">
-              <span style="color:#64748b;">Platform Service Fee</span>
-              <span>Rs. ${commission}</span>
-            </div>
-            <div class="summary-row total">
-              <span>Total Paid</span>
-              <span>Rs. ${amount}</span>
-            </div>
-          </div>
-          <div class="footer">
-            <p>This invoice is electronically generated. No physical signature is required.</p>
-            <p>RentED © 2026. For support, reach out to support@rented.com</p>
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.close();
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+  // Invoice state
+  const [invoices, setInvoices] = useState([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
+
+  const fetchInvoices = async () => {
+    setInvoicesLoading(true);
+    try {
+      const data = await invoiceApi.getMyInvoices();
+      setInvoices(data);
+    } catch (err) {
+      console.error("Failed to fetch invoices:", err);
+    } finally {
+      setInvoicesLoading(false);
+    }
+  };
+
+  const handleDownloadInvoice = async (order) => {
+    try {
+      const invoice = await invoiceApi.getByOrder(order._id);
+      if (invoice?.pdfUrl) {
+        window.open(invoice.pdfUrl, "_blank");
+      } else {
+        alert("Invoice PDF is not available yet. Please try again in a moment.");
+      }
+    } catch (err) {
+      alert(getErrorMessage(err) || "Failed to fetch invoice.");
+    }
   };
 
   const handleCancelOrder = async (orderId) => {
@@ -370,6 +287,14 @@ function StudentDashboardView({ dashboard, onRefresh }) {
         >
           ⚙️ Settings
         </button>
+        <button
+          onClick={() => { setActiveTab("invoices"); fetchInvoices(); }}
+          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
+            activeTab === "invoices" ? "border-accent text-accent" : "border-transparent text-ink/50 hover:text-ink"
+          }`}
+        >
+          🧾 My Invoices
+        </button>
       </div>
 
       {/* Tab Panels */}
@@ -542,6 +467,100 @@ function StudentDashboardView({ dashboard, onRefresh }) {
 
       {activeTab === "settings" && (
         <UserSettingsView onRefresh={onRefresh} />
+      )}
+
+      {activeTab === "invoices" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-accent" />
+              My Invoices
+            </h2>
+            <button onClick={fetchInvoices} className="text-xs font-bold text-accent hover:underline flex items-center gap-1">
+              <RefreshCw className="h-3 w-3" /> Refresh
+            </button>
+          </div>
+
+          {invoicesLoading ? (
+            <div className="panel p-10 text-center text-ink/50">
+              <p className="font-bold">Loading invoices...</p>
+            </div>
+          ) : invoices.length === 0 ? (
+            <div className="panel p-10 text-center text-ink/50">
+              <FileText className="h-12 w-12 mx-auto text-ink/20 mb-3" />
+              <p className="font-bold">No invoices found</p>
+              <p className="text-xs text-ink/40 mt-1">Invoices are generated automatically after each successful order.</p>
+            </div>
+          ) : (
+            <div className="panel overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-ink/5">
+                    <th className="text-left p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Invoice #</th>
+                    <th className="text-left p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Item</th>
+                    <th className="text-left p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Type</th>
+                    <th className="text-right p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Amount</th>
+                    <th className="text-left p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Date</th>
+                    <th className="text-left p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Status</th>
+                    <th className="text-right p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.map((inv) => (
+                    <tr key={inv._id} className="border-b border-ink/5 hover:bg-canvas/50 transition-colors">
+                      <td className="p-3 font-mono text-xs font-bold text-accent">{inv.invoiceNumber}</td>
+                      <td className="p-3 font-semibold">{inv.item?.title || "—"}</td>
+                      <td className="p-3">
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          inv.invoiceType === "rental" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"
+                        }`}>
+                          {inv.invoiceType}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right font-bold">Rs. {inv.totalAmount}</td>
+                      <td className="p-3 text-xs text-ink/60">{new Date(inv.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
+                      <td className="p-3">
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          inv.status === "emailed" ? "bg-green-50 text-green-700" : inv.status === "void" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"
+                        }`}>
+                          {inv.status}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex gap-2 justify-end">
+                          {inv.pdfUrl && (
+                            <a
+                              href={inv.pdfUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-full hover:bg-indigo-50 transition-colors"
+                            >
+                              📄 Download
+                            </a>
+                          )}
+                          <button
+                            onClick={async () => {
+                              try {
+                                await invoiceApi.resend(inv._id);
+                                alert("Invoice resent to your email!");
+                                fetchInvoices();
+                              } catch (err) {
+                                alert(getErrorMessage(err));
+                              }
+                            }}
+                            className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-full hover:bg-emerald-50 transition-colors"
+                          >
+                            📧 Resend
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Dynamic Recommendation Priority Slider */}

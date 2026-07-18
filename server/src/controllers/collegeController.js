@@ -19,7 +19,7 @@ export const createCollege = asyncHandler(async (req, res) => {
     throw new Error("Access denied: Admins only");
   }
 
-  const { name, city, state } = req.body;
+  const { name, city, state, latitude, longitude } = req.body;
 
   if (!name || !city || !state) {
     res.status(400);
@@ -38,6 +38,8 @@ export const createCollege = asyncHandler(async (req, res) => {
     name: normalizedName,
     city: String(city).trim(),
     state: String(state).trim(),
+    latitude: latitude ? Number(latitude) : undefined,
+    longitude: longitude ? Number(longitude) : undefined,
   });
 
   res.status(201).json(college);

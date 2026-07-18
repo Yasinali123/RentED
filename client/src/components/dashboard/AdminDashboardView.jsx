@@ -44,9 +44,12 @@ import {
   dashboardApi,
   couponApi,
   paymentApi,
+  invoiceApi,
   getErrorMessage
 } from "../../api/client";
 import UserSettingsView from "./UserSettingsView";
+import LocationPicker from "../maps/LocationPicker";
+import NearbyMap from "../maps/NearbyMap";
 
 function AdminDashboardView({ dashboard, onRefresh }) {
   const { stats = {}, disputes = [], users: initialUsers = [], transactions: initialTx = [], listedItems: initialListings = [], incomingRequests: initialOrders = [], withdrawals: initialWithdrawals = [] } = dashboard;
@@ -81,6 +84,11 @@ function AdminDashboardView({ dashboard, onRefresh }) {
   const [withdrawals, setWithdrawals] = useState(initialWithdrawals);
   const [loadingWithdrawals, setLoadingWithdrawals] = useState(false);
 
+  // Invoices state
+  const [invoices, setInvoices] = useState([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [invoiceSearch, setInvoiceSearch] = useState("");
+
   // Sync state with props
   useEffect(() => {
     setUsers(initialUsers);
@@ -94,6 +102,7 @@ function AdminDashboardView({ dashboard, onRefresh }) {
   const [colleges, setColleges] = useState([]);
   const [loadingColleges, setLoadingColleges] = useState(false);
   const [newCollege, setNewCollege] = useState({ name: "", city: "", state: "" });
+  const [pickedCollegeLoc, setPickedCollegeLoc] = useState(null);
 
   // System Settings state
   const [systemSettings, setSystemSettings] = useState({ commission_rate: 10, min_deposit: 100 });
@@ -119,6 +128,8 @@ function AdminDashboardView({ dashboard, onRefresh }) {
       fetchCoupons();
     } else if (activeTab === "withdrawals") {
       fetchWithdrawals();
+    } else if (activeTab === "invoices") {
+      fetchInvoices();
     }
   }, [activeTab]);
 
@@ -218,6 +229,18 @@ function AdminDashboardView({ dashboard, onRefresh }) {
     }
   };
 
+  const fetchInvoices = async () => {
+    setLoadingInvoices(true);
+    try {
+      const data = await invoiceApi.getAllInvoices();
+      setInvoices(data);
+    } catch (err) {
+      console.error("Failed to load invoices:", err);
+    } finally {
+      setLoadingInvoices(false);
+    }
+  };
+
   const handleCreateCoupon = async (e) => {
     e.preventDefault();
     if (!newCoupon.code.trim() || newCoupon.value === "" || !newCoupon.expiryDate) {
@@ -280,9 +303,14 @@ function AdminDashboardView({ dashboard, onRefresh }) {
       return;
     }
     try {
-      await collegeApi.create(newCollege);
+      await collegeApi.create({
+        ...newCollege,
+        latitude: pickedCollegeLoc?.latitude,
+        longitude: pickedCollegeLoc?.longitude,
+      });
       alert("Campus Network Registered Successfully!");
       setNewCollege({ name: "", city: "", state: "" });
+      setPickedCollegeLoc(null);
       fetchColleges();
       onRefresh();
     } catch (err) {
@@ -492,6 +520,16 @@ function AdminDashboardView({ dashboard, onRefresh }) {
     return t.type === txTypeFilter;
   });
 
+  const filteredInvoices = invoices.filter((inv) => {
+    const term = invoiceSearch.toLowerCase();
+    return (
+      inv.invoiceNumber.toLowerCase().includes(term) ||
+      (inv.buyer?.name || "").toLowerCase().includes(term) ||
+      (inv.seller?.name || "").toLowerCase().includes(term) ||
+      (inv.item?.title || "").toLowerCase().includes(term)
+    );
+  });
+
   // POC-specific statistics
   const pocUsers = users.filter(u => u.role === "poc" && u.isPocApproved);
   const getPocMetrics = (pocId) => {
@@ -516,6 +554,7 @@ function AdminDashboardView({ dashboard, onRefresh }) {
     { id: "analytics", label: "Analytics Charts", icon: TrendingUp },
     { id: "colleges", label: "College Network", icon: School },
     { id: "coupons", label: "Coupon Codes", icon: Tag },
+    { id: "invoices", label: "Invoice History", icon: FileText },
     { id: "settings", label: "System Settings", icon: Settings },
     { id: "user-settings", label: "⚙️ User Settings", icon: Settings }
   ];
@@ -1763,11 +1802,26 @@ function AdminDashboardView({ dashboard, onRefresh }) {
                 <p className="text-xs text-ink/40">Add institutional networks so students can map items and deliveries to their college.</p>
               </div>
 
-              <form onSubmit={handleAddCollege} className="grid gap-3 sm:grid-cols-4 items-end">
-                <div className="space-y-1">
+              <form onSubmit={handleAddCollege} className="grid gap-4 sm:grid-cols-4 items-end">
+                <div className="sm:col-span-4 space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-ink/50 block">Pin Campus Location on Map</label>
+                  <LocationPicker
+                    initialLat={23.0225}
+                    initialLng={72.5714}
+                    onChangeLocation={(loc) => {
+                      setPickedCollegeLoc(loc);
+                      setNewCollege({
+                        ...newCollege,
+                        city: loc.city || newCollege.city,
+                        state: loc.state || newCollege.state,
+                      });
+                    }}
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-ink/50">College name</label>
                   <input
-                    className="input py-2 px-3 text-xs"
+                    className="input py-2 px-3 text-xs w-full"
                     placeholder="e.g. St. Xavier College"
                     value={newCollege.name}
                     onChange={(e) => setNewCollege({ ...newCollege, name: e.target.value })}
@@ -1777,7 +1831,7 @@ function AdminDashboardView({ dashboard, onRefresh }) {
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-ink/50">City</label>
                   <input
-                    className="input py-2 px-3 text-xs"
+                    className="input py-2 px-3 text-xs w-full"
                     placeholder="e.g. Ahmedabad"
                     value={newCollege.city}
                     onChange={(e) => setNewCollege({ ...newCollege, city: e.target.value })}
@@ -1787,22 +1841,40 @@ function AdminDashboardView({ dashboard, onRefresh }) {
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-ink/50">State</label>
                   <input
-                    className="input py-2 px-3 text-xs"
+                    className="input py-2 px-3 text-xs w-full"
                     placeholder="e.g. Gujarat"
                     value={newCollege.state}
                     onChange={(e) => setNewCollege({ ...newCollege, state: e.target.value })}
                     required
                   />
                 </div>
-                <Button type="submit" variant="secondary" className="text-xs font-bold py-2 w-full uppercase">
+                <Button type="submit" variant="secondary" className="text-xs font-bold py-2 w-full uppercase sm:col-span-4">
                   Register Campus
                 </Button>
               </form>
             </div>
 
             {/* List Registered Colleges */}
-            <div className="panel p-6 bg-white space-y-4">
+            <div className="panel p-6 bg-white space-y-6">
               <h3 className="text-sm font-black uppercase text-ink">Active College Registries ({colleges.length})</h3>
+              
+              {colleges.filter(c => c.latitude && c.longitude).length > 0 && (
+                <div className="rounded-3xl overflow-hidden border border-ink/10 h-[320px] mb-4">
+                  <NearbyMap 
+                    items={colleges.filter(c => c.latitude && c.longitude).map(c => ({
+                      _id: c._id,
+                      title: c.name,
+                      rentalPrice: c.listingsCount || 0,
+                      geometry: {
+                        type: "Point",
+                        coordinates: [c.longitude, c.latitude]
+                      }
+                    }))} 
+                    height="320px" 
+                  />
+                </div>
+              )}
+
               {loadingColleges ? (
                 <p className="text-xs text-ink/40">Loading list...</p>
               ) : (
@@ -2020,6 +2092,120 @@ function AdminDashboardView({ dashboard, onRefresh }) {
         {/* TAB 12: USER SETTINGS */}
         {activeTab === "user-settings" && (
           <UserSettingsView onRefresh={onRefresh} />
+        )}
+
+        {/* TAB 13: INVOICE HISTORY */}
+        {activeTab === "invoices" && (
+          <div className="space-y-6">
+            <div className="panel p-6 bg-white space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-base font-black text-ink uppercase tracking-wide">Platform Invoice History</h2>
+                  <p className="text-xs text-ink/40">Audit and download all automatically generated invoice receipts on the platform.</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={fetchInvoices}
+                    className="text-xs font-bold text-accent hover:underline flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Refresh list
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter controls */}
+              <div className="flex items-center gap-2 bg-canvas/40 border border-ink/5 rounded-2xl px-4 py-2 text-xs">
+                <Search className="h-4 w-4 text-ink/30 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search invoices by Invoice #, Buyer, Seller, Item..."
+                  className="bg-transparent outline-none w-full text-ink/75 font-semibold placeholder:text-ink/30 placeholder:font-normal"
+                  value={invoiceSearch}
+                  onChange={(e) => setInvoiceSearch(e.target.value)}
+                />
+              </div>
+
+              {loadingInvoices ? (
+                <p className="text-xs text-ink/40 py-4 text-center">Loading invoices...</p>
+              ) : filteredInvoices.length === 0 ? (
+                <p className="text-xs text-ink/40 py-8 text-center">No invoices found matching query.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-ink/5 text-ink/40 uppercase font-black text-[9px] tracking-wider">
+                        <th className="py-2.5">Invoice #</th>
+                        <th className="py-2.5">Item Listing</th>
+                        <th className="py-2.5">Buyer</th>
+                        <th className="py-2.5">Seller</th>
+                        <th className="py-2.5">Type</th>
+                        <th className="py-2.5 text-right">Amount</th>
+                        <th className="py-2.5 text-right">Commission</th>
+                        <th className="py-2.5">Date</th>
+                        <th className="py-2.5">Status</th>
+                        <th className="py-2.5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ink/5">
+                      {filteredInvoices.map((inv) => (
+                        <tr key={inv._id} className="hover:bg-canvas/30 transition-colors">
+                          <td className="py-3 font-mono font-bold text-accent">{inv.invoiceNumber}</td>
+                          <td className="py-3 font-semibold text-ink">{inv.item?.title || "—"}</td>
+                          <td className="py-3 font-medium text-ink/85">{inv.buyer?.name || "—"}</td>
+                          <td className="py-3 font-medium text-ink/85">{inv.seller?.name || "—"}</td>
+                          <td className="py-3">
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                              inv.invoiceType === "rental" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"
+                            }`}>
+                              {inv.invoiceType}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right font-bold text-ink">Rs. {inv.totalAmount}</td>
+                          <td className="py-3 text-right text-ink/60">Rs. {inv.platformCommission}</td>
+                          <td className="py-3 text-ink/60">{new Date(inv.createdAt).toLocaleDateString("en-IN")}</td>
+                          <td className="py-3">
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                              inv.status === "emailed" ? "bg-green-50 text-green-700" : inv.status === "void" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"
+                            }`}>
+                              {inv.status}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right">
+                            <div className="flex justify-end gap-1.5">
+                              {inv.pdfUrl && (
+                                <a
+                                  href={inv.pdfUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-full hover:bg-indigo-50 transition-colors"
+                                >
+                                  📄 PDF
+                                </a>
+                              )}
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await invoiceApi.resend(inv._id);
+                                    alert("Invoice resent to buyer successfully!");
+                                    fetchInvoices();
+                                  } catch (err) {
+                                    alert(getErrorMessage(err));
+                                  }
+                                }}
+                                className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-full hover:bg-emerald-50 transition-colors"
+                              >
+                                📧 Resend
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
       </div>

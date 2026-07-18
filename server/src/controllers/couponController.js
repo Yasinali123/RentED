@@ -1,4 +1,6 @@
 import Coupon from "../models/Coupon.js";
+import User from "../models/User.js";
+import { notifyUser } from "../utils/notificationHelper.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
 // @desc    Get all coupons (Admin only)
@@ -32,6 +34,18 @@ export const createCoupon = asyncHandler(async (req, res) => {
     expiryDate: new Date(expiryDate),
     isActive: true
   });
+
+  // Notify all users about the new coupon
+  try {
+    const users = await User.find({ isSuspended: false }).select("_id");
+    const discLabel = discountType === "percentage" ? `${value}%` : `₹${value}`;
+    const expiryStr = new Date(expiryDate).toLocaleDateString();
+    for (const u of users) {
+      await notifyUser(u._id, "🎉 New Coupon Available!", `Use code ${cleanCode} to get ${discLabel} off! Valid until ${expiryStr}.`, "general");
+    }
+  } catch (err) {
+    console.error("Failed to notify users about new coupon:", err.message);
+  }
 
   res.status(201).json(coupon);
 });
