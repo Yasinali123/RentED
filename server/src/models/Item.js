@@ -103,16 +103,17 @@ const itemSchema = new mongoose.Schema(
         default: [0, 0],
       },
     },
-    image: {
-      type: String,
-      default: "",
-    },
-    photos: {
-      type: [String],
+    images: {
+      type: [
+        {
+          url: { type: String, required: true },
+          publicId: { type: String, required: true }
+        }
+      ],
       default: [],
       validate: {
-        validator: (value) => value.length <= 3,
-        message: "You can upload up to 3 photos",
+        validator: (value) => value.length <= 5,
+        message: "You can upload up to 5 photos",
       },
     },
     condition: {
@@ -139,8 +140,20 @@ const itemSchema = new mongoose.Schema(
       default: [],
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
 );
+
+itemSchema.virtual("photos").get(function () {
+  return this.images ? this.images.map((img) => img.url) : [];
+});
+
+itemSchema.virtual("image").get(function () {
+  return this.images && this.images.length > 0 ? this.images[0].url : "";
+});
 
 itemSchema.index({ title: "text", description: "text", location: "text", campus: "text", city: "text", collegeName: "text" });
 itemSchema.index({ geometry: "2dsphere" });

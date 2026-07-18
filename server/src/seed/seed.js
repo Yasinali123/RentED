@@ -76,6 +76,7 @@ const seed = async () => {
       users.map(async (user) => ({
         name: user.name,
         email: user.email,
+        phone: user.phone || "9876543210",
         passwordHash: await bcrypt.hash(user.password, 10),
         collegeId: user.collegeId,
         campus: user.campus,
@@ -112,8 +113,10 @@ const seed = async () => {
       category: item.category,
       location: item.location,
       campus: item.campus,
-      image: item.photos?.[0] || item.image,
-      photos: item.photos || (item.image ? [item.image] : []),
+      images: (item.photos || (item.image ? [item.image] : [])).map((url) => ({
+        url,
+        publicId: `seed_placeholder_${Math.random().toString(36).substring(7)}`,
+      })),
       condition: item.condition || "Good",
       brand: item.brand || "",
       details: item.details || [],

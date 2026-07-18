@@ -29,15 +29,15 @@ export const authApi = {
   getUsers: async () => (await api.get("/auth/users")).data,
   updateUserStatus: async (userId, payload) => (await api.patch(`/auth/users/${userId}/status`, payload)).data,
   addBalance: async (payload) => (await api.post("/auth/add-balance", payload)).data,
-  updateProfile: async (payload) => (await api.patch("/auth/profile", payload)).data,
+  updateProfile: async (payload, config = {}) => (await api.patch("/auth/profile", payload, config)).data,
 };
 
 export const itemApi = {
   list: async (params) => (await api.get("/items", { params })).data,
   getById: async (itemId) => (await api.get(`/items/${itemId}`)).data,
   getMine: async () => (await api.get("/items/mine")).data,
-  create: async (payload) => (await api.post("/items", payload)).data,
-  update: async (itemId, payload) => (await api.patch(`/items/${itemId}`, payload)).data,
+  create: async (payload, config = {}) => (await api.post("/items", payload, config)).data,
+  update: async (itemId, payload, config = {}) => (await api.patch(`/items/${itemId}`, payload, config)).data,
   delete: async (itemId) => (await api.delete(`/items/${itemId}`)).data,
   toggleWishlist: async (itemId) => (await api.post(`/items/${itemId}/wishlist`)).data,
 };
@@ -67,6 +67,9 @@ export const rentalApi = {
 export const paymentApi = {
   createIntent: async (payload) => (await api.post("/payments/intent", payload)).data,
   verify: async (payload) => (await api.post("/payments/verify", payload)).data,
+  withdraw: async (payload) => (await api.post("/payments/withdraw", payload)).data,
+  listWithdrawals: async () => (await api.get("/payments/withdrawals")).data,
+  processWithdrawal: async (id, payload) => (await api.patch(`/payments/withdrawals/${id}`, payload)).data,
 };
 
 export const chatApi = {

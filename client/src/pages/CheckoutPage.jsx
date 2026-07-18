@@ -12,6 +12,16 @@ import {
   isRoomListing,
 } from "../utils/itemPresentation";
 
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 function CheckoutPage() {
   const { itemId } = useParams();
   const location = useLocation();
@@ -21,10 +31,8 @@ function CheckoutPage() {
   const [item, setItem] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [upiStatus, setUpiStatus] = useState("idle"); // "idle", "pending", "success"
   const [userBalance, setUserBalance] = useState(user?.balance || 0);
   const [isOnlinePaid, setIsOnlinePaid] = useState(false);
-  const [showQrModal, setShowQrModal] = useState(false);
   const [onlinePayRef, setOnlinePayRef] = useState("");
 
   // Extract intent from location state
@@ -157,9 +165,90 @@ function CheckoutPage() {
     event.preventDefault();
     setFeedback("");
 
-    // If Razorpay Online Payment is selected but not paid yet, show QR code modal first
+    // If Razorpay Online Payment is selected but not paid yet, trigger Razorpay Checkout
     if (form.paymentMethod === "online" && !isOnlinePaid) {
-      setShowQrModal(true);
+      if (!form.deliveryAddress.trim() && !isRoom) {
+        setFeedback("Please enter a delivery address.");
+        return;
+      }
+
+      setIsProcessing(true);
+      setFeedback("Initiating payment gateway...");
+
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        setFeedback("Failed to load Razorpay payment SDK.");
+        setIsProcessing(false);
+        return;
+      }
+
+      try {
+        const orderData = await paymentApi.createIntent({
+          itemId: item._id,
+          requestType,
+          startDate,
+          endDate,
+          couponCode: appliedCoupon ? appliedCoupon.code : "",
+        });
+
+        const options = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: "RentEd",
+          description: `Rent/Purchase for ${item.title}`,
+          order_id: orderData.orderId,
+          handler: async function (response) {
+            try {
+              setFeedback("Verifying transaction...");
+              const verification = await paymentApi.verify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                itemId: item._id,
+                requestType,
+                startDate,
+                endDate,
+                couponCode: appliedCoupon ? appliedCoupon.code : "",
+              });
+
+              if (verification.success) {
+                setOnlinePayRef(verification.paymentReference);
+                setIsOnlinePaid(true);
+                setFeedback("Payment successful! Directing...");
+                // Automatically complete order placement
+                await completeOrderPlacement(verification.paymentReference);
+              } else {
+                setFeedback("Payment verification failed.");
+                setIsProcessing(false);
+              }
+            } catch (err) {
+              setFeedback(getErrorMessage(err));
+              setIsProcessing(false);
+            }
+          },
+          prefill: {
+            name: user?.name || "",
+            email: user?.email || "",
+            contact: user?.phone || "",
+          },
+          theme: {
+            color: "#4f46e5",
+          },
+          modal: {
+            ondismiss: function () {
+              setFeedback("Payment cancelled.");
+              setIsProcessing(false);
+            },
+          },
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } catch (err) {
+        setFeedback(getErrorMessage(err));
+        setIsProcessing(false);
+      }
       return;
     }
 
@@ -507,90 +596,6 @@ function CheckoutPage() {
         </div>
       </div>
 
-      {/* ── Razorpay Mock QR Payment Modal ── */}
-      {showQrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="relative w-full max-w-md rounded-3xl border border-white/20 bg-gradient-to-b from-[#0c1f2b] to-[#07151e] p-6 text-white shadow-2xl text-center">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-5">
-              <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-accent animate-pulse" />
-                <span className="text-sm font-bold uppercase tracking-wider text-accent">Razorpay Secure Payment</span>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setShowQrModal(false)}
-                className="text-white/40 hover:text-white transition text-lg font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* QR Content */}
-            <div className="space-y-4">
-              <p className="text-sm text-white/70">
-                Scan the QR code below using any UPI App (GPay, PhonePe, Paytm, BHIM) to make a secure payment of
-              </p>
-              <p className="text-3xl font-black text-accent">Rs. {finalPayableAmount}</p>
-
-              {/* QR frame */}
-              <div className="relative mx-auto flex h-52 w-52 items-center justify-center rounded-2xl border border-white/10 bg-white p-3 shadow-lg">
-                {/* Scanner guides */}
-                <div className="absolute top-2 left-2 h-4 w-4 border-t-2 border-l-2 border-accent" />
-                <div className="absolute top-2 right-2 h-4 w-4 border-t-2 border-r-2 border-accent" />
-                <div className="absolute bottom-2 left-2 h-4 w-4 border-b-2 border-l-2 border-accent" />
-                <div className="absolute bottom-2 right-2 h-4 w-4 border-b-2 border-r-2 border-accent" />
-                
-                {/* Auto-generated QR server link containing UPI details */}
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=rented@rzp%26pn=RentEd%26am=${finalPayableAmount}%26cu=INR`}
-                  alt="Payment QR Code"
-                  className="h-full w-full"
-                />
-              </div>
-
-              {/* Supported apps */}
-              <div className="flex items-center justify-center gap-4 py-2.5 border-y border-white/5 my-4">
-                <span className="text-[10px] font-bold tracking-wider text-white/40 uppercase">UPI Apps:</span>
-                <div className="flex items-center gap-3 opacity-70">
-                  <span className="text-xs font-black text-blue-400">GPay</span>
-                  <span className="text-xs font-black text-violet-400">PhonePe</span>
-                  <span className="text-xs font-black text-cyan-400">Paytm</span>
-                  <span className="text-xs font-black text-white/80">BHIM</span>
-                </div>
-              </div>
-
-              {/* Action Simulation */}
-              <div className="space-y-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const mockTx = "pay_rzp_mock_" + Math.random().toString(36).substring(7);
-                    setOnlinePayRef(mockTx);
-                    setIsOnlinePaid(true);
-                    setShowQrModal(false);
-                    setFeedback("");
-                  }}
-                  className="w-full rounded-2xl bg-accent py-3.5 text-sm font-bold text-white hover:bg-orange-500 hover:scale-[1.02] active:scale-[0.98] transition duration-200 flex items-center justify-center gap-2 shadow-lg shadow-accent/25"
-                >
-                  <ShieldCheck className="h-5 w-5" />
-                  Simulate Payment Successful
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={() => setShowQrModal(false)}
-                  className="block w-full text-center text-xs text-white/40 hover:text-white underline transition pt-1"
-                >
-                  Cancel & Return
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Sparkles, Image, CheckCircle, HelpCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Sparkles, Camera, Trash2 } from "lucide-react";
 import Button from "../ui/Button";
 
 const initialState = {
@@ -11,8 +11,6 @@ const initialState = {
   category: "Books",
   location: "",
   campus: "",
-  photo1: "",
-  photo2: "",
   condition: "Good",
   brand: "",
   detail1: "",
@@ -29,49 +27,112 @@ function ItemForm({ onSubmit, itemToEdit = null, onCancel = null }) {
     category: itemToEdit.category || "Books",
     location: itemToEdit.location || "",
     campus: itemToEdit.campus || "",
-    photo1: itemToEdit.photos?.[0] || itemToEdit.image || "",
-    photo2: itemToEdit.photos?.[1] || "",
     condition: itemToEdit.condition || "Good",
     brand: itemToEdit.brand || "",
     detail1: itemToEdit.details?.[0] || "",
     detail2: itemToEdit.details?.[1] || "",
   } : initialState);
 
+  const [selectedFiles, setSelectedFiles] = useState([]); // [{ file, previewUrl }]
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [feedback, setFeedback] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    return () => {
+      selectedFiles.forEach((fileObj) => URL.revokeObjectURL(fileObj.previewUrl));
+    };
+  }, []);
+
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files || []);
+    setFeedback("");
+
+    if (selectedFiles.length + files.length > 5) {
+      setFeedback("Maximum 5 images allowed.");
+      return;
+    }
+
+    const validated = [];
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+
+    for (const file of files) {
+      if (!allowedTypes.includes(file.type)) {
+        setFeedback(`Invalid file format: ${file.name}. Only JPG, PNG, and WEBP allowed.`);
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setFeedback(`File too large: ${file.name}. Max size allowed is 5MB.`);
+        return;
+      }
+      validated.push({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
+    }
+
+    setSelectedFiles((prev) => [...prev, ...validated]);
+  };
+
+  const handleRemoveFile = (indexToRemove) => {
+    setSelectedFiles((prev) => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[indexToRemove].previewUrl);
+      updated.splice(indexToRemove, 1);
+      return updated;
+    });
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
     setError("");
+    setFeedback("");
 
-    if (!form.photo1 || !form.photo2) {
+    if (!itemToEdit && selectedFiles.length < 2) {
       setError("Please add at least 2 photos of the item for verification");
       setSubmitting(false);
       return;
     }
 
     try {
-      const payload = {
-        title: form.title,
-        description: form.description,
-        listingType: form.listingType,
-        rentalPrice: form.rentalPrice === "" ? null : Number(form.rentalPrice),
-        salePrice: form.salePrice === "" ? null : Number(form.salePrice),
-        category: form.category,
-        location: form.location,
-        campus: form.campus,
-        photos: [form.photo1, form.photo2].filter(Boolean),
-        condition: form.condition,
-        brand: form.brand,
-        details: [form.detail1, form.detail2].filter(Boolean),
-      };
-      await onSubmit(payload);
-      if (!itemToEdit) setForm(initialState);
+      const details = [form.detail1, form.detail2].map((value) => value.trim()).filter(Boolean);
+
+      const formData = new FormData();
+      formData.append("title", form.title);
+      formData.append("description", form.description);
+      formData.append("listingType", form.listingType);
+      formData.append("rentalPrice", form.rentalPrice === "" ? "" : String(Number(form.rentalPrice)));
+      formData.append("salePrice", form.salePrice === "" ? "" : String(Number(form.salePrice)));
+      formData.append("category", form.category);
+      formData.append("location", form.location);
+      formData.append("campus", form.campus);
+      formData.append("condition", form.condition);
+      formData.append("brand", form.brand);
+      
+      details.forEach((d) => formData.append("details", d));
+
+      selectedFiles.forEach((fileObj) => {
+        formData.append("photos", fileObj.file);
+      });
+
+      await onSubmit(formData, {
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        },
+      });
+
+      if (!itemToEdit) {
+        setForm(initialState);
+        setSelectedFiles([]);
+      }
     } catch (err) {
       setError(err?.response?.data?.message || err.message || "Failed to publish item");
     } finally {
       setSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -208,27 +269,82 @@ function ItemForm({ onSubmit, itemToEdit = null, onCancel = null }) {
           />
         </div>
 
-        <div className="rounded-2xl border border-ink/5 bg-mist/20 p-4 space-y-3">
+        <div className="rounded-2xl border border-ink/5 bg-mist/20 p-4 space-y-4">
           <p className="text-xs font-bold uppercase text-ink/50 flex items-center gap-1">
-            <Image className="h-4 w-4 text-accent" />
-            Verification Images (2 URLs required)
+            <Camera className="h-4 w-4 text-accent" />
+            Verification Images
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
+
+          {itemToEdit && itemToEdit.photos && itemToEdit.photos.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] uppercase font-bold text-ink/40">Current Images:</p>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {itemToEdit.photos.map((photo, i) => (
+                  <img
+                    key={i}
+                    src={photo}
+                    alt="Current"
+                    className="h-14 w-14 rounded-lg object-cover border border-ink/10"
+                  />
+                ))}
+              </div>
+              <p className="text-[9px] text-amber-600 font-semibold">
+                * Note: Uploading new photos will replace all existing images. Leave blank to keep current images.
+              </p>
+            </div>
+          )}
+
+          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-ink/15 bg-white p-4 text-center transition hover:border-accent">
+            <Camera className="h-5 w-5 text-accent" />
+            <div>
+              <p className="text-xs font-semibold text-ink">Choose files from device</p>
+              <p className="text-[10px] text-ink/45">Select 2 to 5 images (JPG, PNG, WEBP • Max 5MB)</p>
+            </div>
             <input
-              className="input bg-white"
-              placeholder="Cover Photo URL (https://...)"
-              value={form.photo1}
-              onChange={(e) => setForm({ ...form, photo1: e.target.value })}
-              required
+              className="hidden"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={handleFileSelect}
             />
-            <input
-              className="input bg-white"
-              placeholder="Detail Photo URL (https://...)"
-              value={form.photo2}
-              onChange={(e) => setForm({ ...form, photo2: e.target.value })}
-              required
-            />
-          </div>
+          </label>
+
+          {submitting && uploadProgress > 0 && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px] font-bold text-accent">
+                <span>Uploading...</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-canvas h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-accent h-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {feedback && <p className="text-[10px] text-red-600 font-semibold">{feedback}</p>}
+
+          {selectedFiles.length > 0 && (
+            <div className="grid gap-2 grid-cols-2">
+              {selectedFiles.map((fileObj, index) => (
+                <div key={index} className="flex items-center justify-between p-2 rounded-xl bg-white border border-ink/5 text-xs">
+                  <div className="flex items-center gap-2 truncate max-w-[70%]">
+                    <img src={fileObj.previewUrl} alt="Preview" className="h-8 w-8 rounded object-cover" />
+                    <span className="truncate">{fileObj.file.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-red-500 font-bold text-[10px] hover:underline shrink-0"
+                    onClick={() => handleRemoveFile(index)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">

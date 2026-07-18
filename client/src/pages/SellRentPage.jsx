@@ -15,42 +15,11 @@ const initialState = {
   condition: "Good",
   brand: "",
   location: "",
-  photo1: "",
-  photo2: "",
-  photo3: "",
   detail1: "",
   detail2: "",
   detail3: "",
   tags: "",
 };
-
-const resizeImageToDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const image = new Image();
-
-      image.onload = () => {
-        const maxDimension = 1280;
-        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
-        const canvas = document.createElement("canvas");
-
-        canvas.width = Math.max(1, Math.round(image.width * scale));
-        canvas.height = Math.max(1, Math.round(image.height * scale));
-
-        const context = canvas.getContext("2d");
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
-      };
-
-      image.onerror = () => reject(new Error("Selected file is not a valid image"));
-      image.src = reader.result;
-    };
-
-    reader.onerror = () => reject(new Error("Unable to read the selected file"));
-    reader.readAsDataURL(file);
-  });
 
 function SellRentPage() {
   const navigate = useNavigate();
@@ -61,7 +30,8 @@ function SellRentPage() {
   });
   const [feedback, setFeedback] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [processingPhoto, setProcessingPhoto] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState([]); // [{ file, previewUrl }]
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [commissionRate, setCommissionRate] = useState(10);
   const isRoomCategory = form.category === "Rooms";
 
@@ -79,69 +49,110 @@ function SellRentPage() {
     fetchCommissionRate();
   }, []);
 
+  // Cleanup object URLs to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      selectedFiles.forEach((fileObj) => URL.revokeObjectURL(fileObj.previewUrl));
+    };
+  }, []);
+
   const handleChange = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const handlePhotoSelect = async (field, file) => {
-    if (!file) {
-      handleChange(field, "");
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files || []);
+    setFeedback("");
+
+    if (selectedFiles.length + files.length > 5) {
+      setFeedback("Maximum 5 images allowed.");
       return;
     }
 
-    setProcessingPhoto(field);
-    setFeedback("");
+    const validated = [];
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
 
-    try {
-      const compressedPhoto = await resizeImageToDataUrl(file);
-      handleChange(field, compressedPhoto);
-    } catch (error) {
-      setFeedback(error.message);
-    } finally {
-      setProcessingPhoto("");
+    for (const file of files) {
+      if (!allowedTypes.includes(file.type)) {
+        setFeedback(`Invalid file format: ${file.name}. Only JPG, PNG, and WEBP allowed.`);
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setFeedback(`File too large: ${file.name}. Max size allowed is 5MB.`);
+        return;
+      }
+      validated.push({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
     }
+
+    setSelectedFiles((prev) => [...prev, ...validated]);
+  };
+
+  const handleRemoveFile = (indexToRemove) => {
+    setSelectedFiles((prev) => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[indexToRemove].previewUrl);
+      updated.splice(indexToRemove, 1);
+      return updated;
+    });
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setSubmitting(true);
     setFeedback("");
 
+    if (selectedFiles.length < 2) {
+      setFeedback("Please select at least 2 photos of the item for verification.");
+      return;
+    }
+
+    setSubmitting(true);
+    setUploadProgress(0);
+
     try {
-      const photos = [form.photo1, form.photo2, form.photo3].map((value) => value.trim()).filter(Boolean);
       const details = [form.detail1, form.detail2, form.detail3].map((value) => value.trim()).filter(Boolean);
       const tags = form.tags
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean);
 
-      const createdItem = await itemApi.create({
-        title: form.title,
-        description: form.description,
-        category: form.category,
-        rentalPrice: Number(form.rentalPrice),
-        salePrice: Number(form.salePrice),
-        condition: form.condition,
-        brand: form.brand,
-        location: form.location,
-        photos,
-        details,
-        tags,
+      const formData = new FormData();
+      formData.append("title", form.title);
+      formData.append("description", form.description);
+      formData.append("category", form.category);
+      formData.append("rentalPrice", String(Number(form.rentalPrice)));
+      formData.append("salePrice", String(Number(form.salePrice)));
+      formData.append("condition", form.condition);
+      formData.append("brand", form.brand);
+      formData.append("location", form.location);
+
+      details.forEach((detail) => formData.append("details", detail));
+      tags.forEach((tag) => formData.append("tags", tag));
+
+      selectedFiles.forEach((fileObj) => {
+        formData.append("photos", fileObj.file);
+      });
+
+      const createdItem = await itemApi.create(formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        },
       });
 
       navigate(`/items/${createdItem._id}`);
     } catch (error) {
       setFeedback(getErrorMessage(error));
+      setUploadProgress(0);
     } finally {
       setSubmitting(false);
     }
   };
-
-  const photoPreview = [
-    { field: "photo1", value: form.photo1.trim() },
-    { field: "photo2", value: form.photo2.trim() },
-    { field: "photo3", value: form.photo3.trim() },
-  ].filter((photo) => photo.value);
 
   return (
     <div className="space-y-8">
@@ -297,56 +308,58 @@ function SellRentPage() {
             onChange={(event) => handleChange("description", event.target.value)}
           />
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-lg font-semibold">Photos</p>
-              <p className="text-sm text-ink/55">Select 2-3 photos from your device or media</p>
+              <p className="text-sm text-ink/55">Upload 2 to 5 photos from your device</p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              {[
-                { field: "photo1", label: "Photo 1", required: true },
-                { field: "photo2", label: "Photo 2", required: true },
-                { field: "photo3", label: "Photo 3", required: false },
-              ].map((photoInput) => (
-                <label
-                  key={photoInput.field}
-                  className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-ink/15 bg-white p-5 text-center transition hover:border-accent"
-                >
-                  <Camera className="h-7 w-7 text-accent" />
-                  <div>
-                    <p className="text-sm font-semibold text-ink">{photoInput.label}</p>
-                    <p className="mt-1 text-xs text-ink/55">
-                      {processingPhoto === photoInput.field
-                        ? "Processing image..."
-                        : photoInput.required
-                          ? "Choose from media"
-                          : "Optional"}
-                    </p>
-                  </div>
-                  <input
-                    className="hidden"
-                    type="file"
-                    accept="image/*"
-                    required={photoInput.required && !form[photoInput.field]}
-                    onChange={(event) => handlePhotoSelect(photoInput.field, event.target.files?.[0])}
+            
+            <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-ink/15 bg-white p-6 text-center transition hover:border-accent">
+              <Camera className="h-8 w-8 text-accent" />
+              <div>
+                <p className="text-sm font-semibold text-ink">Choose images to upload</p>
+                <p className="mt-1 text-xs text-ink/55">JPG, PNG or WEBP (Max 5MB each)</p>
+              </div>
+              <input
+                className="hidden"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={handleFileSelect}
+              />
+              <span className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-white">
+                Select photos
+              </span>
+            </label>
+
+            {/* Upload Progress Bar */}
+            {submitting && uploadProgress > 0 && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs font-bold text-accent">
+                  <span>Uploading to Cloudinary...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-mist h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-accent h-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
                   />
-                  <span className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-white">
-                    Select photo
-                  </span>
-                </label>
-              ))}
-            </div>
-            {photoPreview.length ? (
+                </div>
+              </div>
+            )}
+
+            {/* Selected Images Previews */}
+            {selectedFiles.length > 0 && (
               <div className="grid gap-3 sm:grid-cols-3">
-                {photoPreview.map((photo, index) => (
-                  <div key={photo.field} className="overflow-hidden rounded-2xl border border-ink/10 bg-white">
-                    <img src={photo.value} alt="Listing preview" className="h-28 w-full object-cover" />
+                {selectedFiles.map((fileObj, index) => (
+                  <div key={index} className="overflow-hidden rounded-2xl border border-ink/10 bg-white">
+                    <img src={fileObj.previewUrl} alt="Preview" className="h-28 w-full object-cover" />
                     <div className="flex items-center justify-between px-3 py-2 text-xs text-ink/55">
-                      <span>Preview {index + 1}</span>
+                      <span className="truncate max-w-[70%]">{fileObj.file.name}</span>
                       <button
                         type="button"
-                        className="font-semibold text-accent"
-                        onClick={() => handleChange(photo.field, "")}
+                        className="font-semibold text-red-600"
+                        onClick={() => handleRemoveFile(index)}
                       >
                         Remove
                       </button>
@@ -354,7 +367,7 @@ function SellRentPage() {
                   </div>
                 ))}
               </div>
-            ) : null}
+            )}
           </div>
 
           <div className="space-y-3">

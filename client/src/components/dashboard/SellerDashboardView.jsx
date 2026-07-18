@@ -4,7 +4,7 @@ import { DollarSign, Tag, ShoppingCart, Activity, Plus, Edit3, Trash2, CheckCirc
 
 import ItemForm from "../items/ItemForm";
 import Button from "../ui/Button";
-import { itemApi, rentalApi, disputeApi, getErrorMessage } from "../../api/client";
+import { itemApi, rentalApi, disputeApi, paymentApi, getErrorMessage } from "../../api/client";
 import UserSettingsView from "./UserSettingsView";
 
 function SellerDashboardView({ dashboard, onRefresh }) {
@@ -18,9 +18,75 @@ function SellerDashboardView({ dashboard, onRefresh }) {
   const [disputeReason, setDisputeReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCreate = async (payload) => {
+  // Withdrawal state variables
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
+  const [withdrawalMethod, setWithdrawalMethod] = useState("upi"); // "upi" or "bank"
+  const [upiId, setUpiId] = useState("");
+  const [bankAccount, setBankAccount] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [ifscCode, setIfscCode] = useState("");
+  const [withdrawFeedback, setWithdrawFeedback] = useState("");
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  const handleWithdrawSubmit = async (e) => {
+    e.preventDefault();
+    setWithdrawFeedback("");
+
+    const amount = Number(withdrawalAmount);
+    if (!amount || amount <= 0) {
+      setWithdrawFeedback("Please enter a valid amount to withdraw.");
+      return;
+    }
+
+    if (amount > (stats.balance || 0)) {
+      setWithdrawFeedback("Insufficient balance available for withdrawal.");
+      return;
+    }
+
+    if (amount < 100) {
+      setWithdrawFeedback("Minimum withdrawal amount is Rs. 100.");
+      return;
+    }
+
+    let paymentDetails = "";
+    if (withdrawalMethod === "upi") {
+      if (!upiId.trim()) {
+        setWithdrawFeedback("Please enter your UPI ID.");
+        return;
+      }
+      paymentDetails = `UPI ID: ${upiId.trim()}`;
+    } else {
+      if (!bankAccount.trim() || !bankName.trim() || !ifscCode.trim()) {
+        setWithdrawFeedback("Please fill out all bank account fields.");
+        return;
+      }
+      paymentDetails = `Bank: ${bankName.trim()} • A/C: ${bankAccount.trim()} • IFSC: ${ifscCode.trim()}`;
+    }
+
+    setWithdrawLoading(true);
     try {
-      await itemApi.create(payload);
+      await paymentApi.withdraw({
+        amount,
+        paymentMethod: withdrawalMethod,
+        paymentDetails,
+      });
+      alert("Withdrawal request submitted successfully!");
+      setWithdrawalAmount("");
+      setUpiId("");
+      setBankAccount("");
+      setBankName("");
+      setIfscCode("");
+      onRefresh();
+    } catch (err) {
+      setWithdrawFeedback(getErrorMessage(err));
+    } finally {
+      setWithdrawLoading(false);
+    }
+  };
+
+  const handleCreate = async (payload, config = {}) => {
+    try {
+      await itemApi.create(payload, config);
       alert("New listing published successfully!");
       setActiveTab("inventory");
       onRefresh();
@@ -29,9 +95,9 @@ function SellerDashboardView({ dashboard, onRefresh }) {
     }
   };
 
-  const handleEdit = async (payload) => {
+  const handleEdit = async (payload, config = {}) => {
     try {
-      await itemApi.update(editingItem._id, payload);
+      await itemApi.update(editingItem._id, payload, config);
       alert("Listing updated successfully!");
       setEditingItem(null);
       setActiveTab("inventory");
@@ -190,6 +256,17 @@ function SellerDashboardView({ dashboard, onRefresh }) {
           }`}
         >
           {editingItem ? "Edit Listing" : "Add New Listing"}
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("wallet");
+            setEditingItem(null);
+          }}
+          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
+            activeTab === "wallet" ? "border-accent text-accent" : "border-transparent text-ink/55 hover:text-ink"
+          }`}
+        >
+          💳 Wallet & Payouts
         </button>
         <button
           onClick={() => {
@@ -417,6 +494,241 @@ function SellerDashboardView({ dashboard, onRefresh }) {
       {activeTab === "settings" && (
         <UserSettingsView onRefresh={onRefresh} />
       )}
+
+      {activeTab === "wallet" && (
+        <div className="space-y-6">
+          {/* Financial Overview Grid */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="panel p-5 bg-gradient-to-br from-indigo-50/50 to-white border-indigo-100">
+              <span className="text-xs font-black uppercase text-indigo-700 tracking-wider">Available Balance</span>
+              <p className="text-3xl font-black text-indigo-950 mt-1">Rs. {stats.balance || 0}</p>
+              <p className="text-[10px] text-indigo-600/70 mt-1">Funds available to instantly request for manual withdrawal.</p>
+            </div>
+            
+            <div className="panel p-5 bg-gradient-to-br from-amber-50/50 to-white border-amber-100">
+              <span className="text-xs font-black uppercase text-amber-700 tracking-wider">Escrow Held</span>
+              <p className="text-3xl font-black text-amber-950 mt-1">Rs. {stats.pendingEscrow || 0}</p>
+              <p className="text-[10px] text-amber-600/70 mt-1">Payments held in platform escrow until renters confirm delivery.</p>
+            </div>
+
+            <div className="panel p-5 bg-gradient-to-br from-emerald-50/50 to-white border-emerald-100">
+              <span className="text-xs font-black uppercase text-emerald-700 tracking-wider">Released to Wallet</span>
+              <p className="text-3xl font-black text-emerald-950 mt-1">Rs. {stats.releasedPayments || 0}</p>
+              <p className="text-[10px] text-emerald-600/70 mt-1">Life-time revenue successfully released from escrow (after platform commission of Rs. {stats.commissionWithheld || 0}).</p>
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-5">
+            {/* Request Payout Form */}
+            <div className="panel p-6 md:col-span-2 space-y-4 bg-white border border-ink/5">
+              <h3 className="text-lg font-bold text-ink">Request Withdrawal</h3>
+              <p className="text-xs text-ink/60">Submit a payout request to withdraw funds from your RentED wallet to UPI/Bank account.</p>
+
+              <form onSubmit={handleWithdrawSubmit} className="space-y-4">
+                <div>
+                  <label className="label text-xs block mb-1">Amount to Withdraw (Rs.)</label>
+                  <input
+                    type="number"
+                    min="100"
+                    placeholder="e.g. 500"
+                    className="input w-full"
+                    value={withdrawalAmount}
+                    onChange={(e) => setWithdrawalAmount(e.target.value)}
+                    disabled={withdrawLoading}
+                  />
+                </div>
+
+                <div>
+                  <label className="label text-xs block mb-1.5 font-bold">Payout Method</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                      <input
+                        type="radio"
+                        name="method"
+                        checked={withdrawalMethod === "upi"}
+                        onChange={() => setWithdrawalMethod("upi")}
+                        disabled={withdrawLoading}
+                      />
+                      UPI Transfer
+                    </label>
+                    <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                      <input
+                        type="radio"
+                        name="method"
+                        checked={withdrawalMethod === "bank"}
+                        onChange={() => setWithdrawalMethod("bank")}
+                        disabled={withdrawLoading}
+                      />
+                      Bank Account
+                    </label>
+                  </div>
+                </div>
+
+                {withdrawalMethod === "upi" ? (
+                  <div>
+                    <label className="label text-xs block mb-1">UPI ID</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. name@upi"
+                      className="input w-full"
+                      value={upiId}
+                      onChange={(e) => setUpiId(e.target.value)}
+                      disabled={withdrawLoading}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="label text-xs block mb-1">Bank Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. State Bank of India"
+                        className="input w-full"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        disabled={withdrawLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="label text-xs block mb-1">Account Number</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 1234567890"
+                        className="input w-full"
+                        value={bankAccount}
+                        onChange={(e) => setBankAccount(e.target.value)}
+                        disabled={withdrawLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="label text-xs block mb-1">IFSC Code</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. SBIN0001234"
+                        className="input w-full uppercase"
+                        value={ifscCode}
+                        onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                        disabled={withdrawLoading}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {withdrawFeedback && (
+                  <p className="text-xs font-bold text-red-500 bg-red-50 border border-red-200 p-2.5 rounded-xl">{withdrawFeedback}</p>
+                )}
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full text-xs font-bold py-2.5"
+                  disabled={withdrawLoading || !stats.balance || stats.balance < 100}
+                >
+                  {withdrawLoading ? "Submitting..." : "Submit Payout Request"}
+                </Button>
+              </form>
+            </div>
+
+            {/* Wallet History Lists */}
+            <div className="md:col-span-3 space-y-6">
+              {/* Withdrawal Payout Status list */}
+              <div className="panel p-5 space-y-3 bg-white border border-ink/5">
+                <h4 className="text-xs font-bold text-ink uppercase tracking-wider">Withdrawal History</h4>
+                {(!dashboard.withdrawals || dashboard.withdrawals.length === 0) ? (
+                  <p className="text-xs text-ink/40 py-4 text-center">No withdrawal request history yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="border-b border-ink/10 text-ink/50 font-bold">
+                          <th className="py-2">Date</th>
+                          <th className="py-2">Amount</th>
+                          <th className="py-2">Details</th>
+                          <th className="py-2">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashboard.withdrawals.map((w) => (
+                          <tr key={w._id} className="border-b border-ink/5 hover:bg-mist/30">
+                            <td className="py-2.5 text-ink/60">{new Date(w.createdAt).toLocaleDateString()}</td>
+                            <td className="py-2.5 font-bold">Rs. {w.amount}</td>
+                            <td className="py-2.5 text-[10px] text-ink/50 max-w-[150px] truncate" title={w.paymentDetails}>
+                              {w.paymentMethod.toUpperCase()} ({w.paymentDetails})
+                            </td>
+                            <td className="py-2.5">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                w.status === "approved" ? "bg-emerald-50 text-emerald-700" :
+                                w.status === "rejected" ? "bg-red-50 text-red-700" :
+                                "bg-amber-50 text-amber-700 animate-pulse"
+                              }`}>
+                                {w.status}
+                              </span>
+                              {w.adminNotes && (
+                                <p className="text-[9px] text-red-500/80 font-medium mt-0.5 leading-snug">Note: {w.adminNotes}</p>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Transactions list */}
+              <div className="panel p-5 space-y-3 bg-white border border-ink/5">
+                <h4 className="text-xs font-bold text-ink uppercase tracking-wider">Transaction Ledger</h4>
+                {(!dashboard.transactions || dashboard.transactions.length === 0) ? (
+                  <p className="text-xs text-ink/40 py-4 text-center">No transactions recorded yet.</p>
+                ) : (
+                  <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="border-b border-ink/10 text-ink/50 font-bold">
+                          <th className="py-2">Date</th>
+                          <th className="py-2">Type</th>
+                          <th className="py-2">Amount</th>
+                          <th className="py-2">Escrow Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashboard.transactions.map((tx) => (
+                          <tr key={tx._id} className="border-b border-ink/5 hover:bg-mist/30">
+                            <td className="py-2.5 text-ink/60">{new Date(tx.createdAt).toLocaleDateString()}</td>
+                            <td className="py-2.5 capitalize font-semibold">
+                              {tx.type.replace(/_/g, " ")}
+                              {tx.paymentId && <p className="text-[9px] font-mono text-ink/40">{tx.paymentId}</p>}
+                            </td>
+                            <td className={`py-2.5 font-black ${
+                              ["release_to_seller", "refund"].includes(tx.type) ? "text-emerald-700" : "text-ink/80"
+                            }`}>
+                              Rs. {tx.amount}
+                            </td>
+                            <td className="py-2.5">
+                              {tx.escrowStatus ? (
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                                  tx.escrowStatus === "released" ? "bg-emerald-50 text-emerald-700" :
+                                  tx.escrowStatus === "refunded" ? "bg-red-50 text-red-700" :
+                                  "bg-amber-50 text-amber-700"
+                                }`}>
+                                  {tx.escrowStatus}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-ink/40">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* DISPUTE MODAL */}
       {disputeOrderId && (
         <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">

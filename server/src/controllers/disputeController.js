@@ -5,6 +5,8 @@ import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { notifyUser, notifyAdmins } from "../utils/notificationHelper.js";
 import { getSetting } from "../utils/settingsHelper.js";
+import emailService from "../services/emailService.js";
+import { createRefund } from "../services/paymentService.js";
 
 export const raiseDispute = asyncHandler(async (req, res) => {
   const { orderId, reason } = req.body;
@@ -51,6 +53,25 @@ export const raiseDispute = asyncHandler(async (req, res) => {
   await notifyUser(otherPartyId, "Dispute Raised on Order", `A dispute was raised for order "${order.item?.title}" by the other party. Reason: "${reason}". The funds are on hold.`);
   await notifyUser(req.user._id, "Dispute Filed Successfully", `You have successfully filed a dispute. Admin will review the order details shortly.`);
   await notifyAdmins("Urgent: New Dispute Filed", `Dispute raised on Order ${order._id} by ${req.user.name}. Reason: "${reason}".`);
+
+  // Send email alerts
+  try {
+    const otherParty = await User.findById(otherPartyId);
+    if (otherParty && otherParty.email) {
+      await emailService.sendDisputeEmail(otherParty.email, dispute, order, order.item, "created", otherParty.name);
+    }
+    if (req.user && req.user.email) {
+      await emailService.sendDisputeEmail(req.user.email, dispute, order, order.item, "created", req.user.name);
+    }
+    if (order.totalPrice >= 1000) {
+      await emailService.sendAdminAlert(
+        "High-Value Dispute Raised",
+        `Dispute raised on Order ${order._id} by ${req.user.name} for Rs. ${order.totalPrice}. Reason: "${reason}".`
+      );
+    }
+  } catch (err) {
+    console.error("Failed to send dispute raise emails:", err.message);
+  }
 
   res.status(201).json(dispute);
 });
@@ -102,17 +123,58 @@ export const resolveDispute = asyncHandler(async (req, res) => {
   if (action === "refund") {
     // Return all money to student's wallet balance
     if (order.paymentMethod !== "cod") {
-      renter.balance += order.totalPrice;
-      await renter.save();
+      const originalTx = await Transaction.findOne({ order: order._id, type: "payment" });
 
-      // Log transaction
-      await Transaction.create({
-        user: renter._id,
-        order: order._id,
-        amount: order.totalPrice,
-        type: "refund",
-        status: "completed",
-      });
+      if (originalTx && originalTx.paymentId && originalTx.paymentId.startsWith("pay_")) {
+        try {
+          const refund = await createRefund(originalTx.paymentId, order.totalPrice);
+          originalTx.escrowStatus = "refunded";
+          originalTx.refundId = refund.id;
+          originalTx.refundStatus = "processed";
+          await originalTx.save();
+
+          await Transaction.create({
+            user: renter._id,
+            order: order._id,
+            amount: order.totalPrice,
+            type: "refund",
+            status: "completed",
+            paymentId: refund.id,
+            gateway: "razorpay",
+            refundId: refund.id,
+            refundStatus: "processed",
+          });
+        } catch (err) {
+          console.error("Dispute Razorpay refund failed, fallback to wallet:", err.message);
+          renter.balance += order.totalPrice;
+          await renter.save();
+
+          await Transaction.create({
+            user: renter._id,
+            order: order._id,
+            amount: order.totalPrice,
+            type: "refund",
+            status: "completed",
+          });
+        }
+      } else {
+        renter.balance += order.totalPrice;
+        await renter.save();
+
+        await Transaction.create({
+          user: renter._id,
+          order: order._id,
+          amount: order.totalPrice,
+          type: "refund",
+          status: "completed",
+        });
+
+        if (originalTx) {
+          originalTx.escrowStatus = "refunded";
+          originalTx.refundStatus = "completed";
+          await originalTx.save();
+        }
+      }
     }
 
     order.status = "Refund Completed";
@@ -197,6 +259,24 @@ export const resolveDispute = asyncHandler(async (req, res) => {
   // Notify parties
   await notifyUser(renter._id, "Dispute Resolution Update", `The dispute for "${order.item.title}" was resolved. Action: ${action === "refund" ? "Full Refund Issued" : "Funds Released to Seller"}.`);
   await notifyUser(seller._id, "Dispute Resolution Update", `The dispute for "${order.item.title}" was resolved. Action: ${action === "refund" ? "Transaction Cancelled/Refunded" : "Funds Credited to Your Wallet"}.`);
+
+  // Send email alerts
+  try {
+    if (renter && renter.email) {
+      await emailService.sendDisputeEmail(renter.email, dispute, order, order.item, "resolved", renter.name);
+      if (action === "refund" && order.paymentMethod !== "cod") {
+        await emailService.sendRefundEmail(renter.email, order, order.item);
+      }
+    }
+    if (seller && seller.email) {
+      await emailService.sendDisputeEmail(seller.email, dispute, order, order.item, "resolved", seller.name);
+      if ((action === "release" || action === "dismiss") && order.paymentMethod !== "cod") {
+        await emailService.sendSellerNotification(seller.email, order, order.item, "release_to_seller");
+      }
+    }
+  } catch (err) {
+    console.error("Failed to send dispute resolution emails:", err.message);
+  }
 
   res.json({ success: true, message: "Dispute resolved", dispute });
 });

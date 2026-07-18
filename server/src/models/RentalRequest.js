@@ -82,6 +82,10 @@ const rentalRequestSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    paymentReference: {
+      type: String,
+      default: "",
+    },
     deliveryAddress: {
       type: String,
       default: "",

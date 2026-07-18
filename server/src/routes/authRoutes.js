@@ -2,6 +2,7 @@ import express from "express";
 
 import { getMe, login, signup, googleLogin, forgotPassword, verifyOtp, sendSignupOtp, verifySignupOtp, getAllUsers, updateUserStatus, addBalance, updateProfile } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { uploadAvatar } from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.get("/users", protect, getAllUsers);
 router.patch("/users/:userId/status", protect, updateUserStatus);
 router.get("/me", protect, getMe);
 router.post("/add-balance", protect, addBalance);
-router.patch("/profile", protect, updateProfile);
+router.patch("/profile", protect, uploadAvatar, updateProfile);
 
 export default router;
 

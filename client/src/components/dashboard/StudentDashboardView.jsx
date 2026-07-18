@@ -25,6 +25,118 @@ function StudentDashboardView({ dashboard, onRefresh }) {
   const [pocCommentInput, setPocCommentInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleDownloadInvoice = (order) => {
+    const invoiceNumber = `INV-${order._id.substring(order._id.length - 8).toUpperCase()}`;
+    const gstNumber = "27AAACR1234A1Z5";
+    const buyerName = order.renter?.name || "Student Buyer";
+    const buyerCollege = order.renter?.collegeName || order.item?.collegeName || "Campus Member";
+    const sellerName = order.owner?.name || "Student Seller";
+    const amount = order.totalPrice;
+    const commission = order.commissionAmount || Math.round(amount * 0.1);
+    
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>RentED Invoice - ${invoiceNumber}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; padding: 40px; margin: 0; line-height: 1.5; }
+            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+            .logo { font-size: 24px; font-weight: 800; color: #4f46e5; }
+            .title { font-size: 20px; font-weight: 700; text-align: right; text-transform: uppercase; color: #64748b; }
+            .details { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; }
+            .section-title { font-size: 10px; font-weight: bold; color: #94a3b8; text-transform: uppercase; tracking-wider: 1px; margin-bottom: 5px; }
+            .info-block p { margin: 4px 0; font-size: 13px; }
+            .table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            .table th { background: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 12px; font-size: 11px; text-transform: uppercase; font-weight: 800; text-align: left; }
+            .table td { border-bottom: 1px solid #f1f5f9; padding: 12px; font-size: 13px; }
+            .summary-block { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; margin-top: 20px; }
+            .summary-row { display: flex; justify-content: space-between; width: 260px; font-size: 13px; }
+            .summary-row.total { font-size: 16px; font-weight: 800; border-top: 1px solid #cbd5e1; padding-top: 8px; color: #4f46e5; }
+            .footer { margin-top: 50px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="logo">RentED</div>
+              <p style="font-size:12px;color:#64748b;margin:4px 0;">Hyperlocal Student Sharing Escrow Platform</p>
+            </div>
+            <div class="title">
+              Invoice
+              <p style="font-size:11px;color:#94a3b8;font-weight:normal;margin:4px 0 0 0;">No: ${invoiceNumber}</p>
+              <p style="font-size:11px;color:#94a3b8;font-weight:normal;margin:2px 0 0 0;">Date: ${new Date(order.createdAt).toLocaleDateString()}</p>
+            </div>
+          </div>
+          <div class="details">
+            <div class="info-block">
+              <p class="section-title">Billed To (Buyer)</p>
+              <p><strong>${buyerName}</strong></p>
+              <p>${buyerCollege}</p>
+              <p>Institution Member</p>
+            </div>
+            <div class="info-block" style="text-align: right;">
+              <p class="section-title">Sold By (Seller)</p>
+              <p><strong>${sellerName}</strong></p>
+              <p>RentED Partner Network</p>
+              <p>Platform GST Reg: ${gstNumber}</p>
+            </div>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Pricing Mode</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong>${order.item?.title || "Product Listing"}</strong>
+                  <div style="font-size:10px;color:#64748b;margin-top:2px;">Order ID: ${order._id}</div>
+                </td>
+                <td>${order.item?.category || "General"}</td>
+                <td>${order.requestType === "rental" ? "Rental duration" : "Direct Purchase"}</td>
+                <td style="text-align: right;">Rs. ${order.totalPrice}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="summary-block">
+            <div class="summary-row">
+              <span style="color:#64748b;">Subtotal</span>
+              <span>Rs. ${amount}</span>
+            </div>
+            <div class="summary-row">
+              <span style="color:#64748b;">GST (18% inclusive)</span>
+              <span>Rs. ${Math.round(amount * 0.18 * 100) / 100}</span>
+            </div>
+            <div class="summary-row">
+              <span style="color:#64748b;">Platform Service Fee</span>
+              <span>Rs. ${commission}</span>
+            </div>
+            <div class="summary-row total">
+              <span>Total Paid</span>
+              <span>Rs. ${amount}</span>
+            </div>
+          </div>
+          <div class="footer">
+            <p>This invoice is electronically generated. No physical signature is required.</p>
+            <p>RentED © 2026. For support, reach out to support@rented.com</p>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const handleCancelOrder = async (orderId) => {
     if (!window.confirm("Are you sure you want to cancel this order? Any payment made will be refunded to your wallet.")) return;
     setCancellingId(orderId);
@@ -288,8 +400,13 @@ function StudentDashboardView({ dashboard, onRefresh }) {
                         Seller: <b>{request.owner?.name}</b> • Campus: {request.item?.collegeName}
                       </p>
                       <p className="text-xs text-ink/50 mt-1">
-                        Type: <span className="capitalize font-semibold text-accent">{request.requestType}</span> • Delivery: <span className="font-semibold">{request.paymentMethod === "cod" ? "COD" : "Online Wallet"}</span>
+                        Type: <span className="capitalize font-semibold text-accent">{request.requestType}</span> • Delivery: <span className="font-semibold">{request.paymentMethod === "cod" ? "COD" : "Online"}</span>
                       </p>
+                      {request.paymentMethod !== "cod" && request.dummyPaymentReference && (
+                        <p className="text-[10px] text-ink/40 mt-1 font-mono">
+                          TxID: {request.dummyPaymentReference}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right sm:self-center">
@@ -307,6 +424,16 @@ function StudentDashboardView({ dashboard, onRefresh }) {
                     <span className="text-[10px] font-black tracking-wider uppercase text-red-700 bg-red-50 border border-red-200 px-3 py-1 rounded-full animate-pulse mr-auto">
                       ⚠️ Escrow Disputed: Under Investigation
                     </span>
+                  )}
+
+                  {["Payment Successful", "Seller Accepted", "POC Assigned", "Pickup Scheduled", "Picked Up", "Out For Delivery", "Delivered", "Rental Active", "Completed"].includes(request.status) && (
+                    <Button
+                      variant="ghost"
+                      className="text-indigo-600 hover:bg-indigo-50 text-[10px] py-1.5 px-3 border border-indigo-200 rounded-full font-bold mr-auto"
+                      onClick={() => handleDownloadInvoice(request)}
+                    >
+                      Download Invoice
+                    </Button>
                   )}
 
                   {!request.disputed && ["Payment Successful", "Seller Accepted", "POC Assigned", "Pickup Scheduled", "Picked Up", "Out For Delivery", "Delivered", "Rental Active", "Return Requested", "Returned"].includes(request.status) && (

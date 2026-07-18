@@ -5,6 +5,7 @@ import Dispute from "../models/Dispute.js";
 import Transaction from "../models/Transaction.js";
 import Notification from "../models/Notification.js";
 import College from "../models/College.js";
+import WithdrawalRequest from "../models/WithdrawalRequest.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { getSetting, setSetting } from "../utils/settingsHelper.js";
 
@@ -13,6 +14,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
 
   // Shared data variables
   let listedItems = [];
+  let withdrawalsList = [];
   let incomingRequests = [];
   let rentedItems = [];
   let nearbyItems = [];
@@ -79,17 +81,29 @@ export const getDashboard = asyncHandler(async (req, res) => {
 
   // SELLER DASHBOARD DATA
   else if (role === "seller") {
-    const [myItems, orders] = await Promise.all([
+    const [myItems, orders, withdrawals] = await Promise.all([
       Item.find({ owner: req.user._id }).sort({ createdAt: -1 }),
       RentalRequest.find({ owner: req.user._id })
         .populate("item")
         .populate("renter", "name email collegeName avatarUrl")
         .populate("poc", "name email")
         .sort({ createdAt: -1 }),
+      WithdrawalRequest.find({ user: req.user._id }).sort({ createdAt: -1 }),
     ]);
 
     listedItems = myItems;
     incomingRequests = orders;
+    withdrawalsList = withdrawals;
+
+    const orderIds = orders.map((o) => o._id);
+    const sellerTransactions = await Transaction.find({
+      $or: [
+        { order: { $in: orderIds } },
+        { user: req.user._id, type: "withdrawal" }
+      ]
+    }).populate("order").sort({ createdAt: -1 });
+
+    transactions = sellerTransactions;
 
     // Filter status
     const pendingOrders = orders.filter((o) => ["Pending Payment", "Payment Successful"].includes(o.status)).length;
@@ -101,10 +115,6 @@ export const getDashboard = asyncHandler(async (req, res) => {
       .filter((o) => ["Delivered", "Rental Active", "Completed"].includes(o.status))
       .reduce((sum, o) => sum + o.totalPrice, 0);
 
-    const commissionWithheld = orders
-      .filter((o) => o.earningsReleased)
-      .reduce((sum, o) => sum + (o.commissionAmount || 0), 0);
-
     const monthlyRevenue = orders
       .filter((o) => {
         const isDelivered = ["Delivered", "Rental Active", "Completed"].includes(o.status);
@@ -112,6 +122,18 @@ export const getDashboard = asyncHandler(async (req, res) => {
         return isDelivered && thisMonth;
       })
       .reduce((sum, o) => sum + o.totalPrice, 0);
+
+    const pendingEscrow = sellerTransactions
+      .filter((t) => t.type === "payment" && t.escrowStatus === "held")
+      .reduce((sum, t) => sum + (t.sellerAmount || 0), 0);
+
+    const releasedPayments = sellerTransactions
+      .filter((t) => t.type === "release_to_seller" && t.status === "completed")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const commissionWithheld = sellerTransactions
+      .filter((t) => t.type === "commission" && t.status === "completed")
+      .reduce((sum, t) => sum + t.amount, 0);
 
     stats = {
       totalProducts: myItems.length,
@@ -121,6 +143,8 @@ export const getDashboard = asyncHandler(async (req, res) => {
       totalRevenue,
       monthlyRevenue,
       commissionWithheld,
+      pendingEscrow,
+      releasedPayments,
       balance: req.user.balance || 0,
       unreadNotificationsCount,
     };
@@ -185,7 +209,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
 
   // ADMIN DASHBOARD DATA
   else if (role === "admin") {
-    const [items, users, disputes, txs, colleges, allRequests] = await Promise.all([
+    const [items, users, disputes, txs, colleges, allRequests, withdrawals] = await Promise.all([
       Item.find({}).populate("owner", "name email collegeName"),
       User.find({}),
       Dispute.find({})
@@ -209,6 +233,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
         .populate("renter", "name email collegeName campus location ratingsAverage ratingsCount avatarUrl balance")
         .populate("poc", "name email campus location")
         .sort({ createdAt: -1 }),
+      WithdrawalRequest.find({}).populate("user", "name email collegeName balance").sort({ createdAt: -1 }),
     ]);
 
     disputeList = disputes;
@@ -216,15 +241,53 @@ export const getDashboard = asyncHandler(async (req, res) => {
     listedItems = items;
     transactions = txs;
     incomingRequests = allRequests;
+    withdrawalsList = withdrawals;
 
     // Platform analytics
     const totalRevenue = txs
-      .filter((t) => t.type === "payment")
+      .filter((t) => t.type === "payment" && t.status === "completed")
       .reduce((sum, t) => sum + t.amount, 0);
 
     const totalCommissions = txs
-      .filter((t) => t.type === "commission")
+      .filter((t) => t.type === "commission" && t.status === "completed")
       .reduce((sum, t) => sum + t.amount, 0);
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todaySales = txs
+      .filter((t) => t.type === "payment" && t.status === "completed" && new Date(t.createdAt) >= todayStart)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const monthlySales = txs
+      .filter((t) => t.type === "payment" && t.status === "completed" && new Date(t.createdAt) >= monthStart)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const pendingEscrow = txs
+      .filter((t) => t.type === "payment" && t.escrowStatus === "held")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const releasedEscrow = txs
+      .filter((t) => t.type === "payment" && t.escrowStatus === "released")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalRefunds = txs
+      .filter((t) => t.type === "refund" && t.status === "completed")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalWithdrawals = txs
+      .filter((t) => t.type === "withdrawal" && t.status === "completed")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const failedPayments = txs
+      .filter((t) => t.type === "payment" && t.status === "failed")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const failedPaymentsCount = txs
+      .filter((t) => t.type === "payment" && t.status === "failed")
+      .length;
 
     const activeDisputes = disputes.filter((d) => d.status === "pending").length;
 
@@ -351,6 +414,16 @@ export const getDashboard = asyncHandler(async (req, res) => {
       activeDisputes,
       totalRevenue,
       totalCommissions,
+      totalSales,
+      todaySales,
+      monthlySales,
+      commissionEarned,
+      pendingEscrow,
+      releasedEscrow,
+      totalRefunds,
+      totalWithdrawals,
+      failedPayments,
+      failedPaymentsCount,
       collegesCount: colleges.length,
       collegeStats: formattedCollegeStats,
       platformAnalytics,
@@ -371,6 +444,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
     notifications,
     disputes: disputeList,
     users: usersList,
+    withdrawals: withdrawalsList,
   });
 });
 

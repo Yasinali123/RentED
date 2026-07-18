@@ -6,6 +6,9 @@ import Coupon from "../models/Coupon.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { notifyUser, notifyAdmins } from "../utils/notificationHelper.js";
 import { getSetting } from "../utils/settingsHelper.js";
+import emailService from "../services/emailService.js";
+import { baseLayout } from "../templates/baseLayout.js";
+import { createRefund } from "../services/paymentService.js";
 
 const populateRequest = (query) =>
   query
@@ -118,30 +121,31 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
 
   const renter = await User.findById(req.user._id);
 
-  // Payments (online + UPI apps): debit renter wallet immediately for escrow holding unless paid directly via Razorpay.
-  if (paymentMethod !== "cod") {
-    const isDirectPayment = paymentReference && (
-      paymentReference.startsWith("pay_") ||
-      paymentReference.startsWith("RENTED-SANDBOX-") ||
-      paymentReference.startsWith("order_")
-    );
+  const isDirectPayment = paymentReference && (
+    paymentReference.startsWith("pay_") ||
+    paymentReference.startsWith("RENTED-SANDBOX-") ||
+    paymentReference.startsWith("order_")
+  );
 
-    if (!isDirectPayment) {
-      if (renter.balance < totalPrice) {
-        res.status(400);
-        throw new Error(`Insufficient wallet balance. You need Rs. ${totalPrice} (Your Balance: Rs. ${renter.balance})`);
-      }
-      renter.balance -= totalPrice;
-      await renter.save();
-    }
-
-    // Log the transaction
-    await Transaction.create({
-      user: renter._id,
-      amount: totalPrice,
-      type: "payment",
-      status: "completed",
+  // Prevent duplicate checkout payment submissions
+  if (paymentMethod !== "cod" && paymentReference) {
+    const duplicate = await RentalRequest.findOne({
+      $or: [{ paymentReference }, { dummyPaymentReference: paymentReference }]
     });
+    if (duplicate) {
+      res.status(400);
+      throw new Error("This payment reference has already been used to checkout");
+    }
+  }
+
+  // Payments (online + UPI apps): debit renter wallet immediately for escrow holding unless paid directly via Razorpay.
+  if (paymentMethod !== "cod" && !isDirectPayment) {
+    if (renter.balance < totalPrice) {
+      res.status(400);
+      throw new Error(`Insufficient wallet balance. You need Rs. ${totalPrice} (Your Balance: Rs. ${renter.balance})`);
+    }
+    renter.balance -= totalPrice;
+    await renter.save();
   }
 
   // Generate QR Codes
@@ -163,12 +167,37 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     totalPrice,
     dummyPaymentStatus: paymentMethod === "cod" ? "cod_pending" : "captured",
     dummyPaymentReference: paymentReference || (paymentMethod === "cod" ? `COD-${Date.now()}` : `REF-${Date.now()}`),
+    paymentReference: paymentReference || (paymentMethod === "cod" ? `COD-${Date.now()}` : `REF-${Date.now()}`),
     deliveryAddress: deliveryAddress || renter.location,
     pickupQrCode,
     deliveryQrCode,
     trackingStatus: initialStatus,
     trackingHistory: [{ status: initialStatus, location: "Order Placed" }],
+    couponCode: couponCode || "",
   });
+
+  // Link transactions / Create new wallet payouts
+  if (paymentMethod !== "cod") {
+    if (isDirectPayment && paymentReference.startsWith("pay_")) {
+      const tx = await Transaction.findOne({ paymentId: paymentReference });
+      if (tx) {
+        tx.order = request._id;
+        await tx.save();
+      }
+    } else {
+      await Transaction.create({
+        user: renter._id,
+        order: request._id,
+        amount: totalPrice,
+        type: "payment",
+        status: "completed",
+        paymentId: paymentReference || `pay_wallet_${Date.now()}`,
+        gateway: paymentReference.startsWith("RENTED-SANDBOX-") ? "sandbox" : "wallet",
+        escrowStatus: "held",
+        paidAt: new Date(),
+      });
+    }
+  }
 
   item.availabilityStatus = normalizedRequestType === "purchase" ? "sold" : "rented";
   await item.save();
@@ -177,6 +206,25 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
   await notifyUser(item.owner, "New Order Received", `A student has placed an order for your listing: "${item.title}". Please accept it to proceed.`);
   await notifyUser(renter._id, "Order Placed Successfully", `Your order for "${item.title}" has been created. Status: ${initialStatus}.`);
   await notifyAdmins("New Platform Order Created", `Order ID ${request._id} placed by ${renter.name} for Rs. ${totalPrice}.`);
+
+  // Send email alerts
+  try {
+    const owner = await User.findById(item.owner);
+    if (owner && owner.email) {
+      await emailService.sendSellerNotification(owner.email, request, item, "new_order");
+    }
+    if (renter && renter.email) {
+      await emailService.sendOrderConfirmation(renter.email, request, item);
+    }
+    if (totalPrice >= 2000) {
+      await emailService.sendAdminAlert(
+        "High-Value Order Placed",
+        `Order ID ${request._id} was placed by ${renter.name} for Rs. ${totalPrice}.`
+      );
+    }
+  } catch (err) {
+    console.error("Failed to send order placement emails:", err.message);
+  }
 
   const populatedRequest = await populateRequest(RentalRequest.findById(request._id));
   res.status(201).json(populatedRequest);
@@ -211,6 +259,15 @@ export const acceptOrder = asyncHandler(async (req, res) => {
 
   await notifyUser(request.renter, "Order Accepted by Seller", `The seller has accepted your order for "${request.item.title}". A campus POC will be assigned shortly.`);
   await notifyAdmins("Order Accepted by Seller", `Order ${request._id} was accepted by the seller.`);
+
+  try {
+    const renter = await User.findById(request.renter);
+    if (renter && renter.email) {
+      await emailService.sendPickupNotification(renter.email, request, request.item, "renter");
+    }
+  } catch (err) {
+    console.error("Failed to send order acceptance email:", err.message);
+  }
 
   // Automatically notify approved campus POCs that a new task is available
   try {
@@ -267,6 +324,18 @@ export const rejectOrder = asyncHandler(async (req, res) => {
   await notifyUser(request.renter, "Order Rejected", `We're sorry, the seller rejected your order for "${request.item.title}". Any money debited has been refunded to your wallet.`);
   await notifyAdmins("Order Rejected", `Order ${request._id} rejected. Refund processed.`);
 
+  try {
+    const renter = await User.findById(request.renter);
+    if (renter && renter.email) {
+      await emailService.sendOrderCancelledEmail(renter.email, request, request.item, "seller");
+      if (request.paymentMethod !== "cod") {
+        await emailService.sendRefundEmail(renter.email, request, request.item);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to send order rejection email:", err.message);
+  }
+
   res.json(await populateRequest(RentalRequest.findById(request._id)));
 });
 
@@ -290,6 +359,32 @@ export const claimDeliveryTask = asyncHandler(async (req, res) => {
 
   await notifyUser(request.renter, "POC Assigned", `Your POC "${req.user.name}" has been assigned to deliver your order.`);
   await notifyUser(request.owner, "POC Assigned", `POC "${req.user.name}" has claimed this pickup. Please prepare the item for pickup.`);
+
+  try {
+    const renter = await User.findById(request.renter);
+    const seller = await User.findById(request.owner);
+    const poc = req.user;
+
+    const populatedOrder = {
+      ...request.toObject(),
+      poc: {
+        name: poc.name,
+        phone: poc.phone,
+      }
+    };
+
+    if (renter && renter.email) {
+      await emailService.sendPickupNotification(renter.email, populatedOrder, request.item, "renter");
+    }
+    if (seller && seller.email) {
+      await emailService.sendPickupNotification(seller.email, populatedOrder, request.item, "seller");
+    }
+    if (poc && poc.email) {
+      await emailService.sendPickupNotification(poc.email, populatedOrder, request.item, "poc");
+    }
+  } catch (err) {
+    console.error("Failed to send POC assignment emails:", err.message);
+  }
 
   res.json(await populateRequest(RentalRequest.findById(request._id)));
 });
@@ -341,6 +436,15 @@ export const verifyPickup = asyncHandler(async (req, res) => {
   await notifyUser(request.owner, "Item Handed Over", `You have successfully handed over "${request.item.title}" to the POC.`);
   await notifyUser(request.renter, "Item Picked Up", `The POC has picked up your item from the seller and is heading your way.`);
 
+  try {
+    const renter = await User.findById(request.renter);
+    if (renter && renter.email) {
+      await emailService.sendDeliveryConfirmation(renter.email, request, request.item, "Picked Up");
+    }
+  } catch (err) {
+    console.error("Failed to send pickup email:", err.message);
+  }
+
   res.json(await populateRequest(RentalRequest.findById(request._id)));
 });
 
@@ -362,6 +466,16 @@ export const startDelivery = asyncHandler(async (req, res) => {
   await request.save();
 
   await notifyUser(request.renter, "Out For Delivery", `Your order is out for delivery with POC ${req.user.name}. Keep your Delivery QR Code ready.`);
+
+  try {
+    const renter = await User.findById(request.renter);
+    if (renter && renter.email) {
+      await emailService.sendDeliveryConfirmation(renter.email, request, request.item, "Out For Delivery");
+    }
+  } catch (err) {
+    console.error("Failed to send out-for-delivery email:", err.message);
+  }
+
   res.json(await populateRequest(RentalRequest.findById(request._id)));
 });
 
@@ -393,6 +507,15 @@ export const verifyDelivery = asyncHandler(async (req, res) => {
   await notifyUser(request.owner, "Order Delivered to Buyer", `The POC has successfully delivered your item to the buyer.`);
   await notifyAdmins("Order Delivered", `Order ${request._id} has been marked as Delivered.`);
 
+  try {
+    const renter = await User.findById(request.renter);
+    if (renter && renter.email) {
+      await emailService.sendDeliveryConfirmation(renter.email, request, request.item, "Delivered");
+    }
+  } catch (err) {
+    console.error("Failed to send delivered email:", err.message);
+  }
+
   res.json(await populateRequest(RentalRequest.findById(request._id)));
 });
 
@@ -418,6 +541,18 @@ export const confirmReceipt = asyncHandler(async (req, res) => {
   const seller = await User.findById(request.owner);
   seller.balance += payout;
   await seller.save();
+
+  // Update original payment transaction's escrow status
+  try {
+    const originalTx = await Transaction.findOne({ order: request._id, type: "payment" });
+    if (originalTx) {
+      originalTx.escrowStatus = "released";
+      originalTx.releasedAt = new Date();
+      await originalTx.save();
+    }
+  } catch (err) {
+    console.error("Failed to update original transaction escrow status:", err.message);
+  }
 
   // Log transactions
   await Transaction.create({
@@ -446,6 +581,18 @@ export const confirmReceipt = asyncHandler(async (req, res) => {
   await notifyUser(request.owner, "Earnings Released!", `Rs. ${payout} has been credited to your wallet (after ${commissionRate}% commission of Rs. ${commission}) for selling/renting "${request.item.title}".`);
   await notifyUser(req.user._id, "Order Receipt Confirmed", `Thank you! Funds have been released to the seller.`);
   await notifyAdmins("Earnings Released", `Order ID ${request._id}: released Rs. ${payout} to Seller, commission of Rs. ${commission} earned.`);
+
+  try {
+    if (seller && seller.email) {
+      const orderWithCommission = {
+        ...request.toObject(),
+        commissionAmount: commission,
+      };
+      await emailService.sendSellerNotification(seller.email, orderWithCommission, request.item, "release_to_seller");
+    }
+  } catch (err) {
+    console.error("Failed to send seller payout email:", err.message);
+  }
 
   res.json(await populateRequest(RentalRequest.findById(request._id)));
 });
@@ -526,6 +673,28 @@ export const completeReturn = asyncHandler(async (req, res) => {
   await notifyUser(request.renter, "Rental Closed", `The seller has confirmed receipt of "${request.item.title}". Your rental is now closed.`);
   await notifyAdmins("Rental Return Completed", `Rental order ${request._id} marked as fully Completed.`);
 
+  try {
+    const renter = await User.findById(request.renter);
+    if (renter && renter.email) {
+      const subject = `Rental Closed: ${request.item.title}`;
+      const content = `
+        <h2>Rental Closed Successfully! 🎉</h2>
+        <p>Hi ${renter.name},</p>
+        <p>The seller has inspected and confirmed receipt of the rental item <b>"${request.item.title}"</b>. Your rental transaction is now fully closed.</p>
+        <div class="card">
+          <div class="card-title">Rental Details</div>
+          <p>🛍️ <b>Item</b>: ${request.item.title}</p>
+          <p>💰 <b>Total Price Paid</b>: Rs. ${request.totalPrice}</p>
+          <p>✅ <b>Status</b>: Fully Closed & Returned</p>
+        </div>
+        <p>Thank you for using RentED! We look forward to seeing you borrow or share more campus resources soon.</p>
+      `;
+      await emailService.sendEmail({ to: renter.email, subject, html: baseLayout(subject, content) });
+    }
+  } catch (err) {
+    console.error("Failed to send rental closed email:", err.message);
+  }
+
   res.json(await populateRequest(RentalRequest.findById(request._id)));
 });
 
@@ -556,15 +725,58 @@ export const cancelRentalRequest = asyncHandler(async (req, res) => {
   // Refund buyer if payment was online
   if (request.paymentMethod !== "cod") {
     const renter = await User.findById(request.renter);
-    renter.balance += request.totalPrice;
-    await renter.save();
+    const originalTx = await Transaction.findOne({ order: request._id, type: "payment" });
 
-    await Transaction.create({
-      user: renter._id,
-      amount: request.totalPrice,
-      type: "refund",
-      status: "completed",
-    });
+    if (originalTx && originalTx.paymentId && originalTx.paymentId.startsWith("pay_")) {
+      try {
+        const refund = await createRefund(originalTx.paymentId, request.totalPrice);
+        originalTx.escrowStatus = "refunded";
+        originalTx.refundId = refund.id;
+        originalTx.refundStatus = "processed";
+        await originalTx.save();
+
+        await Transaction.create({
+          user: renter._id,
+          order: request._id,
+          amount: request.totalPrice,
+          type: "refund",
+          status: "completed",
+          paymentId: refund.id,
+          gateway: "razorpay",
+          refundId: refund.id,
+          refundStatus: "processed",
+        });
+      } catch (err) {
+        console.error("Razorpay refund failed, fallback to wallet balance:", err.message);
+        renter.balance += request.totalPrice;
+        await renter.save();
+
+        await Transaction.create({
+          user: renter._id,
+          order: request._id,
+          amount: request.totalPrice,
+          type: "refund",
+          status: "completed",
+        });
+      }
+    } else {
+      renter.balance += request.totalPrice;
+      await renter.save();
+
+      await Transaction.create({
+        user: renter._id,
+        order: request._id,
+        amount: request.totalPrice,
+        type: "refund",
+        status: "completed",
+      });
+
+      if (originalTx) {
+        originalTx.escrowStatus = "refunded";
+        originalTx.refundStatus = "completed";
+        await originalTx.save();
+      }
+    }
   }
 
   request.item.availabilityStatus = "available";
@@ -573,6 +785,24 @@ export const cancelRentalRequest = asyncHandler(async (req, res) => {
 
   await notifyUser(request.owner, "Order Cancelled", `The order for "${request.item.title}" was cancelled.`);
   await notifyUser(request.renter, "Order Cancelled", `Your order for "${request.item.title}" was cancelled. Refunds processed.`);
+
+  try {
+    const renter = await User.findById(request.renter);
+    const seller = await User.findById(request.owner);
+    const initiatorRole = isRenter ? "buyer" : "seller";
+
+    if (renter && renter.email) {
+      await emailService.sendOrderCancelledEmail(renter.email, request, request.item, initiatorRole);
+      if (request.paymentMethod !== "cod") {
+        await emailService.sendRefundEmail(renter.email, request, request.item);
+      }
+    }
+    if (seller && seller.email) {
+      await emailService.sendOrderCancelledEmail(seller.email, request, request.item, initiatorRole);
+    }
+  } catch (err) {
+    console.error("Failed to send order cancellation emails:", err.message);
+  }
 
   res.json(await populateRequest(RentalRequest.findById(request._id)));
 });

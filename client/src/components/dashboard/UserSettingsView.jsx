@@ -56,6 +56,15 @@ function UserSettingsView({ onRefresh }) {
     studentId: user?.studentId || user?.collegeId || "",
   });
 
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -133,14 +142,45 @@ function UserSettingsView({ onRefresh }) {
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+    if (!allowedTypes.includes(file.type)) {
+      setErrorMsg("Only JPG, PNG and WEBP formats are allowed.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg("File too large. Max size allowed is 5MB.");
+      return;
+    }
+
+    setErrorMsg("");
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
+
   const handleProfileSave = async (e) => {
     e.preventDefault();
     setFeedbackMsg("");
     setErrorMsg("");
     try {
-      const res = await authApi.updateProfile(profileForm);
+      const formData = new FormData();
+      Object.keys(profileForm).forEach((key) => {
+        formData.append(key, profileForm[key]);
+      });
+      if (avatarFile) {
+        formData.append("avatar", avatarFile);
+      }
+      const res = await authApi.updateProfile(formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
       setUser(res.user);
       setFeedbackMsg("Account settings saved successfully!");
+      setAvatarFile(null);
       if (onRefresh) onRefresh();
     } catch (err) {
       setErrorMsg(getErrorMessage(err));
@@ -361,18 +401,29 @@ function UserSettingsView({ onRefresh }) {
             {/* Profile Avatar Control */}
             <div className="flex items-center gap-4 border-b border-ink/5 pb-5">
               <img
-                src={profileForm.avatarUrl || user?.avatarUrl || "https://placehold.co/100x100?text=Avatar"}
+                src={avatarPreview || user?.avatarUrl || "https://placehold.co/100x100?text=Avatar"}
                 alt="Avatar"
                 className="h-16 w-16 object-cover rounded-2xl border border-ink/10"
               />
-              <div>
-                <label className="text-xs font-black uppercase text-ink/65 block">Profile Picture URL</label>
-                <input
-                  className="input mt-1.5 py-1 px-3 text-xs w-72"
-                  value={profileForm.avatarUrl}
-                  placeholder="https://example.com/avatar.jpg"
-                  onChange={(e) => setProfileForm({ ...profileForm, avatarUrl: e.target.value })}
-                />
+              <div className="space-y-1">
+                <label className="text-xs font-black uppercase text-ink/65 block">Upload Profile Photo</label>
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer bg-accent hover:bg-accent/90 text-white font-bold text-xs py-1.5 px-4 rounded-full transition-all shadow-sm">
+                    Choose Photo
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={handleAvatarChange}
+                    />
+                  </label>
+                  {avatarFile && (
+                    <span className="text-xs text-ink/60 truncate max-w-[150px]">
+                      {avatarFile.name}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-ink/40">JPG, PNG, WEBP only. Max size 5MB.</p>
               </div>
             </div>
 

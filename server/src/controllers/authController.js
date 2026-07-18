@@ -3,6 +3,9 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import generateToken from "../utils/generateToken.js";
+import cloudinary from "../config/cloudinary.js";
+import otpService from "../services/otpService.js";
+import emailService from "../services/emailService.js";
 
 const sanitizeUser = (user) => ({
   _id: user._id,
@@ -78,6 +81,12 @@ export const signup = asyncHandler(async (req, res) => {
     verifiedCollegeId: true,
     isPocApproved: role === "poc" ? false : true,
   });
+
+  try {
+    await emailService.sendWelcomeEmail(user.email, user.name);
+  } catch (err) {
+    console.error("Failed to send welcome email:", err.message);
+  }
 
   res.status(201).json({
     token: generateToken(user._id),
@@ -166,8 +175,6 @@ export const googleLogin = asyncHandler(async (req, res) => {
   });
 });
 
-const otpStore = new Map();
-
 export const sendSignupOtp = asyncHandler(async (req, res) => {
   const { email, phone } = req.body;
   const normalizedEmail = String(email || "").trim().toLowerCase();
@@ -186,29 +193,28 @@ export const sendSignupOtp = asyncHandler(async (req, res) => {
   }
 
   // Generate 6 digit OTP
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otp = await otpService.createOtp(normalizedEmail, "signup");
   
-  // Store both email and phone in otpStore with expires time (10 minutes)
-  otpStore.set(`signup_${normalizedEmail}`, {
-    otp,
-    phone: normalizedPhone,
-    expires: Date.now() + 10 * 60 * 1000,
-  });
+  // Send email
+  await emailService.sendOTPEmail(normalizedEmail, otp, "signup");
 
   res.json({
     success: true,
-    message: "Signup verification code generated",
-    otp,
+    message: "Signup verification code sent to your email",
   });
 });
 
 export const verifySignupOtp = asyncHandler(async (req, res) => {
-  const { email, phone, otp } = req.body;
+  const { email, otp } = req.body;
   const normalizedEmail = String(email || "").trim().toLowerCase();
-  const normalizedPhone = String(phone || "").trim();
 
-  const record = otpStore.get(`signup_${normalizedEmail}`);
-  if (!record || record.otp !== otp || record.phone !== normalizedPhone || record.expires < Date.now()) {
+  if (!normalizedEmail || !otp) {
+    res.status(400);
+    throw new Error("Email and verification code are required");
+  }
+
+  const isValid = await otpService.verifyOtp(normalizedEmail, "signup", otp);
+  if (!isValid) {
     res.status(400);
     throw new Error("Invalid or expired verification code");
   }
@@ -229,13 +235,12 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     throw new Error("User not found with this email");
   }
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  otpStore.set(normalizedEmail, { otp, expires: Date.now() + 10 * 60 * 1000 });
+  const otp = await otpService.createOtp(normalizedEmail, "reset");
+  await emailService.sendOTPEmail(normalizedEmail, otp, "reset");
 
   res.json({
     success: true,
-    message: "OTP generated",
-    otp,
+    message: "Verification code sent to your email",
   });
 });
 
@@ -243,10 +248,15 @@ export const verifyOtp = asyncHandler(async (req, res) => {
   const { email, otp, newPassword } = req.body;
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
-  const record = otpStore.get(normalizedEmail);
-  if (!record || record.otp !== otp || record.expires < Date.now()) {
+  if (!normalizedEmail || !otp || !newPassword) {
     res.status(400);
-    throw new Error("Invalid or expired OTP");
+    throw new Error("Email, verification code, and new password are required");
+  }
+
+  const isValid = await otpService.verifyOtp(normalizedEmail, "reset", otp);
+  if (!isValid) {
+    res.status(400);
+    throw new Error("Invalid or expired verification code");
   }
 
   const user = await User.findOne({ email: normalizedEmail });
@@ -258,7 +268,12 @@ export const verifyOtp = asyncHandler(async (req, res) => {
   user.passwordHash = await bcrypt.hash(newPassword, 10);
   await user.save();
 
-  otpStore.delete(normalizedEmail);
+  // Send Password Reset confirmation email
+  try {
+    await emailService.sendPasswordResetConfirmationEmail(normalizedEmail, user.name);
+  } catch (err) {
+    console.error("Failed to send password reset confirmation email:", err.message);
+  }
 
   res.json({
     success: true,
@@ -331,6 +346,17 @@ export const updateProfile = asyncHandler(async (req, res) => {
     throw new Error("User not found");
   }
 
+  const parseJsonField = (fieldVal) => {
+    if (typeof fieldVal === "string") {
+      try {
+        return JSON.parse(fieldVal);
+      } catch (e) {
+        return fieldVal;
+      }
+    }
+    return fieldVal;
+  };
+
   // Fields allowed for user self-edit
   const allowedUpdates = [
     "name", "username", "bio", "email", "phone", "collegeName", "course",
@@ -341,9 +367,29 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   allowedUpdates.forEach((field) => {
     if (req.body[field] !== undefined) {
-      user[field] = req.body[field];
+      if ([
+        "notifications", "academicProfile", "appearance",
+        "deliveryPreferences", "rentalPreferences", "marketplacePreferences"
+      ].includes(field)) {
+        user[field] = parseJsonField(req.body[field]);
+      } else {
+        user[field] = req.body[field];
+      }
     }
   });
+
+  // Handle avatar upload if single file attached
+  if (req.file) {
+    if (user.avatarPublicId) {
+      try {
+        await cloudinary.uploader.destroy(user.avatarPublicId);
+      } catch (err) {
+        console.error(`Failed to delete old avatar ${user.avatarPublicId} from Cloudinary:`, err);
+      }
+    }
+    user.avatarUrl = req.file.path;
+    user.avatarPublicId = req.file.filename;
+  }
 
   if (req.body.password) {
     user.passwordHash = await bcrypt.hash(req.body.password, 10);

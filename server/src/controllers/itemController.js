@@ -1,5 +1,6 @@
 import Item from "../models/Item.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import cloudinary from "../config/cloudinary.js";
 
 const itemOwnerProjection =
   "name email campus location ratingsAverage ratingsCount avatarUrl verifiedCollegeId country state city institutionType collegeName geometry";
@@ -24,8 +25,6 @@ export const createItem = asyncHandler(async (req, res) => {
     listingType = "both",
     category,
     location,
-    image,
-    photos,
     condition,
     brand,
     details,
@@ -38,17 +37,37 @@ export const createItem = asyncHandler(async (req, res) => {
     throw new Error("Missing required item fields");
   }
 
+  const parseArrayField = (field) => {
+    if (!field) return [];
+    if (Array.isArray(field)) return field;
+    if (typeof field === "string") {
+      if (field.startsWith("[") && field.endsWith("]")) {
+        try {
+          return JSON.parse(field);
+        } catch (e) {}
+      }
+      return field.split(",").map(item => item.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
   const normalizedRentalPrice = normalizeOptionalMoney(rentalPrice ?? price);
   const normalizedSalePrice = normalizeOptionalMoney(salePrice);
-  const normalizedPhotos = Array.isArray(photos)
-    ? photos.map((photo) => String(photo || "").trim()).filter(Boolean).slice(0, 3)
+  
+  const images = req.files
+    ? req.files.map((file) => ({ url: file.path, publicId: file.filename }))
     : [];
-  const normalizedDetails = Array.isArray(details)
-    ? details.map((detail) => String(detail || "").trim()).filter(Boolean).slice(0, 6)
-    : [];
-  const normalizedTags = Array.isArray(tags)
-    ? tags.map((tag) => String(tag || "").trim()).filter(Boolean).slice(0, 10)
-    : [];
+
+  const normalizedDetails = parseArrayField(details)
+    .map((detail) => String(detail || "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
+
+  const normalizedTags = parseArrayField(tags)
+    .map((tag) => String(tag || "").trim())
+    .filter(Boolean)
+    .slice(0, 10);
+
   const hasRentalPrice = normalizedRentalPrice !== null;
   const hasSalePrice = normalizedSalePrice !== null;
   const normalizedListingType = validListingTypes.has(listingType)
@@ -96,9 +115,9 @@ export const createItem = asyncHandler(async (req, res) => {
     throw new Error("A rent and buy listing needs both rental and sale prices");
   }
 
-  if (normalizedPhotos.length < 2) {
+  if (images.length < 2) {
     res.status(400);
-    throw new Error("Please add at least 2 photos of the item");
+    throw new Error("Please upload at least 2 photos of the item for verification");
   }
 
   const item = await Item.create({
@@ -117,8 +136,7 @@ export const createItem = asyncHandler(async (req, res) => {
     location: String(location || req.user.location || "").trim(),
     campus: String(campus || req.user.campus || "").trim(),
     geometry: req.user.geometry,
-    image: normalizedPhotos[0] || image || "",
-    photos: normalizedPhotos,
+    images: images,
     condition: condition || "Good",
     brand: String(brand || "").trim(),
     details: normalizedDetails,
@@ -324,15 +342,63 @@ export const updateItem = asyncHandler(async (req, res) => {
     throw new Error("Only the owner or an admin can update this listing");
   }
 
-  const fields = ["title", "description", "category", "price", "rentalPrice", "salePrice", "condition", "brand", "details", "location", "campus", "photos", "availabilityStatus", "isApproved", "isFeatured"];
+  const parseArrayField = (field) => {
+    if (!field) return [];
+    if (Array.isArray(field)) return field;
+    if (typeof field === "string") {
+      if (field.startsWith("[") && field.endsWith("]")) {
+        try {
+          return JSON.parse(field);
+        } catch (e) {}
+      }
+      return field.split(",").map(item => item.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  const fields = [
+    "title", "description", "category", "price", "rentalPrice", "salePrice",
+    "condition", "brand", "location", "campus", "availabilityStatus",
+    "isApproved", "isFeatured"
+  ];
+  
   fields.forEach(field => {
     if (req.body[field] !== undefined) {
       item[field] = req.body[field];
     }
   });
 
+  if (req.body.details !== undefined) {
+    item.details = parseArrayField(req.body.details).slice(0, 6);
+  }
+  if (req.body.tags !== undefined) {
+    item.tags = parseArrayField(req.body.tags).slice(0, 10);
+  }
+
   if (req.body.price === undefined && (req.body.rentalPrice !== undefined || req.body.salePrice !== undefined)) {
     item.price = req.body.rentalPrice ?? req.body.salePrice;
+  }
+
+  // Handle new image uploads if files are attached
+  if (req.files && req.files.length > 0) {
+    // Delete existing old images from Cloudinary
+    if (item.images && item.images.length > 0) {
+      for (const img of item.images) {
+        if (img.publicId) {
+          try {
+            await cloudinary.uploader.destroy(img.publicId);
+          } catch (err) {
+            console.error(`Failed to delete image ${img.publicId} from Cloudinary:`, err);
+          }
+        }
+      }
+    }
+    
+    // Save new images
+    item.images = req.files.map((file) => ({
+      url: file.path,
+      publicId: file.filename,
+    }));
   }
 
   await item.save();
@@ -350,6 +416,19 @@ export const deleteItem = asyncHandler(async (req, res) => {
   if (item.owner.toString() !== req.user._id.toString() && req.user.role !== "admin") {
     res.status(403);
     throw new Error("Access denied");
+  }
+
+  // Delete all related images from Cloudinary automatically
+  if (item.images && item.images.length > 0) {
+    for (const img of item.images) {
+      if (img.publicId) {
+        try {
+          await cloudinary.uploader.destroy(img.publicId);
+        } catch (err) {
+          console.error(`Failed to delete image ${img.publicId} from Cloudinary:`, err);
+        }
+      }
+    }
   }
 
   await item.deleteOne();

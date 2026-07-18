@@ -43,12 +43,13 @@ import {
   rentalApi,
   dashboardApi,
   couponApi,
+  paymentApi,
   getErrorMessage
 } from "../../api/client";
 import UserSettingsView from "./UserSettingsView";
 
 function AdminDashboardView({ dashboard, onRefresh }) {
-  const { stats = {}, disputes = [], users: initialUsers = [], transactions: initialTx = [], listedItems: initialListings = [], incomingRequests: initialOrders = [] } = dashboard;
+  const { stats = {}, disputes = [], users: initialUsers = [], transactions: initialTx = [], listedItems: initialListings = [], incomingRequests: initialOrders = [], withdrawals: initialWithdrawals = [] } = dashboard;
 
   const [activeTab, setActiveTab] = useState("dashboard"); // sidebar navigation selection
   
@@ -75,6 +76,19 @@ function AdminDashboardView({ dashboard, onRefresh }) {
   // Payments state
   const [transactions, setTransactions] = useState(initialTx);
   const [txTypeFilter, setTxTypeFilter] = useState("all");
+
+  // Withdrawals state
+  const [withdrawals, setWithdrawals] = useState(initialWithdrawals);
+  const [loadingWithdrawals, setLoadingWithdrawals] = useState(false);
+
+  // Sync state with props
+  useEffect(() => {
+    setUsers(initialUsers);
+    setTransactions(initialTx);
+    setOrders(initialOrders);
+    setListings(initialListings);
+    setWithdrawals(initialWithdrawals);
+  }, [dashboard]);
 
   // Colleges CRUD state
   const [colleges, setColleges] = useState([]);
@@ -103,8 +117,46 @@ function AdminDashboardView({ dashboard, onRefresh }) {
       fetchSettings();
     } else if (activeTab === "coupons") {
       fetchCoupons();
+    } else if (activeTab === "withdrawals") {
+      fetchWithdrawals();
     }
   }, [activeTab]);
+
+  const fetchWithdrawals = async () => {
+    setLoadingWithdrawals(true);
+    try {
+      const data = await paymentApi.listWithdrawals();
+      setWithdrawals(data);
+    } catch (err) {
+      console.error("Failed to load withdrawals:", err);
+    } finally {
+      setLoadingWithdrawals(false);
+    }
+  };
+
+  const handleProcessWithdrawal = async (id, status) => {
+    let adminNotes = "";
+    if (status === "rejected") {
+      adminNotes = window.prompt("Enter rejection reason:");
+      if (adminNotes === null) return;
+      if (!adminNotes.trim()) {
+        alert("Rejection reason is required");
+        return;
+      }
+    } else {
+      adminNotes = window.prompt("Enter payment transaction details (reference ID, bank txn ID, etc.):");
+      if (adminNotes === null) return;
+    }
+
+    try {
+      await paymentApi.processWithdrawal(id, { status, adminNotes });
+      alert(`Withdrawal request ${status} successfully!`);
+      fetchWithdrawals();
+      onRefresh();
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
 
   const fetchUsers = async () => {
     setLoadingUsers(true);
@@ -457,6 +509,7 @@ function AdminDashboardView({ dashboard, onRefresh }) {
     { id: "orders", label: "Orders Logistics", icon: List },
     { id: "poc", label: "POC Dispatch", icon: Truck },
     { id: "payments", label: "Payments Audit", icon: CreditCard },
+    { id: "withdrawals", label: "Withdrawals Queue", icon: DollarSign },
     { id: "disputes", label: "Disputes & Claims", icon: AlertTriangle },
     { id: "rooms", label: "PG & Rooms", icon: Home },
     { id: "ads", label: "Promotional Ads", icon: Megaphone },
@@ -542,6 +595,54 @@ function AdminDashboardView({ dashboard, onRefresh }) {
                 <p className="text-[9px] font-bold opacity-75 mt-2 pt-2 border-t border-white/10">
                   Platform Fee Share (Commission)
                 </p>
+              </div>
+            </div>
+
+            {/* Revenue & Escrow Financial Health Board */}
+            <div className="panel p-5 bg-gradient-to-r from-indigo-950 to-slate-950 text-white border-none shadow-xl space-y-4">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wider text-accent flex items-center gap-2">
+                  💳 Platform Financial Ledger & Escrow Health
+                </h3>
+                <p className="text-[11px] text-white/60">Real-time statistics of payments, escrows, and platform commissions.</p>
+              </div>
+
+              <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                  <span className="text-[9px] font-black uppercase text-white/50 tracking-wider">Today's Sales</span>
+                  <p className="text-lg font-black text-white mt-1">Rs. {stats.todaySales || 0}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                  <span className="text-[9px] font-black uppercase text-white/50 tracking-wider">Monthly Sales</span>
+                  <p className="text-lg font-black text-white mt-1">Rs. {stats.monthlySales || 0}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                  <span className="text-[9px] font-black uppercase text-amber-500 tracking-wider">Escrow Held</span>
+                  <p className="text-lg font-black text-amber-400 mt-1">Rs. {stats.pendingEscrow || 0}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                  <span className="text-[9px] font-black uppercase text-emerald-500 tracking-wider">Released Escrow</span>
+                  <p className="text-lg font-black text-emerald-400 mt-1">Rs. {stats.releasedEscrow || 0}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                  <span className="text-[9px] font-black uppercase text-red-400 tracking-wider">Total Refunds</span>
+                  <p className="text-lg font-black text-red-300 mt-1">Rs. {stats.totalRefunds || 0}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 grid-cols-2 md:grid-cols-3 pt-2">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex justify-between items-center px-4">
+                  <span className="text-[10px] font-bold text-white/70">Commission Earned</span>
+                  <span className="text-sm font-black text-purple-300">Rs. {stats.commissionEarned || 0}</span>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex justify-between items-center px-4">
+                  <span className="text-[10px] font-bold text-white/70">Total Withdrawals (Paid)</span>
+                  <span className="text-sm font-black text-blue-300">Rs. {stats.totalWithdrawals || 0}</span>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex justify-between items-center px-4 border-red-500/20 bg-red-950/20">
+                  <span className="text-[10px] font-bold text-red-400">Failed Payments</span>
+                  <span className="text-sm font-black text-red-400">Rs. {stats.failedPayments || 0} ({stats.failedPaymentsCount || 0} txs)</span>
+                </div>
               </div>
             </div>
 
@@ -1159,6 +1260,151 @@ function AdminDashboardView({ dashboard, onRefresh }) {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6.5: WITHDRAWALS QUEUE */}
+        {activeTab === "withdrawals" && (
+          <div className="panel p-6 bg-white space-y-6">
+            <div>
+              <h2 className="text-lg font-black text-ink">Manual Payouts & Withdrawals Queue</h2>
+              <p className="text-xs text-ink/40">Review, approve (with reference details), or reject student/seller payout withdrawal requests.</p>
+            </div>
+
+            <div className="space-y-6">
+              {/* Section 1: Pending Requests */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-black uppercase text-amber-700 tracking-wider flex items-center gap-1.5">
+                  ⏳ Pending Payout Requests
+                </h3>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-ink/5 text-ink/40 uppercase">
+                        <th className="py-2">Date Requested</th>
+                        <th className="py-2">User Profile</th>
+                        <th className="py-2">Wallet Balance</th>
+                        <th className="py-2">Payout Amount</th>
+                        <th className="py-2">Transfer Details</th>
+                        <th className="py-2 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ink/5">
+                      {withdrawals.filter(w => w.status === "pending").map((w) => (
+                        <tr key={w._id}>
+                          <td className="py-3 text-ink/50">
+                            {new Date(w.createdAt).toLocaleString()}
+                          </td>
+                          <td className="py-3 font-bold text-ink">
+                            {w.user?.name || "Seller"}
+                            <span className="text-[10px] text-ink/40 block mt-0.5">{w.user?.email}</span>
+                          </td>
+                          <td className="py-3 font-medium text-ink/70">
+                            Rs. {w.user?.balance ?? w.amount}
+                          </td>
+                          <td className="py-3 font-black text-indigo-700">
+                            Rs. {w.amount}
+                          </td>
+                          <td className="py-3 font-semibold text-ink/80 max-w-[200px] truncate" title={w.paymentDetails}>
+                            <span className="chip uppercase text-[9px] py-0.5 px-2 bg-mist border text-ink mr-1.5">{w.paymentMethod}</span>
+                            {w.paymentDetails}
+                          </td>
+                          <td className="py-3 text-right">
+                            <div className="flex justify-end gap-1.5">
+                              <Button
+                                onClick={() => handleProcessWithdrawal(w._id, "approved")}
+                                variant="secondary"
+                                className="text-[10px] py-1 px-3 rounded-full font-bold bg-emerald-600 hover:bg-emerald-700 border-none"
+                              >
+                                Approve & Payout
+                              </Button>
+                              <Button
+                                onClick={() => handleProcessWithdrawal(w._id, "rejected")}
+                                variant="ghost"
+                                className="text-[10px] py-1 px-3 rounded-full font-bold border border-red-200 text-red-600 hover:bg-red-50"
+                              >
+                                Reject Request
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {withdrawals.filter(w => w.status === "pending").length === 0 && (
+                        <tr>
+                          <td colSpan="6" className="py-8 text-center text-ink/40">No pending withdrawal requests in queue.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Section 2: Historical Request Logs */}
+              <div className="space-y-3 pt-4 border-t border-ink/5">
+                <h3 className="text-sm font-black uppercase text-ink/60 tracking-wider">
+                  📜 Payout Logs Archive
+                </h3>
+                
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-ink/5 text-ink/40 uppercase">
+                        <th className="py-2">Processed Date</th>
+                        <th className="py-2">User Profile</th>
+                        <th className="py-2">Payout Amount</th>
+                        <th className="py-2">Details</th>
+                        <th className="py-2">Status</th>
+                        <th className="py-2 text-right">Reference Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ink/5">
+                      {withdrawals.filter(w => w.status !== "pending").map((w) => (
+                        <tr key={w._id}>
+                          <td className="py-3 text-ink/50">
+                            {new Date(w.updatedAt).toLocaleString()}
+                          </td>
+                          <td className="py-3 font-bold text-ink">
+                            {w.user?.name || "Seller"}
+                            <span className="text-[10px] text-ink/40 block mt-0.5">{w.user?.email}</span>
+                          </td>
+                          <td className="py-3 font-black text-ink">
+                            Rs. {w.amount}
+                          </td>
+                          <td className="py-3 text-ink/60 max-w-[180px] truncate" title={w.paymentDetails}>
+                            <span className="chip uppercase text-[9px] py-0.5 px-1.5 bg-mist text-ink mr-1">{w.paymentMethod}</span>
+                            {w.paymentDetails}
+                          </td>
+                          <td className="py-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border capitalize ${
+                              w.status === "approved" ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                              w.status === "rejected" ? "bg-red-50 text-red-700 border-red-100" :
+                              "bg-ink/5 text-ink border-ink/10"
+                            }`}>
+                              {w.status}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right max-w-[200px] truncate text-[11px]" title={w.adminNotes || ""}>
+                            {w.adminNotes ? (
+                              <span className={w.status === "rejected" ? "text-red-500 font-medium" : "text-ink/70 font-mono"}>
+                                {w.adminNotes}
+                              </span>
+                            ) : (
+                              <span className="text-ink/30">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {withdrawals.filter(w => w.status !== "pending").length === 0 && (
+                        <tr>
+                          <td colSpan="6" className="py-8 text-center text-ink/40">No processed withdrawal history logged.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         )}

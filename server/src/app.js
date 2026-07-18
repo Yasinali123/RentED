@@ -18,6 +18,7 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import disputeRoutes from "./routes/disputeRoutes.js";
 import collegeRoutes from "./routes/collegeRoutes.js";
 import couponRoutes from "./routes/couponRoutes.js";
+import emailRoutes from "./routes/emailRoutes.js";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
 const app = express();
@@ -51,6 +52,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/disputes", disputeRoutes);
 app.use("/api/colleges", collegeRoutes);
 app.use("/api/coupons", couponRoutes);
+app.use("/api/email", emailRoutes);
 
 if (hasBuiltClient) {
   app.use(express.static(clientDistPath));
