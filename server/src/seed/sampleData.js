@@ -34,8 +34,8 @@ export const users = [
   },
   {
     name: "Rohan Verma",
-    email: "rohan@campus.edu",
-    password: "password123",
+    email: "rented4us@gmail.com",
+    password: "RentED@123",
     collegeId: "STU2304",
     campus: "City Science College",
     location: "City Center",

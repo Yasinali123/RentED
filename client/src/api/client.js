@@ -37,8 +37,8 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem("rented_token");
-        // Trigger page refresh or session expiry redirect
-        window.location.href = "/login";
+        // Dispatch custom unauthorized event so AuthContext can handle redirect without full reload
+        window.dispatchEvent(new Event("unauthorized"));
         return Promise.reject(refreshError);
       }
     }

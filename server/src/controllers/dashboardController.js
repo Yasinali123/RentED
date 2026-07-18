@@ -248,9 +248,13 @@ export const getDashboard = asyncHandler(async (req, res) => {
       .filter((t) => t.type === "payment" && t.status === "completed")
       .reduce((sum, t) => sum + t.amount, 0);
 
+    const totalSales = totalRevenue;
+
     const totalCommissions = txs
       .filter((t) => t.type === "commission" && t.status === "completed")
       .reduce((sum, t) => sum + t.amount, 0);
+
+    const commissionEarned = totalCommissions;
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);

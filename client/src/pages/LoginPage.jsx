@@ -53,14 +53,15 @@ function LoginPage() {
     { name: "Mira Patel", email: "mira@campus.edu", role: "Student (Renter)", color: "border-indigo-200 hover:border-indigo-400 bg-indigo-50/40 text-indigo-700" },
     { name: "Aiden Thomas", email: "aiden@campus.edu", role: "Seller (Merchant)", color: "border-emerald-200 hover:border-emerald-400 bg-emerald-50/40 text-emerald-700" },
     { name: "Neha Sharma", email: "neha@campus.edu", role: "Verified POC", color: "border-orange-200 hover:border-orange-400 bg-orange-50/40 text-orange-700" },
-    { name: "Rohan Verma", email: "rohan@campus.edu", role: "Platform Admin", color: "border-purple-200 hover:border-purple-400 bg-purple-50/40 text-purple-700" },
+    { name: "Rohan Verma", email: "rented4us@gmail.com", role: "Platform Admin", color: "border-purple-200 hover:border-purple-400 bg-purple-50/40 text-purple-700" },
   ];
 
   const handleQuickLogin = async (email) => {
     setSubmitting(true);
     setError("");
     try {
-      await login({ email, password: "password123" });
+      const password = email === "rented4us@gmail.com" ? "RentED@123" : "password123";
+      await login({ email, password });
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);

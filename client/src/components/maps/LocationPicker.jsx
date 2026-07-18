@@ -1,7 +1,17 @@
-import { useState, useEffect, useMemo, useRef } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { useState, useEffect, useMemo } from "react";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import { Search, Navigation } from "lucide-react";
 import { locationApi } from "../../api/client";
+
+function ChangeView({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center && center[0] && center[1]) {
+      map.setView(center, map.getZoom());
+    }
+  }, [center, map]);
+  return null;
+}
 
 function MapEvents({ onChange }) {
   useMapEvents({
@@ -13,12 +23,31 @@ function MapEvents({ onChange }) {
 }
 
 function LocationPicker({ initialLat, initialLng, onChangeLocation }) {
-  const [lat, setLat] = useState(initialLat || 23.0225); // Ahmedabad default
-  const [lng, setLng] = useState(initialLng || 72.5714);
+  const [lat, setLat] = useState(() => {
+    const val = Number(initialLat);
+    return isNaN(val) || val === 0 ? 23.0225 : val;
+  });
+  const [lng, setLng] = useState(() => {
+    const val = Number(initialLng);
+    return isNaN(val) || val === 0 ? 72.5714 : val;
+  });
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState("");
-  const mapRef = useRef(null);
+
+  // Delay MapContainer mount until after React 18 StrictMode's
+  // mount → unmount → remount cycle completes.  Without this,
+  // Leaflet tries to re-initialise a map on a container that was
+  // never properly torn down, throwing "Map container is already
+  // initialized" and crashing the entire React tree (no error boundary).
+  const [mapReady, setMapReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMapReady(true));
+    return () => {
+      cancelAnimationFrame(id);
+      setMapReady(false);
+    };
+  }, []);
 
   const markerPosition = useMemo(() => [lat, lng], [lat, lng]);
 
@@ -43,9 +72,6 @@ function LocationPicker({ initialLat, initialLng, onChangeLocation }) {
       setResolvedAddress(data.address || `${newLat}, ${newLng}`);
       if (onChangeLocation) {
         onChangeLocation(data);
-      }
-      if (mapRef.current) {
-        mapRef.current.setView([newLat, newLng]);
       }
     } catch (err) {
       console.error("Reverse geocoding failed:", err);
@@ -127,29 +153,31 @@ function LocationPicker({ initialLat, initialLng, onChangeLocation }) {
 
       {/* Map display */}
       <div style={{ height: "320px", width: "100%", zIndex: 1 }} className="rounded-3xl overflow-hidden border border-ink/10 shadow-inner relative bg-mist">
-        <MapContainer
-          center={markerPosition}
-          zoom={14}
-          style={{ height: "100%", width: "100%" }}
-          ref={mapRef}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <Marker
-            position={markerPosition}
-            draggable={true}
-            eventHandlers={{
-              dragend(e) {
-                const marker = e.target;
-                const position = marker.getLatLng();
-                handleCoordsChange(position.lat, position.lng);
-              },
-            }}
-          />
-          <MapEvents onChange={handleCoordsChange} />
-        </MapContainer>
+        {mapReady && (
+          <MapContainer
+            center={markerPosition}
+            zoom={14}
+            style={{ height: "100%", width: "100%" }}
+          >
+            <ChangeView center={markerPosition} />
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <Marker
+              position={markerPosition}
+              draggable={true}
+              eventHandlers={{
+                dragend(e) {
+                  const marker = e.target;
+                  const position = marker.getLatLng();
+                  handleCoordsChange(position.lat, position.lng);
+                },
+              }}
+            />
+            <MapEvents onChange={handleCoordsChange} />
+          </MapContainer>
+        )}
       </div>
 
       {/* Resolved Address Label */}

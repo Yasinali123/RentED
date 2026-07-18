@@ -1,6 +1,18 @@
+import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 
 function MapView({ lat, lng, zoom = 15, popupText = "Location", height = "300px" }) {
+  // Delay MapContainer mount until after React 18 StrictMode's
+  // mount → unmount → remount cycle completes.
+  const [mapReady, setMapReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMapReady(true));
+    return () => {
+      cancelAnimationFrame(id);
+      setMapReady(false);
+    };
+  }, []);
+
   if (!lat || !lng) {
     return (
       <div 
@@ -16,15 +28,17 @@ function MapView({ lat, lng, zoom = 15, popupText = "Location", height = "300px"
 
   return (
     <div style={{ height, width: "100%", zIndex: 1 }} className="rounded-3xl overflow-hidden border border-ink/10 shadow-inner">
-      <MapContainer center={center} zoom={zoom} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <Marker position={center}>
-          {popupText && <Popup>{popupText}</Popup>}
-        </Marker>
-      </MapContainer>
+      {mapReady && (
+        <MapContainer center={center} zoom={zoom} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <Marker position={center}>
+            {popupText && <Popup>{popupText}</Popup>}
+          </Marker>
+        </MapContainer>
+      )}
     </div>
   );
 }

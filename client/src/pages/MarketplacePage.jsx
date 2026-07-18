@@ -63,7 +63,7 @@ function MarketplacePage() {
         </div>
 
         <div>
-          {user ? (
+          {user?.role === "seller" && (
             <div className="panel space-y-4 p-6">
               <h2 className="text-2xl font-semibold">Ready to post your item?</h2>
               <p className="text-sm leading-6 text-ink/65">
@@ -77,7 +77,8 @@ function MarketplacePage() {
                 Open seller page
               </Link>
             </div>
-          ) : (
+          )}
+          {!user && (
             <div className="panel space-y-4 p-6">
               <h2 className="text-2xl font-semibold">Want to list something?</h2>
               <p className="text-sm leading-6 text-ink/65">

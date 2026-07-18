@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Session from "../models/Session.js";
 import LoginHistory from "../models/LoginHistory.js";
@@ -65,7 +66,7 @@ const sanitizeUser = (user) => ({
 // @route   POST /api/auth/signup
 // @access  Public
 export const signup = asyncHandler(async (req, res) => {
-  const { name, email, phone, password, collegeId, country, state, city, institutionType, collegeName, campus, location, geometry, avatarUrl, role } = req.body;
+  const { name, email, phone, password, collegeId, country, state, city, institutionType, collegeName, campus, location, geometry, avatarUrl, role, verificationToken } = req.body;
   const normalizedEmail = String(email || "").trim().toLowerCase();
   const normalizedPhone = String(phone || "").trim();
 
@@ -87,6 +88,19 @@ export const signup = asyncHandler(async (req, res) => {
     throw new Error("Email already in use");
   }
 
+  // Verify verificationToken if provided
+  let preVerified = false;
+  if (verificationToken) {
+    try {
+      const decoded = jwt.verify(verificationToken, process.env.JWT_SECRET);
+      if (decoded.email === normalizedEmail && decoded.verified) {
+        preVerified = true;
+      }
+    } catch (err) {
+      console.error("[authController:signup] Verification token verification failed:", err.message);
+    }
+  }
+
   const passwordHash = await bcrypt.hash(password, 12); // cost 12
   const user = await User.create({
     name,
@@ -104,21 +118,74 @@ export const signup = asyncHandler(async (req, res) => {
     geometry,
     avatarUrl: avatarUrl || "",
     role: role || "student",
-    isEmailVerified: false, // Inactive until email OTP verified
-    verifiedCollegeId: false,
+    isEmailVerified: preVerified, // Pre-verified if verificationToken matched
+    verifiedCollegeId: preVerified,
     isPocApproved: role === "poc" ? false : true,
   });
 
-  // Generate and send email verification OTP
-  const otp = await otpService.createOtp(user.email, "signup");
-  await emailService.sendOTPEmail(user.email, otp, "signup");
+  if (preVerified) {
+    // Send Welcome Email
+    try {
+      await emailService.sendWelcomeEmail(user.email, user.name);
+    } catch (err) {
+      console.error("Failed to send welcome email:", err.message);
+    }
 
-  res.status(201).json({
-    success: true,
-    needsVerification: true,
-    email: user.email,
-    message: "Registration successful! A 6-digit verification code has been sent to your email.",
-  });
+    // Set active session tokens & cookies
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    const { browser, os, device } = parseUserAgent(req.headers["user-agent"]);
+    const ipAddress = req.ip || req.headers["x-forwarded-for"] || "";
+
+    await Session.create({
+      userId: user._id,
+      refreshToken,
+      ipAddress,
+      userAgent: req.headers["user-agent"] || "",
+      browser,
+      os,
+      device,
+    });
+
+    await LoginHistory.create({
+      userId: user._id,
+      ipAddress,
+      userAgent: req.headers["user-agent"] || "",
+      browser,
+      os,
+      device,
+      loginTime: new Date(),
+    });
+
+    await logSecurityEvent({
+      userId: user._id,
+      email: user.email,
+      action: "email_changed",
+      details: "User registered and logged in with pre-verified email.",
+      req,
+    });
+
+    sendTokenCookies(res, accessToken, refreshToken);
+
+    res.status(201).json({
+      success: true,
+      needsVerification: false,
+      user: sanitizeUser(user),
+      message: "Registration successful! Welcome to RentED.",
+    });
+  } else {
+    // Generate and send email verification OTP
+    const otp = await otpService.createOtp(user.email, "signup");
+    await emailService.sendOTPEmail(user.email, otp, "signup");
+
+    res.status(201).json({
+      success: true,
+      needsVerification: true,
+      email: user.email,
+      message: "Registration successful! A 6-digit verification code has been sent to your email.",
+    });
+  }
 });
 
 // @desc    Log in user & set secure cookies
@@ -272,6 +339,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
+  console.log(`[authController:verifyEmail] Received request to verify email: "${normalizedEmail}", otp: "${otp}"`);
   if (!normalizedEmail || !otp) {
     res.status(400);
     throw new Error("Email and verification code are required");
@@ -279,6 +347,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
 
   const isValid = await otpService.verifyOtp(normalizedEmail, "signup", otp);
   if (!isValid) {
+    console.log(`[authController:verifyEmail] Verification failed for email: "${normalizedEmail}"`);
     res.status(400);
     throw new Error("Invalid or expired verification code");
   }
@@ -543,6 +612,7 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
+  console.log(`[authController:verifySignupOtp] Received request to verify email: "${normalizedEmail}", otp: "${otp}"`);
   if (!normalizedEmail || !otp) {
     res.status(400);
     throw new Error("Email and verification code are required");
@@ -550,13 +620,22 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
 
   const isValid = await otpService.verifyOtp(normalizedEmail, "signup", otp);
   if (!isValid) {
+    console.log(`[authController:verifySignupOtp] Verification failed for email: "${normalizedEmail}"`);
     res.status(400);
     throw new Error("Invalid or expired verification code");
   }
 
+  const verificationToken = jwt.sign(
+    { email: normalizedEmail, verified: true },
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" }
+  );
+
+  console.log(`[authController:verifySignupOtp] Verification succeeded. Generated token: ${verificationToken.substring(0, 15)}...`);
   res.json({
     success: true,
     message: "Contact details verified successfully",
+    verificationToken,
   });
 });
 

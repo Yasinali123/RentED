@@ -11,8 +11,10 @@ import {
   Twitter 
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 function Footer() {
+  const { user } = useAuth();
   return (
     <footer className="w-full border-t border-ink/5 bg-white/50 pt-16 pb-8 mt-20 backdrop-blur-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -91,10 +93,10 @@ function Footer() {
               {[
                 { label: "Student Dashboard", to: "/dashboard" },
                 { label: "Wallet Balance", to: "/dashboard" },
-                { label: "List an Item to Rent/Sell", to: "/sell-rent" },
+                (!user || user?.role === "seller") ? { label: "List an Item to Rent/Sell", to: "/sell-rent" } : null,
                 { label: "Trust & Safety Guidelines", to: "/" },
                 { label: "Escrow Payment Info", to: "/" }
-              ].map((link) => (
+              ].filter(Boolean).map((link) => (
                 <li key={link.label}>
                   <Link
                     to={link.to}

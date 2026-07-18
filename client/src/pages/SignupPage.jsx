@@ -33,14 +33,23 @@ function SignupPage() {
   const [colleges, setColleges] = useState([]);
 
   // Verification flow states
-  const [isVerified, setIsVerified] = useState(true);
+  const [isVerified, setIsVerified] = useState(false);
+  const [verificationToken, setVerificationToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
-  const [generatedOtp, setGeneratedOtp] = useState("");
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [verificationFeedback, setVerificationFeedback] = useState("");
+
+  const handleContactChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    setIsVerified(false);
+    setVerificationToken("");
+    setOtpSent(false);
+    setOtpCode("");
+    setVerificationFeedback("");
+  };
 
   useEffect(() => {
     collegeApi
@@ -64,8 +73,7 @@ function SignupPage() {
       });
       if (response.success) {
         setOtpSent(true);
-        setGeneratedOtp(response.otp);
-        setVerificationFeedback("Verification code sent! Enter the simulated OTP code below.");
+        setVerificationFeedback("Verification code sent! Please check your email.");
       }
     } catch (err) {
       setVerificationFeedback(err?.response?.data?.message || err?.message || "Failed to send code.");
@@ -89,6 +97,7 @@ function SignupPage() {
       });
       if (response.success) {
         setIsVerified(true);
+        setVerificationToken(response.verificationToken);
         setVerificationFeedback("Email and phone number verified successfully! ✅");
       }
     } catch (err) {
@@ -104,8 +113,12 @@ function SignupPage() {
     setError("");
 
     try {
-      await signup(form);
-      navigate("/verify-email", { state: { email: form.email } });
+      const response = await signup({ ...form, verificationToken });
+      if (response.needsVerification) {
+        navigate("/verify-email", { state: { email: form.email } });
+      } else {
+        navigate("/dashboard");
+      }
     } catch (submitError) {
       setError(submitError.message);
     } finally {
@@ -154,13 +167,13 @@ function SignupPage() {
               <button
                 key={r.id}
                 type="button"
-                onClick={() => !isVerified && setForm({ ...form, role: r.id })}
-                disabled={isVerified}
+                onClick={() => setForm({ ...form, role: r.id })}
+                disabled={submitting}
                 className={`panel flex flex-col items-center justify-center p-3 text-center border transition-all ${
                   form.role === r.id
                     ? "border-accent bg-accent/5 text-accent shadow-sm"
                     : "border-ink/10 bg-white/50 text-ink/75"
-                } ${isVerified ? "cursor-not-allowed opacity-75" : ""}`}
+                } ${submitting ? "cursor-not-allowed opacity-75" : ""}`}
               >
                 <span className="font-bold text-sm">{r.label}</span>
                 <span className="text-[10px] text-ink/50 mt-0.5">{r.desc}</span>
@@ -181,7 +194,7 @@ function SignupPage() {
                 value={form.name}
                 onChange={(event) => setForm({ ...form, name: event.target.value })}
                 required
-                disabled={isVerified}
+                disabled={submitting}
               />
             </div>
             <div className="space-y-1">
@@ -194,7 +207,7 @@ function SignupPage() {
                   value={form.password}
                   onChange={(event) => setForm({ ...form, password: event.target.value })}
                   required
-                  disabled={isVerified}
+                  disabled={submitting}
                 />
                 <button
                   type="button"
@@ -212,9 +225,9 @@ function SignupPage() {
                 placeholder="College email"
                 type="email"
                 value={form.email}
-                onChange={(event) => setForm({ ...form, email: event.target.value })}
+                onChange={(event) => handleContactChange("email", event.target.value)}
                 required
-                disabled={isVerified}
+                disabled={submitting}
               />
             </div>
             <div className="space-y-1">
@@ -224,9 +237,9 @@ function SignupPage() {
                 placeholder="Phone number"
                 type="tel"
                 value={form.phone}
-                onChange={(event) => setForm({ ...form, phone: event.target.value })}
+                onChange={(event) => handleContactChange("phone", event.target.value)}
                 required
-                disabled={isVerified}
+                disabled={submitting}
               />
             </div>
           </div>
@@ -249,11 +262,6 @@ function SignupPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {generatedOtp && (
-                    <div className="p-3.5 bg-purple-50 border border-purple-200 rounded-2xl text-xs text-purple-800 leading-normal font-semibold">
-                      Sandbox Simulator Alert: Copy and use verification OTP code: <b className="text-sm font-black tracking-wider text-purple-950 font-mono ml-1">{generatedOtp}</b>
-                    </div>
-                  )}
                   <div className="flex flex-col sm:flex-row gap-3 items-end">
                     <div className="flex-1 space-y-1">
                       <label className="text-[10px] font-black uppercase text-ink/50 block">Enter Verification Code</label>
@@ -282,7 +290,6 @@ function SignupPage() {
                         onClick={() => {
                           setOtpSent(false);
                           setOtpCode("");
-                          setGeneratedOtp("");
                           setVerificationFeedback("");
                         }}
                       >

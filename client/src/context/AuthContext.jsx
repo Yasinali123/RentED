@@ -9,6 +9,13 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const handleUnauthorized = () => {
+      setUser(null);
+      localStorage.removeItem("rented_token");
+    };
+
+    window.addEventListener("unauthorized", handleUnauthorized);
+
     authApi
       .me()
       .then((response) => {
@@ -21,6 +28,10 @@ export const AuthProvider = ({ children }) => {
       .finally(() => {
         setLoading(false);
       });
+
+    return () => {
+      window.removeEventListener("unauthorized", handleUnauthorized);
+    };
   }, []);
 
   const login = async (payload) => {
@@ -39,6 +50,9 @@ export const AuthProvider = ({ children }) => {
     const response = await authApi.signup(payload).catch((error) => {
       throw new Error(getErrorMessage(error));
     });
+    if (response?.user) {
+      setUser(response.user);
+    }
     return response;
   };
 
