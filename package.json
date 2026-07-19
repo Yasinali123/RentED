@@ -5,7 +5,7 @@
   "description": "RentEd - Student Rental Hub",
   "scripts": {
     "dev": "concurrently \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
-    "build": "npm --prefix server install",
+    "build": "node build.js",
     "start": "npm --prefix server run start",
     "client:dev": "npm --prefix client run dev",
     "client:build": "npm --prefix client run build",

@@ -70,9 +70,19 @@ Vercel will host the frontend React SPA. It has been pre-configured with SPA URL
 2. Import your Git repository.
 3. Configure the following project settings:
    - **Framework Preset**: `Vite` (Vercel will auto-detect Vite)
-   - **Root Directory**: `client` *(Important: Click "Edit" and choose the `client` directory)*
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
+   
+   > [!NOTE]
+   > You can configure the **Root Directory** on Vercel in two ways. **Option A** is the simplest and doesn't require editing settings:
+   >
+   > **Option A (Default - Root Directory is blank/empty)**
+   > - **Root Directory**: *(leave completely blank / default)*
+   > - **Build Command**: `npm run build`
+   > - **Output Directory**: `dist`
+   >
+   > **Option B (Isolated client folder)**
+   > - **Root Directory**: `client`
+   > - **Build Command**: `npm run build`
+   > - **Output Directory**: `dist`
 4. Expand **Environment Variables** and add the API connection details:
 
 | Variable | Description | Value |
