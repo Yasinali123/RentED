@@ -26,14 +26,14 @@ export const sendTokenCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: "Strict",
+    sameSite: isProduction ? "None" : "Lax",
     maxAge: 15 * 60 * 1000, // 15 minutes
   });
 
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: "Strict",
+    sameSite: isProduction ? "None" : "Lax",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
@@ -44,13 +44,13 @@ export const clearTokenCookies = (res) => {
   res.clearCookie("accessToken", {
     httpOnly: true,
     secure: isProduction,
-    sameSite: "Strict",
+    sameSite: isProduction ? "None" : "Lax",
   });
   
   res.clearCookie("refreshToken", {
     httpOnly: true,
     secure: isProduction,
-    sameSite: "Strict",
+    sameSite: isProduction ? "None" : "Lax",
   });
 };
 

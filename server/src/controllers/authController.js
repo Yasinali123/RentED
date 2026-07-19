@@ -172,6 +172,7 @@ export const signup = asyncHandler(async (req, res) => {
       success: true,
       needsVerification: false,
       user: sanitizeUser(user),
+      accessToken,
       message: "Registration successful! Welcome to RentED.",
     });
   } else {
@@ -329,6 +330,7 @@ export const login = asyncHandler(async (req, res) => {
 
   res.json({
     user: sanitizeUser(user),
+    accessToken,
   });
 });
 
@@ -410,6 +412,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
     success: true,
     message: "Email verified and account activated successfully!",
     user: sanitizeUser(user),
+    accessToken,
   });
 });
 
@@ -421,7 +424,16 @@ export const getMe = asyncHandler(async (req, res) => {
     res.status(403);
     throw new Error("Your account has been suspended");
   }
-  res.json({ user: sanitizeUser(req.user) });
+  
+  let token = req.cookies?.accessToken;
+  if (!token && req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
+  res.json({ 
+    user: sanitizeUser(req.user),
+    accessToken: token,
+  });
 });
 
 // @desc    Google OAuth authenticate endpoint
@@ -501,6 +513,7 @@ export const googleLogin = asyncHandler(async (req, res) => {
 
   res.json({
     user: sanitizeUser(user),
+    accessToken,
   });
 });
 
@@ -540,7 +553,11 @@ export const refresh = asyncHandler(async (req, res) => {
     const newAccessToken = generateAccessToken(user._id);
     sendTokenCookies(res, newAccessToken, refreshToken);
 
-    res.json({ success: true, message: "Token refreshed successfully" });
+    res.json({ 
+      success: true, 
+      message: "Token refreshed successfully",
+      accessToken: newAccessToken,
+    });
   } catch (err) {
     res.status(401);
     throw new Error("Invalid or expired session. Please log in again.");

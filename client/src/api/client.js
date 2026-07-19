@@ -33,7 +33,10 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        await authApi.refresh();
+        const refreshResponse = await authApi.refresh();
+        if (refreshResponse.accessToken) {
+          localStorage.setItem("rented_token", refreshResponse.accessToken);
+        }
         return api(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem("rented_token");

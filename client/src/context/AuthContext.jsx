@@ -20,6 +20,9 @@ export const AuthProvider = ({ children }) => {
       .me()
       .then((response) => {
         setUser(response.user);
+        if (response.accessToken) {
+          localStorage.setItem("rented_token", response.accessToken);
+        }
       })
       .catch(() => {
         setUser(null);
@@ -43,6 +46,9 @@ export const AuthProvider = ({ children }) => {
     });
 
     setUser(response.user);
+    if (response.accessToken) {
+      localStorage.setItem("rented_token", response.accessToken);
+    }
     return response.user;
   };
 
@@ -52,6 +58,9 @@ export const AuthProvider = ({ children }) => {
     });
     if (response?.user) {
       setUser(response.user);
+      if (response.accessToken) {
+        localStorage.setItem("rented_token", response.accessToken);
+      }
     }
     return response;
   };
@@ -61,6 +70,9 @@ export const AuthProvider = ({ children }) => {
       throw new Error(getErrorMessage(error));
     });
     setUser(response.user);
+    if (response.accessToken) {
+      localStorage.setItem("rented_token", response.accessToken);
+    }
     return response.user;
   };
 
@@ -70,6 +82,9 @@ export const AuthProvider = ({ children }) => {
     });
 
     setUser(response.user);
+    if (response.accessToken) {
+      localStorage.setItem("rented_token", response.accessToken);
+    }
     return response.user;
   };
 
