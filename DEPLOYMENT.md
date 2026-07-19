@@ -16,10 +16,20 @@ Render will host the Node.js API server. Because RentEd uses Socket.io, you shou
 3. Configure the following service settings:
    - **Name**: `rented-backend` (or your choice)
    - **Environment**: `Node`
-   - **Root Directory**: `server` *(Important: Point this to the `server` directory)*
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
    - **Plan**: `Free` (or higher)
+   
+   > [!NOTE]
+   > You can configure the **Root Directory** in two ways. **Option A** is the simplest and doesn't require editing advanced fields:
+   >
+   > **Option A (Default - Root Directory is blank/empty)**
+   > - **Root Directory**: *(leave completely blank / default)*
+   > - **Build Command**: `npm run build`
+   > - **Start Command**: `npm start`
+   >
+   > **Option B (Isolated server folder)**
+   > - **Root Directory**: `server`
+   > - **Build Command**: `npm install`
+   > - **Start Command**: `npm start`
 
 ### Environment Variables on Render
 Click on **Advanced** and add the following Environment Variables:
