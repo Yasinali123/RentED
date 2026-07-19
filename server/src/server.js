@@ -19,13 +19,8 @@ const startServer = async () => {
     process.exit(1);
   }
 
-  try {
-    // Email verification is useful but not critical for the HTTP API to run.
-    await verifyConnection();
-    console.log("Email service verified.");
-  } catch (error) {
-    console.warn("Email verification failed, continuing without email service:", error);
-  }
+  // Email verification is useful but not critical for the HTTP API to run.
+  verifyConnection();
   
   const server = http.createServer(app);
   initSocket(server);

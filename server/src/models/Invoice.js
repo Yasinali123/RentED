@@ -99,7 +99,6 @@ const invoiceSchema = new mongoose.Schema(
 invoiceSchema.index({ order: 1 });
 invoiceSchema.index({ buyer: 1 });
 invoiceSchema.index({ seller: 1 });
-invoiceSchema.index({ invoiceNumber: 1 });
 invoiceSchema.index({ createdAt: -1 });
 
 const Invoice = mongoose.model("Invoice", invoiceSchema);

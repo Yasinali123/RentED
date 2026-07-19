@@ -1,22 +1,23 @@
-import admin from "firebase-admin";
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getMessaging } from "firebase-admin/messaging";
 import User from "../models/User.js";
 
 let messaging = null;
 
 try {
-  if (admin.apps.length === 0) {
+  if (getApps().length === 0) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+      const app = initializeApp({
+        credential: cert(serviceAccount)
       });
-      messaging = admin.messaging();
+      messaging = getMessaging(app);
       console.log("Firebase Admin SDK successfully initialized via credentials.");
     } else {
       console.log("FIREBASE_SERVICE_ACCOUNT is not set. FCM will execute in Mock Log Mode.");
     }
   } else {
-    messaging = admin.messaging();
+    messaging = getMessaging();
   }
 } catch (err) {
   console.error("Failed to initialize Firebase Admin SDK:", err.message);
