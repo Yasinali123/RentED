@@ -16,7 +16,12 @@ export const initSocket = (server) => {
     cors: {
       origin: function (origin, callback) {
         const isLocalhost = origin && (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:"));
-        const allowed = ["http://localhost:5173", "http://127.0.0.1:5173", process.env.CLIENT_URL].filter(Boolean);
+        const allowed = [
+          "http://localhost:5173",
+          "http://127.0.0.1:5173",
+          process.env.CLIENT_URL ? process.env.CLIENT_URL.trim().replace(/\/$/, "") : null,
+          process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL.trim().replace(/\/$/, "") : null,
+        ].filter(Boolean);
         if (!origin || isLocalhost || allowed.includes(origin)) {
           callback(null, true);
         } else {
