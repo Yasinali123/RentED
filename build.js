@@ -25,9 +25,14 @@ try {
     fs.cpSync(srcDist, destDist, { recursive: true });
     console.log("Client build compiled and copied successfully!");
   } else {
-    console.log("Detected Render/Server environment. Building backend server...");
+    console.log("Detected Render/Server environment. Building backend server and frontend client...");
+    console.log("Installing server dependencies...");
     execSync("npm --prefix server install", { stdio: "inherit" });
-    console.log("Server dependencies installed successfully!");
+    console.log("Installing client dependencies...");
+    execSync("npm --prefix client install", { stdio: "inherit" });
+    console.log("Building client...");
+    execSync("npm --prefix client run build", { stdio: "inherit" });
+    console.log("Build and dependencies installation completed successfully!");
   }
 } catch (error) {
   console.error("Build failed:", error.message);
