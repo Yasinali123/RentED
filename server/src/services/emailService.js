@@ -1,4 +1,4 @@
-import transporter, { sendResendEmail } from "../config/emailConfig.js";
+import transporter, { sendResendEmail, sendBrevoEmail } from "../config/emailConfig.js";
 import welcomeTemplate from "../templates/welcomeTemplate.js";
 import otpTemplate from "../templates/otpTemplate.js";
 import passwordResetTemplate from "../templates/passwordResetTemplate.js";
@@ -14,16 +14,18 @@ import { baseLayout } from "../templates/baseLayout.js";
 import User from "../models/User.js";
 
 /**
- * Base email sender with retry mechanism and Resend REST API integration.
+ * Base email sender with retry mechanism and Resend / Brevo API integration.
  */
 export const sendEmail = async ({ to, subject, html }) => {
-  const maxRetries = 2;
+  const maxRetries = 1; // Reduced from 2 to 1 to prevent extremely long request hangs on connection timeout
   let attempts = 0;
 
   while (attempts <= maxRetries) {
     try {
       let result;
-      if (process.env.RESEND_API_KEY) {
+      if (process.env.BREVO_API_KEY) {
+        result = await sendBrevoEmail({ to, subject, html });
+      } else if (process.env.RESEND_API_KEY) {
         result = await sendResendEmail({ to, subject, html });
       } else {
         const info = await transporter.sendMail({

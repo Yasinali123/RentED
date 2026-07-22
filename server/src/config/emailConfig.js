@@ -11,7 +11,50 @@ export const getTransporter = () => {
     tls: {
       rejectUnauthorized: false,
     },
+    connectionTimeout: 8000, // 8 seconds timeout
   });
+};
+
+/**
+ * Sends transactional email via Brevo HTTP API v3.
+ * High-performance, bypasses Render SMTP port blocks, supports any recipient on free tier.
+ */
+export const sendBrevoEmail = async ({ to, subject, html }) => {
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.EMAIL_USER || "rented4us@gmail.com";
+  const senderName = process.env.SENDER_NAME || "RentED Support";
+
+  if (!apiKey) {
+    throw new Error("BREVO_API_KEY is not configured.");
+  }
+
+  try {
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": apiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        sender: { name: senderName, email: senderEmail },
+        to: (Array.isArray(to) ? to : [to]).map(email => ({ email })),
+        subject: subject,
+        htmlContent: html,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || `Brevo HTTP Error ${response.status}`);
+    }
+
+    return { success: true, messageId: data.messageId };
+  } catch (error) {
+    console.warn(`[Brevo Warning] Brevo HTTP API call failed: ${error.message}`);
+    throw error;
+  }
 };
 
 /**
@@ -85,7 +128,10 @@ export const sendResendEmail = async ({ to, subject, html }) => {
 export const verifyConnection = async () => {
   try {
     const apiKey = process.env.RESEND_API_KEY;
-    if (apiKey) {
+    const brevoKey = process.env.BREVO_API_KEY;
+    if (brevoKey) {
+      console.log("Email transporter connected successfully via Brevo API.");
+    } else if (apiKey) {
       console.log("Email transporter connected successfully via Resend API.");
     } else if (process.env.EMAIL_PASS) {
       await getTransporter().verify();
@@ -99,6 +145,7 @@ export const verifyConnection = async () => {
 };
 
 export default getTransporter();
+
 
 
 
