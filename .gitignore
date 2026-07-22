@@ -1,11 +1,16 @@
 node_modules/
 dist/
 build/
-.env
-.env.local
 .DS_Store
 coverage/
-
-
 .vercel
-.env*
+
+# Environment variables
+.env
+.env.*
+.env.local
+*.env
+*.env.local
+!.env.example
+!*.env.example
+
