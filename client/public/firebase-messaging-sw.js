@@ -2,7 +2,6 @@ importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"
 importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js");
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAlrntTn-eas87dScAv__ZDh7jqETCj8-0",
   authDomain: "rented-ff27d.firebaseapp.com",
   projectId: "rented-ff27d",
   storageBucket: "rented-ff27d.firebasestorage.app",

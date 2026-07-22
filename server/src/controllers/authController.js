@@ -178,14 +178,23 @@ export const signup = asyncHandler(async (req, res) => {
   } else {
     // Generate and send email verification OTP
     const otp = await otpService.createOtp(user.email, "signup");
-    await emailService.sendOTPEmail(user.email, otp, "signup");
+    const emailRes = await emailService.sendOTPEmail(user.email, otp, "signup");
 
-    res.status(201).json({
+    const responseData = {
       success: true,
       needsVerification: true,
       email: user.email,
       message: "Registration successful! A 6-digit verification code has been sent to your email.",
-    });
+    };
+
+    if (process.env.NODE_ENV !== "production") {
+      responseData.otp = otp;
+      if (emailRes && !emailRes.success) {
+        responseData.message = `[Dev Mode] Registration successful! Verification code: ${otp} (Email failed: ${emailRes.error})`;
+      }
+    }
+
+    res.status(201).json(responseData);
   }
 });
 
@@ -273,13 +282,22 @@ export const login = asyncHandler(async (req, res) => {
   if (!user.isEmailVerified) {
     // Re-send verification code
     const otp = await otpService.createOtp(user.email, "signup");
-    await emailService.sendOTPEmail(user.email, otp, "signup");
+    const emailRes = await emailService.sendOTPEmail(user.email, otp, "signup");
 
-    res.status(403).json({
+    const responseData = {
       needsVerification: true,
       email: user.email,
       message: "Your email address is not verified. Please verify your email first. A new OTP has been sent.",
-    });
+    };
+
+    if (process.env.NODE_ENV !== "production") {
+      responseData.otp = otp;
+      if (emailRes && !emailRes.success) {
+        responseData.message = `[Dev Mode] Email not verified. Verification code: ${otp} (Email failed: ${emailRes.error})`;
+      }
+    }
+
+    res.status(403).json(responseData);
     return;
   }
 
@@ -614,12 +632,21 @@ export const sendSignupOtp = asyncHandler(async (req, res) => {
   }
 
   const otp = await otpService.createOtp(normalizedEmail, "signup");
-  await emailService.sendOTPEmail(normalizedEmail, otp, "signup");
+  const emailRes = await emailService.sendOTPEmail(normalizedEmail, otp, "signup");
 
-  res.json({
+  const responseData = {
     success: true,
     message: "Signup verification code sent to your email",
-  });
+  };
+
+  if (process.env.NODE_ENV !== "production") {
+    responseData.otp = otp;
+    if (emailRes && !emailRes.success) {
+      responseData.message = `[Dev Mode] Verification code: ${otp} (Email failed: ${emailRes.error})`;
+    }
+  }
+
+  res.json(responseData);
 });
 
 // @desc    Verify signup pre-registration OTP
@@ -670,12 +697,21 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   }
 
   const otp = await otpService.createOtp(normalizedEmail, "reset");
-  await emailService.sendOTPEmail(normalizedEmail, otp, "reset");
+  const emailRes = await emailService.sendOTPEmail(normalizedEmail, otp, "reset");
 
-  res.json({
+  const responseData = {
     success: true,
     message: "Verification code sent to your email",
-  });
+  };
+
+  if (process.env.NODE_ENV !== "production") {
+    responseData.otp = otp;
+    if (emailRes && !emailRes.success) {
+      responseData.message = `[Dev Mode] Verification code: ${otp} (Email failed: ${emailRes.error})`;
+    }
+  }
+
+  res.json(responseData);
 });
 
 // @desc    Verify OTP and change password

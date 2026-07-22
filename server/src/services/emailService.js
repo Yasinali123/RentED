@@ -1,4 +1,4 @@
-import transporter from "../config/emailConfig.js";
+import transporter, { sendResendEmail } from "../config/emailConfig.js";
 import welcomeTemplate from "../templates/welcomeTemplate.js";
 import otpTemplate from "../templates/otpTemplate.js";
 import passwordResetTemplate from "../templates/passwordResetTemplate.js";
@@ -14,7 +14,7 @@ import { baseLayout } from "../templates/baseLayout.js";
 import User from "../models/User.js";
 
 /**
- * Base email sender with retry mechanism and detailed logging.
+ * Base email sender with retry mechanism and Resend REST API integration.
  */
 export const sendEmail = async ({ to, subject, html }) => {
   const maxRetries = 2;
@@ -22,17 +22,23 @@ export const sendEmail = async ({ to, subject, html }) => {
 
   while (attempts <= maxRetries) {
     try {
-      const info = await transporter.sendMail({
-        from: `"RentED Support" <${process.env.EMAIL_USER}>`,
-        to,
-        subject,
-        html,
-      });
+      let result;
+      if (process.env.RESEND_API_KEY) {
+        result = await sendResendEmail({ to, subject, html });
+      } else {
+        const info = await transporter.sendMail({
+          from: `"${process.env.SENDER_NAME || 'RentED Support'}" <${process.env.EMAIL_USER}>`,
+          to,
+          subject,
+          html,
+        });
+        result = { success: true, messageId: info.messageId };
+      }
 
       console.log(
-        `[Email Log] SUCCESS | Timestamp: ${new Date().toISOString()} | To: ${to} | Subject: "${subject}" | MsgId: ${info.messageId} | Attempts: ${attempts + 1}`
+        `[Email Log] SUCCESS | Timestamp: ${new Date().toISOString()} | To: ${to} | Subject: "${subject}" | MsgId: ${result.messageId} | Attempts: ${attempts + 1}`
       );
-      return { success: true, messageId: info.messageId };
+      return { success: true, messageId: result.messageId };
     } catch (error) {
       attempts++;
       console.error(

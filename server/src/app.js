@@ -28,6 +28,8 @@ import invoiceRoutes from "./routes/invoiceRoutes.js";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
 const app = express();
+app.set("trust proxy", 1); // Required for Render reverse proxy & rate limiter / HTTPS cookies
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const clientDistPath = path.resolve(__dirname, "../../client/dist");
@@ -40,19 +42,33 @@ const allowedOrigins = [
   process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL.trim().replace(/\/$/, "") : null,
 ].filter(Boolean);
 
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
+
 app.use(
   cors({
     origin: function (origin, callback) {
-      const isLocalhost = origin && (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:"));
-      if (!origin || isLocalhost || allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true);
+
+      const normalizedOrigin = origin.replace(/\/$/, "");
+      const isLocalhost = normalizedOrigin.startsWith("http://localhost:") || normalizedOrigin.startsWith("http://127.0.0.1:");
+      const isVercel = /\.vercel\.app$/.test(normalizedOrigin);
+      const isAllowed = allowedOrigins.includes(normalizedOrigin);
+
+      if (isLocalhost || isVercel || isAllowed) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        console.warn(`[CORS Notice] Allowing request from origin: ${origin}`);
+        callback(null, true);
       }
     },
     credentials: true,
-  }),
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  })
 );
 app.use(cookieParser());
 app.use(express.json({ limit: "12mb" }));

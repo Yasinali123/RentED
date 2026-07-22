@@ -24,8 +24,7 @@ function ForgotPasswordPage() {
 
     try {
       const response = await authApi.forgotPassword({ email });
-      setReceivedOtp(response.otp); // Save the OTP generated in-memory so they see it
-      setMessage(`OTP generated successfully! (Mock OTP Code: ${response.otp})`);
+      setMessage(response.message || "A 6-digit verification code has been sent directly to your email inbox.");
       setStep(2);
     } catch (err) {
       setError(err?.response?.data?.message || err.message || "Failed to generate OTP");
@@ -58,7 +57,7 @@ function ForgotPasswordPage() {
             <p className="text-sm uppercase tracking-[0.25em] text-ink/45">Account Recovery</p>
             <h1 className="mt-2 text-4xl font-bold">Forgot Password</h1>
             <p className="text-sm text-ink/65 mt-2">
-              Enter your registered college email and we will send a mock OTP code directly to you:
+              Enter your registered college email and we will send a 6-digit verification code directly to your email inbox:
             </p>
           </div>
 
