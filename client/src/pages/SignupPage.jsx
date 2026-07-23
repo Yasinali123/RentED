@@ -316,40 +316,6 @@ function SignupPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <input
                 className="input"
-                placeholder="College ID"
-                value={form.collegeId}
-                onChange={(event) => setForm({ ...form, collegeId: event.target.value })}
-                required
-              />
-              <input
-                className="input"
-                placeholder="State"
-                value={form.state}
-                onChange={(event) => setForm({ ...form, state: event.target.value })}
-                required
-              />
-              <input
-                className="input"
-                placeholder="City"
-                value={form.city}
-                onChange={(event) => setForm({ ...form, city: event.target.value })}
-                required
-              />
-              <select
-                className="input"
-                value={form.institutionType}
-                onChange={(event) => setForm({ ...form, institutionType: event.target.value })}
-                required
-              >
-                <option value="Engineering">Engineering</option>
-                <option value="Medical">Medical</option>
-                <option value="Law">Law</option>
-                <option value="Commerce">Commerce</option>
-                <option value="School">School</option>
-                <option value="Other">Other</option>
-              </select>
-              <input
-                className="input"
                 placeholder="College / University Name"
                 value={form.collegeName}
                 onChange={(event) => setForm({ ...form, collegeName: event.target.value })}
@@ -366,6 +332,40 @@ function SignupPage() {
                 placeholder="Campus (Optional)"
                 value={form.campus}
                 onChange={(event) => setForm({ ...form, campus: event.target.value })}
+              />
+              <select
+                className="input"
+                value={form.institutionType}
+                onChange={(event) => setForm({ ...form, institutionType: event.target.value })}
+                required
+              >
+                <option value="Engineering">Engineering</option>
+                <option value="Medical">Medical</option>
+                <option value="Law">Law</option>
+                <option value="Commerce">Commerce</option>
+                <option value="School">School</option>
+                <option value="Other">Other</option>
+              </select>
+              <input
+                className="input"
+                placeholder="State"
+                value={form.state}
+                onChange={(event) => setForm({ ...form, state: event.target.value })}
+                required
+              />
+              <input
+                className="input"
+                placeholder="City"
+                value={form.city}
+                onChange={(event) => setForm({ ...form, city: event.target.value })}
+                required
+              />
+              <input
+                className="input"
+                placeholder="College ID"
+                value={form.collegeId}
+                onChange={(event) => setForm({ ...form, collegeId: event.target.value })}
+                required
               />
               <input
                 className="input"

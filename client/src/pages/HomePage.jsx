@@ -911,6 +911,49 @@ function HomePage() {
                 Skip the retail price tag. Rent temporary college essentials or buy second-hand gear from verified students right on your campus.
               </p>
 
+              {/* Call to Actions for top of landing page */}
+              {!user ? (
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <Button
+                    as={Link}
+                    to="/signup"
+                    variant="secondary"
+                    className="!py-2.5 !px-5 text-sm font-bold shadow-md hover:scale-105 transition-all duration-200"
+                  >
+                    Get Started — It's Free
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                  <Button
+                    as={Link}
+                    to="/login"
+                    variant="ghost"
+                    className="border border-ink/15 hover:bg-ink/5 !py-2.5 !px-5 text-sm font-bold transition-all duration-200"
+                  >
+                    Login to Account
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <Button
+                    as={Link}
+                    to="/marketplace"
+                    variant="secondary"
+                    className="!py-2.5 !px-5 text-sm font-bold shadow-md hover:scale-105 transition-all duration-200"
+                  >
+                    Browse Marketplace
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                  <Button
+                    as={Link}
+                    to="/dashboard"
+                    variant="ghost"
+                    className="border border-ink/15 hover:bg-ink/5 !py-2.5 !px-5 text-sm font-bold transition-all duration-200"
+                  >
+                    Go to Dashboard
+                  </Button>
+                </div>
+              )}
+
               {/* ── Interactive Search & Filter Panel ── */}
               <form
                 onSubmit={handleSearchSubmit}
