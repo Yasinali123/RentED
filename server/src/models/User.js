@@ -128,6 +128,28 @@ const userSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Earnings locked in Escrow awaiting order delivery confirmation
+    pendingBalance: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    // Seller / POC QR code image for receiving direct payout withdrawals
+    qrCodeUrl: {
+      type: String,
+      default: "",
+    },
+    upiId: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    bankDetails: {
+      accountNumber: { type: String, default: "" },
+      ifscCode: { type: String, default: "" },
+      accountHolderName: { type: String, default: "" },
+      bankName: { type: String, default: "" },
+    },
     role: {
       type: String,
       enum: ["student", "seller", "poc", "admin"],

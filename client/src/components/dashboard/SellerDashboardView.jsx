@@ -36,8 +36,9 @@ function SellerDashboardView({ dashboard, onRefresh }) {
 
   // Withdrawal state variables
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
-  const [withdrawalMethod, setWithdrawalMethod] = useState("upi"); // "upi" or "bank"
+  const [withdrawalMethod, setWithdrawalMethod] = useState("upi_qr"); // "upi_qr", "upi", or "bank"
   const [upiId, setUpiId] = useState("");
+  const [qrCodeUrlInput, setQrCodeUrlInput] = useState("");
   const [bankAccount, setBankAccount] = useState("");
   const [bankName, setBankName] = useState("");
   const [ifscCode, setIfscCode] = useState("");
@@ -59,13 +60,19 @@ function SellerDashboardView({ dashboard, onRefresh }) {
       return;
     }
 
-    if (amount < 100) {
-      setWithdrawFeedback("Minimum withdrawal amount is Rs. 100.");
+    if (amount < 500) {
+      setWithdrawFeedback("Minimum withdrawal amount is Rs. 500.");
       return;
     }
 
     let paymentDetails = "";
-    if (withdrawalMethod === "upi") {
+    if (withdrawalMethod === "upi_qr") {
+      if (!qrCodeUrlInput.trim() && !upiId.trim()) {
+        setWithdrawFeedback("Please enter your UPI QR Code image URL or UPI ID.");
+        return;
+      }
+      paymentDetails = `UPI QR Code Payout: ${qrCodeUrlInput.trim() || upiId.trim()}`;
+    } else if (withdrawalMethod === "upi") {
       if (!upiId.trim()) {
         setWithdrawFeedback("Please enter your UPI ID.");
         return;
@@ -83,12 +90,15 @@ function SellerDashboardView({ dashboard, onRefresh }) {
     try {
       await paymentApi.withdraw({
         amount,
-        paymentMethod: withdrawalMethod,
-        paymentDetails,
+        paymentMethodType: withdrawalMethod,
+        bankDetails: paymentDetails,
+        upiId: upiId.trim(),
+        qrCodeUrl: qrCodeUrlInput.trim(),
       });
-      alert("Withdrawal request submitted successfully!");
+      alert("Withdrawal request submitted successfully! Admin will verify and transfer funds.");
       setWithdrawalAmount("");
       setUpiId("");
+      setQrCodeUrlInput("");
       setBankAccount("");
       setBankName("");
       setIfscCode("");
@@ -557,19 +567,30 @@ function SellerDashboardView({ dashboard, onRefresh }) {
                   <label className="label text-xs block mb-1">Amount to Withdraw (Rs.)</label>
                   <input
                     type="number"
-                    min="100"
-                    placeholder="e.g. 500"
+                    min="500"
+                    placeholder="Min Rs. 500"
                     className="input w-full"
                     value={withdrawalAmount}
                     onChange={(e) => setWithdrawalAmount(e.target.value)}
                     disabled={withdrawLoading}
                   />
+                  <p className="text-[10px] text-ink/40 mt-1">Minimum withdrawal limit: <b>Rs. 500</b></p>
                 </div>
 
                 <div>
                   <label className="label text-xs block mb-1.5 font-bold">Payout Method</label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                  <div className="flex flex-wrap gap-3">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                      <input
+                        type="radio"
+                        name="method"
+                        checked={withdrawalMethod === "upi_qr"}
+                        onChange={() => setWithdrawalMethod("upi_qr")}
+                        disabled={withdrawLoading}
+                      />
+                      Seller UPI QR Code
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
                       <input
                         type="radio"
                         name="method"
@@ -577,9 +598,9 @@ function SellerDashboardView({ dashboard, onRefresh }) {
                         onChange={() => setWithdrawalMethod("upi")}
                         disabled={withdrawLoading}
                       />
-                      UPI Transfer
+                      UPI ID
                     </label>
-                    <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
                       <input
                         type="radio"
                         name="method"
@@ -592,7 +613,33 @@ function SellerDashboardView({ dashboard, onRefresh }) {
                   </div>
                 </div>
 
-                {withdrawalMethod === "upi" ? (
+                {withdrawalMethod === "upi_qr" ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="label text-xs block mb-1">Seller UPI QR Code Image URL</label>
+                      <input
+                        type="url"
+                        placeholder="https://example.com/my-upi-qr.png or image link"
+                        className="input w-full"
+                        value={qrCodeUrlInput}
+                        onChange={(e) => setQrCodeUrlInput(e.target.value)}
+                        disabled={withdrawLoading}
+                      />
+                      <p className="text-[10px] text-ink/40 mt-1">Admin will scan this QR code directly to transfer your payout.</p>
+                    </div>
+                    <div>
+                      <label className="label text-xs block mb-1">Associated UPI ID (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. seller@upi"
+                        className="input w-full"
+                        value={upiId}
+                        onChange={(e) => setUpiId(e.target.value)}
+                        disabled={withdrawLoading}
+                      />
+                    </div>
+                  </div>
+                ) : withdrawalMethod === "upi" ? (
                   <div>
                     <label className="label text-xs block mb-1">UPI ID</label>
                     <input

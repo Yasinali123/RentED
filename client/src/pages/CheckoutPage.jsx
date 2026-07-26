@@ -552,19 +552,37 @@ function CheckoutPage() {
                 </div>
               )}
 
+              <div className="flex justify-between py-2">
+                <span className="text-ink/60">Item Subtotal</span>
+                <span className="font-medium">Rs. {finalPayableAmount}</span>
+              </div>
+
+              <div className="flex justify-between py-2">
+                <span className="text-ink/60">Campus Delivery Fee</span>
+                <span className="font-medium text-emerald-600">Rs. 50</span>
+              </div>
+
               <div className="flex justify-between pt-4 text-lg font-bold">
                 <span>Total Payable</span>
-                <span className="text-accent">Rs. {finalPayableAmount}</span>
+                <span className="text-accent">Rs. {finalPayableAmount + 50}</span>
+              </div>
+
+              <div className="rounded-xl bg-indigo-50/60 border border-indigo-100 p-3 text-xs text-indigo-900 flex items-start gap-2">
+                <ShieldCheck className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block">100% Escrow Protected</span>
+                  <span className="text-indigo-700/80">Funds remain locked in Escrow until item delivery is confirmed.</span>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-ink/10 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-ink/60">RentEd Wallet Balance</span>
-                  <span className={`font-bold ${userBalance >= finalPayableAmount ? "text-indigo-700" : "text-red-500"}`}>
+                  <span className={`font-bold ${userBalance >= (finalPayableAmount + 50) ? "text-indigo-700" : "text-red-500"}`}>
                     Rs. {userBalance}
                   </span>
                 </div>
-                {form.paymentMethod === "wallet" && userBalance < finalPayableAmount && (
+                {form.paymentMethod === "wallet" && userBalance < (finalPayableAmount + 50) && (
                   <div className="rounded-lg bg-red-50 border border-red-100 p-3 text-xs text-red-600 font-medium leading-relaxed">
                     ⚠️ Insufficient wallet balance for checkout. Please select Razorpay Secure Payment or Cash on Delivery (COD).
                   </div>
@@ -581,16 +599,16 @@ function CheckoutPage() {
               onClick={handlePlaceOrder}
               disabled={
                 isProcessing ||
-                (form.paymentMethod === "wallet" && userBalance < finalPayableAmount)
+                (form.paymentMethod === "wallet" && userBalance < (finalPayableAmount + 50))
               }
             >
               {isProcessing
                 ? "Processing..."
                 : form.paymentMethod === "online" && !isOnlinePaid
-                ? `Pay via Razorpay Secure Payment • Rs. ${finalPayableAmount}`
-                : form.paymentMethod === "wallet" && userBalance < finalPayableAmount
+                ? `Pay via Razorpay Secure Payment • Rs. ${finalPayableAmount + 50}`
+                : form.paymentMethod === "wallet" && userBalance < (finalPayableAmount + 50)
                 ? "Insufficient Wallet Balance"
-                : `Place Order • Rs. ${finalPayableAmount}`}
+                : `Place Order • Rs. ${finalPayableAmount + 50}`}
             </Button>
           </div>
         </div>

@@ -324,8 +324,22 @@ function StudentDashboardView({ dashboard, onRefresh }) {
                       <p className="text-xs text-ink/50 mt-0.5">
                         Seller: <b>{request.owner?.name}</b> • Campus: {request.item?.collegeName}
                       </p>
-                      <p className="text-xs text-ink/50 mt-1">
-                        Type: <span className="capitalize font-semibold text-accent">{request.requestType}</span> • Delivery: <span className="font-semibold">{request.paymentMethod === "cod" ? "COD" : "Online"}</span>
+                      <p className="text-xs text-ink/50 mt-1 flex flex-wrap items-center gap-2">
+                        <span>Type: <span className="capitalize font-semibold text-accent">{request.requestType}</span></span> • 
+                        <span>Delivery: <span className="font-semibold">{request.paymentMethod === "cod" ? "COD" : "Online"}</span></span>
+                        {request.earningsReleased ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            ✅ Escrow Released
+                          </span>
+                        ) : request.paymentMethod === "cod" ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                            💵 COD Pending
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                            🔒 Locked in Escrow
+                          </span>
+                        )}
                       </p>
                       {request.paymentMethod !== "cod" && request.dummyPaymentReference && (
                         <p className="text-[10px] text-ink/40 mt-1 font-mono">

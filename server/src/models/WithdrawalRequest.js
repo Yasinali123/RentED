@@ -17,9 +17,22 @@ const withdrawalRequestSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
+    paymentMethodType: {
+      type: String,
+      enum: ["upi_qr", "upi_id", "bank_account"],
+      default: "upi_id",
+    },
     bankDetails: {
       type: String,
       required: true,
+    },
+    upiId: {
+      type: String,
+      default: "",
+    },
+    qrCodeUrl: {
+      type: String,
+      default: "",
     },
     processedAt: {
       type: Date,

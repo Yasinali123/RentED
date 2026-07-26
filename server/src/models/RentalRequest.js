@@ -51,6 +51,8 @@ const rentalRequestSchema = new mongoose.Schema(
       enum: [
         "Pending Payment",
         "Payment Successful",
+        "COD Pending",
+        "Pending Pickup",
         "Seller Accepted",
         "Seller Rejected",
         "POC Assigned",
@@ -68,10 +70,49 @@ const rentalRequestSchema = new mongoose.Schema(
       ],
       default: "Pending Payment",
     },
+    itemPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    deliveryFee: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     totalPrice: {
       type: Number,
       required: true,
       min: 0,
+    },
+    commissionAmount: {
+      type: Number,
+      default: 0,
+    },
+    sellerEarnings: {
+      type: Number,
+      default: 0,
+    },
+    pocEarnings: {
+      type: Number,
+      default: 0,
+    },
+    platformDeliveryShare: {
+      type: Number,
+      default: 0,
+    },
+    escrow: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Escrow",
+      default: null,
+    },
+    codCollected: {
+      type: Boolean,
+      default: false,
+    },
+    codVerifiedByAdmin: {
+      type: Boolean,
+      default: false,
     },
     dummyPaymentStatus: {
       type: String,

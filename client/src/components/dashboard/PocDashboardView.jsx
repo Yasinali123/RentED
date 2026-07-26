@@ -559,7 +559,30 @@ function PocDashboardView({ dashboard, onRefresh }) {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 justify-end pt-3 border-t border-ink/5">
+                  <div className="flex flex-wrap gap-2 justify-end pt-3 border-t border-ink/5 items-center">
+                    {task.paymentMethod === "cod" && !task.codCollected && (
+                      <Button
+                        onClick={async () => {
+                          if (!window.confirm(`Confirm that you have collected Rs. ${task.totalPrice} cash from buyer ${task.renter?.name}?`)) return;
+                          try {
+                            await rentalApi.collectCod(task._id);
+                            alert(`Recorded cash collection of Rs. ${task.totalPrice}. Admin has been notified.`);
+                            onRefresh();
+                          } catch (err) {
+                            alert(getErrorMessage(err));
+                          }
+                        }}
+                        variant="secondary"
+                        className="text-xs font-bold py-1.5 px-4 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+                      >
+                        💵 Collect Cash (Rs. {task.totalPrice})
+                      </Button>
+                    )}
+                    {task.paymentMethod === "cod" && task.codCollected && (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                        ✅ Cash Collected (Rs. {task.totalPrice})
+                      </span>
+                    )}
                     {task.status === "Picked Up" && (
                       <Button onClick={() => handleStartDelivery(task._id)} variant="ghost" className="text-xs font-bold py-1.5 px-4 rounded-full">
                         Start Delivery Run

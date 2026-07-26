@@ -453,12 +453,22 @@ export const getDashboard = asyncHandler(async (req, res) => {
 });
 
 export const getSystemSettings = asyncHandler(async (req, res) => {
-  const commissionRate = await getSetting("commission_rate", 10);
-  const minDeposit = await getSetting("min_deposit", 100);
+  const commissionRate = await getSetting("platform_commission_rate", await getSetting("commission_rate", 10));
+  const deliveryFee = await getSetting("delivery_fee", 50);
+  const pocShareRate = await getSetting("poc_share_rate", 80);
+  const platformDeliveryShareRate = await getSetting("platform_delivery_share_rate", 20);
+  const minWithdrawalAmount = await getSetting("min_withdrawal_amount", 500);
+  const codEnabled = await getSetting("cod_enabled", true);
+  const escrowAutoReleaseHours = await getSetting("escrow_auto_release_hours", 24);
 
   res.json({
-    commission_rate: commissionRate,
-    min_deposit: minDeposit,
+    platform_commission_rate: Number(commissionRate),
+    delivery_fee: Number(deliveryFee),
+    poc_share_rate: Number(pocShareRate),
+    platform_delivery_share_rate: Number(platformDeliveryShareRate),
+    min_withdrawal_amount: Number(minWithdrawalAmount),
+    cod_enabled: Boolean(codEnabled),
+    escrow_auto_release_hours: Number(escrowAutoReleaseHours),
   });
 });
 
@@ -468,32 +478,86 @@ export const updateSystemSettings = asyncHandler(async (req, res) => {
     throw new Error("Access denied: Admins only");
   }
 
-  const { commission_rate, min_deposit } = req.body;
+  const {
+    platform_commission_rate,
+    delivery_fee,
+    poc_share_rate,
+    platform_delivery_share_rate,
+    min_withdrawal_amount,
+    cod_enabled,
+    escrow_auto_release_hours,
+  } = req.body;
 
-  if (commission_rate !== undefined) {
-    const rate = Number(commission_rate);
+  if (platform_commission_rate !== undefined) {
+    const rate = Number(platform_commission_rate);
     if (isNaN(rate) || rate < 0 || rate > 100) {
       res.status(400);
-      throw new Error("Commission rate must be a number between 0 and 100");
+      throw new Error("Platform commission rate must be between 0 and 100%");
     }
+    await setSetting("platform_commission_rate", rate);
     await setSetting("commission_rate", rate);
   }
 
-  if (min_deposit !== undefined) {
-    const minDep = Number(min_deposit);
-    if (isNaN(minDep) || minDep < 0) {
+  if (delivery_fee !== undefined) {
+    const fee = Number(delivery_fee);
+    if (isNaN(fee) || fee < 0) {
       res.status(400);
-      throw new Error("Minimum deposit must be a positive number");
+      throw new Error("Delivery fee must be a positive number");
     }
-    await setSetting("min_deposit", minDep);
+    await setSetting("delivery_fee", fee);
+  }
+
+  if (poc_share_rate !== undefined) {
+    const rate = Number(poc_share_rate);
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      res.status(400);
+      throw new Error("POC share rate must be between 0 and 100%");
+    }
+    await setSetting("poc_share_rate", rate);
+  }
+
+  if (platform_delivery_share_rate !== undefined) {
+    const rate = Number(platform_delivery_share_rate);
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      res.status(400);
+      throw new Error("Platform delivery share rate must be between 0 and 100%");
+    }
+    await setSetting("platform_delivery_share_rate", rate);
+  }
+
+  if (min_withdrawal_amount !== undefined) {
+    const minW = Number(min_withdrawal_amount);
+    if (isNaN(minW) || minW < 0) {
+      res.status(400);
+      throw new Error("Minimum withdrawal amount must be a positive number");
+    }
+    await setSetting("min_withdrawal_amount", minW);
+  }
+
+  if (cod_enabled !== undefined) {
+    await setSetting("cod_enabled", Boolean(cod_enabled));
+  }
+
+  if (escrow_auto_release_hours !== undefined) {
+    const hours = Number(escrow_auto_release_hours);
+    if (isNaN(hours) || hours < 0) {
+      res.status(400);
+      throw new Error("Escrow auto release hours must be a positive number");
+    }
+    await setSetting("escrow_auto_release_hours", hours);
   }
 
   res.json({
     success: true,
-    message: "Settings updated successfully",
+    message: "System settings updated successfully",
     settings: {
-      commission_rate: await getSetting("commission_rate", 10),
-      min_deposit: await getSetting("min_deposit", 100),
+      platform_commission_rate: await getSetting("platform_commission_rate", 10),
+      delivery_fee: await getSetting("delivery_fee", 50),
+      poc_share_rate: await getSetting("poc_share_rate", 80),
+      platform_delivery_share_rate: await getSetting("platform_delivery_share_rate", 20),
+      min_withdrawal_amount: await getSetting("min_withdrawal_amount", 500),
+      cod_enabled: await getSetting("cod_enabled", true),
+      escrow_auto_release_hours: await getSetting("escrow_auto_release_hours", 24),
     }
   });
 });

@@ -105,7 +105,15 @@ function AdminDashboardView({ dashboard, onRefresh }) {
   const [pickedCollegeLoc, setPickedCollegeLoc] = useState(null);
 
   // System Settings state
-  const [systemSettings, setSystemSettings] = useState({ commission_rate: 10, min_deposit: 100 });
+  const [systemSettings, setSystemSettings] = useState({
+    platform_commission_rate: 10,
+    delivery_fee: 50,
+    poc_share_rate: 80,
+    platform_delivery_share_rate: 20,
+    min_withdrawal_amount: 500,
+    cod_enabled: true,
+    escrow_auto_release_hours: 24,
+  });
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -1312,8 +1320,81 @@ function AdminDashboardView({ dashboard, onRefresh }) {
             </div>
 
             <div className="space-y-6">
-              {/* Section 1: Pending Requests */}
+              {/* Section 0: COD Cash Verification Queue */}
               <div className="space-y-3">
+                <h3 className="text-sm font-black uppercase text-emerald-800 tracking-wider flex items-center gap-1.5">
+                  💵 COD Cash Verification Queue ({orders.filter(o => o.paymentMethod === "cod" && o.codCollected && !o.codVerifiedByAdmin).length})
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-ink/5 text-ink/40 uppercase">
+                        <th className="py-2">Order ID</th>
+                        <th className="py-2">Parties</th>
+                        <th className="py-2">POC Dispatcher</th>
+                        <th className="py-2">Cash Collected</th>
+                        <th className="py-2">Distribution Breakdown</th>
+                        <th className="py-2 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ink/5">
+                      {orders.filter(o => o.paymentMethod === "cod" && o.codCollected && !o.codVerifiedByAdmin).map((codOrder) => {
+                        const sellerShare = codOrder.sellerEarnings || (codOrder.totalPrice * 0.9 - 50);
+                        const pocShare = codOrder.pocEarnings || 40;
+                        const platformShare = codOrder.totalPrice - sellerShare - pocShare;
+                        return (
+                          <tr key={codOrder._id}>
+                            <td className="py-3 font-mono font-bold text-accent">
+                              {codOrder._id.substring(codOrder._id.length - 8).toUpperCase()}
+                            </td>
+                            <td className="py-3">
+                              <p className="font-bold text-ink">Buyer: {codOrder.renter?.name}</p>
+                              <p className="text-[10px] text-ink/40">Seller: {codOrder.owner?.name}</p>
+                            </td>
+                            <td className="py-3 font-semibold text-indigo-700">
+                              {codOrder.poc?.name || "Assigned POC"}
+                            </td>
+                            <td className="py-3 font-black text-emerald-700 text-sm">
+                              Rs. {codOrder.totalPrice}
+                            </td>
+                            <td className="py-3 text-[10px] text-ink/65">
+                              <span>Seller: <b>Rs. {sellerShare}</b></span> • 
+                              <span>POC: <b>Rs. {pocShare}</b></span> • 
+                              <span>Platform: <b>Rs. {platformShare}</b></span>
+                            </td>
+                            <td className="py-3 text-right">
+                              <Button
+                                onClick={async () => {
+                                  if (!window.confirm(`Confirm receipt of Rs. ${codOrder.totalPrice} cash from POC ${codOrder.poc?.name}? Funds will be released.`)) return;
+                                  try {
+                                    await rentalApi.verifyCod(codOrder._id);
+                                    alert(`COD cash verified! Earnings released to Seller (Rs. ${sellerShare}) and POC (Rs. ${pocShare}).`);
+                                    onRefresh();
+                                  } catch (err) {
+                                    alert(getErrorMessage(err));
+                                  }
+                                }}
+                                variant="secondary"
+                                className="text-[10px] py-1 px-3.5 rounded-full font-bold bg-emerald-600 hover:bg-emerald-700 border-none text-white"
+                              >
+                                ✅ Verify Cash & Release Payouts
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {orders.filter(o => o.paymentMethod === "cod" && o.codCollected && !o.codVerifiedByAdmin).length === 0 && (
+                        <tr>
+                          <td colSpan="6" className="py-6 text-center text-ink/40">No pending COD cash collections awaiting admin verification.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Section 1: Pending Payout Requests */}
+              <div className="space-y-3 pt-4 border-t border-ink/5">
                 <h3 className="text-sm font-black uppercase text-amber-700 tracking-wider flex items-center gap-1.5">
                   ⏳ Pending Payout Requests
                 </h3>
@@ -1326,50 +1407,63 @@ function AdminDashboardView({ dashboard, onRefresh }) {
                         <th className="py-2">User Profile</th>
                         <th className="py-2">Wallet Balance</th>
                         <th className="py-2">Payout Amount</th>
-                        <th className="py-2">Transfer Details</th>
+                        <th className="py-2">Seller QR / Transfer Info</th>
                         <th className="py-2 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-ink/5">
-                      {withdrawals.filter(w => w.status === "pending").map((w) => (
-                        <tr key={w._id}>
-                          <td className="py-3 text-ink/50">
-                            {new Date(w.createdAt).toLocaleString()}
-                          </td>
-                          <td className="py-3 font-bold text-ink">
-                            {w.user?.name || "Seller"}
-                            <span className="text-[10px] text-ink/40 block mt-0.5">{w.user?.email}</span>
-                          </td>
-                          <td className="py-3 font-medium text-ink/70">
-                            Rs. {w.user?.balance ?? w.amount}
-                          </td>
-                          <td className="py-3 font-black text-indigo-700">
-                            Rs. {w.amount}
-                          </td>
-                          <td className="py-3 font-semibold text-ink/80 max-w-[200px] truncate" title={w.paymentDetails}>
-                            <span className="chip uppercase text-[9px] py-0.5 px-2 bg-mist border text-ink mr-1.5">{w.paymentMethod}</span>
-                            {w.paymentDetails}
-                          </td>
-                          <td className="py-3 text-right">
-                            <div className="flex justify-end gap-1.5">
-                              <Button
-                                onClick={() => handleProcessWithdrawal(w._id, "approved")}
-                                variant="secondary"
-                                className="text-[10px] py-1 px-3 rounded-full font-bold bg-emerald-600 hover:bg-emerald-700 border-none"
-                              >
-                                Approve & Payout
-                              </Button>
-                              <Button
-                                onClick={() => handleProcessWithdrawal(w._id, "rejected")}
-                                variant="ghost"
-                                className="text-[10px] py-1 px-3 rounded-full font-bold border border-red-200 text-red-600 hover:bg-red-50"
-                              >
-                                Reject Request
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {withdrawals.filter(w => w.status === "pending").map((w) => {
+                        const qrUrl = w.qrCodeUrl || w.user?.qrCodeUrl;
+                        return (
+                          <tr key={w._id}>
+                            <td className="py-3 text-ink/50">
+                              {new Date(w.createdAt).toLocaleString()}
+                            </td>
+                            <td className="py-3 font-bold text-ink">
+                              {w.user?.name || "Seller"}
+                              <span className="text-[10px] text-ink/40 block mt-0.5">{w.user?.email} • Role: {w.user?.role}</span>
+                            </td>
+                            <td className="py-3 font-medium text-ink/70">
+                              Rs. {w.user?.balance ?? w.amount}
+                            </td>
+                            <td className="py-3 font-black text-indigo-700">
+                              Rs. {w.amount}
+                            </td>
+                            <td className="py-3 font-semibold text-ink/80 max-w-[220px]">
+                              <span className="chip uppercase text-[9px] py-0.5 px-2 bg-mist border text-ink mr-1.5">{w.paymentMethodType || w.paymentMethod}</span>
+                              <span className="truncate block mt-0.5 text-[11px]" title={w.bankDetails}>{w.bankDetails || w.upiId}</span>
+                              {qrUrl && (
+                                <a
+                                  href={qrUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full hover:bg-indigo-100"
+                                >
+                                  📷 View Seller QR Code
+                                </a>
+                              )}
+                            </td>
+                            <td className="py-3 text-right">
+                              <div className="flex justify-end gap-1.5">
+                                <Button
+                                  onClick={() => handleProcessWithdrawal(w._id, "approved")}
+                                  variant="secondary"
+                                  className="text-[10px] py-1 px-3 rounded-full font-bold bg-emerald-600 hover:bg-emerald-700 border-none"
+                                >
+                                  Approve & Payout
+                                </Button>
+                                <Button
+                                  onClick={() => handleProcessWithdrawal(w._id, "rejected")}
+                                  variant="ghost"
+                                  className="text-[10px] py-1 px-3 rounded-full font-bold border border-red-200 text-red-600 hover:bg-red-50"
+                                >
+                                  Reject Request
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                       {withdrawals.filter(w => w.status === "pending").length === 0 && (
                         <tr>
                           <td colSpan="6" className="py-8 text-center text-ink/40">No pending withdrawal requests in queue.</td>
@@ -2042,46 +2136,115 @@ function AdminDashboardView({ dashboard, onRefresh }) {
         {activeTab === "settings" && (
           <div className="panel p-6 bg-white space-y-6">
             <div>
-              <h2 className="text-lg font-black text-ink">System settings</h2>
-              <p className="text-xs text-ink/40">Configure default platform commission splits and deposit thresholds.</p>
+              <h2 className="text-lg font-black text-ink">System Financial & Payment Settings</h2>
+              <p className="text-xs text-ink/40">Configure platform commission %, delivery fee distribution, withdrawal thresholds, COD status, and Escrow release timer.</p>
             </div>
 
             {loadingSettings ? (
               <p className="text-xs text-ink/40">Retrieving system configurations...</p>
             ) : (
-              <form onSubmit={handleSaveSettings} className="space-y-6 max-w-md">
+              <form onSubmit={handleSaveSettings} className="space-y-6 max-w-lg">
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">Platform Commission Fee (%)</label>
-                    <p className="text-[10px] text-ink/45">The fee percentage split automatically deducted from payments. Remainder is released to the seller wallet.</p>
+                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">1. Platform Commission Fee (%)</label>
+                    <p className="text-[10px] text-ink/45">Percentage deducted from item sales/rentals. (e.g. 10% on Rs. 500 item = Rs. 50 platform fee, Rs. 450 to Seller).</p>
                     <input
                       type="number"
                       className="input"
                       min="0"
                       max="100"
-                      value={systemSettings.commission_rate}
-                      onChange={(e) => setSystemSettings({ ...systemSettings, commission_rate: Number(e.target.value) })}
+                      value={systemSettings.platform_commission_rate ?? systemSettings.commission_rate ?? 10}
+                      onChange={(e) => setSystemSettings({ ...systemSettings, platform_commission_rate: Number(e.target.value), commission_rate: Number(e.target.value) })}
                       required
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">Minimum Deposit Threshold (Rs.)</label>
-                    <p className="text-[10px] text-ink/45">Minimum deposit wallet value requested for student card/UPI payments.</p>
+                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">2. Campus Delivery Fee (Rs.)</label>
+                    <p className="text-[10px] text-ink/45">Fixed delivery fee charged to buyer at checkout. (e.g. Rs. 50).</p>
                     <input
                       type="number"
                       className="input"
                       min="0"
-                      value={systemSettings.min_deposit}
-                      onChange={(e) => setSystemSettings({ ...systemSettings, min_deposit: Number(e.target.value) })}
+                      value={systemSettings.delivery_fee ?? 50}
+                      onChange={(e) => setSystemSettings({ ...systemSettings, delivery_fee: Number(e.target.value) })}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">3. POC Share % of Delivery Fee</label>
+                      <p className="text-[10px] text-ink/45">POC share percentage of delivery fee. (e.g. 80% of Rs. 50 = Rs. 40 to POC).</p>
+                      <input
+                        type="number"
+                        className="input"
+                        min="0"
+                        max="100"
+                        value={systemSettings.poc_share_rate ?? 80}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, poc_share_rate: Number(e.target.value) })}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">4. Platform Delivery Share %</label>
+                      <p className="text-[10px] text-ink/45">Platform share percentage of delivery fee. (e.g. 20% of Rs. 50 = Rs. 10 to Platform Revenue).</p>
+                      <input
+                        type="number"
+                        className="input"
+                        min="0"
+                        max="100"
+                        value={systemSettings.platform_delivery_share_rate ?? 20}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, platform_delivery_share_rate: Number(e.target.value) })}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">5. Minimum Payout Withdrawal Limit (Rs.)</label>
+                    <p className="text-[10px] text-ink/45">Minimum wallet balance required for sellers or POCs to request payout withdrawal. (e.g. Rs. 500).</p>
+                    <input
+                      type="number"
+                      className="input"
+                      min="0"
+                      value={systemSettings.min_withdrawal_amount ?? 500}
+                      onChange={(e) => setSystemSettings({ ...systemSettings, min_withdrawal_amount: Number(e.target.value) })}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">6. Cash on Delivery (COD) Enabled</label>
+                    <p className="text-[10px] text-ink/45">Enable or disable Cash on Delivery checkout for students.</p>
+                    <select
+                      className="w-full bg-white border border-ink/10 rounded-xl px-3 py-2 text-xs font-bold"
+                      value={systemSettings.cod_enabled ? "true" : "false"}
+                      onChange={(e) => setSystemSettings({ ...systemSettings, cod_enabled: e.target.value === "true" })}
+                    >
+                      <option value="true">Enabled (COD Active)</option>
+                      <option value="false">Disabled (Online Payments Only)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">7. Escrow Auto Release Timer (Hours)</label>
+                    <p className="text-[10px] text-ink/45">Automatically confirm delivery & release funds if buyer raises no dispute within this window. (e.g. 24 Hours).</p>
+                    <input
+                      type="number"
+                      className="input"
+                      min="1"
+                      value={systemSettings.escrow_auto_release_hours ?? 24}
+                      onChange={(e) => setSystemSettings({ ...systemSettings, escrow_auto_release_hours: Number(e.target.value) })}
                       required
                     />
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button type="submit" variant="secondary" className="px-6 py-2 text-xs uppercase font-bold" disabled={savingSettings}>
-                    {savingSettings ? "Updating system..." : "Save Config Settings"}
+                <div className="flex gap-2 pt-2">
+                  <Button type="submit" variant="secondary" className="px-6 py-2.5 text-xs uppercase font-bold w-full" disabled={savingSettings}>
+                    {savingSettings ? "Updating system..." : "Save System Config Settings"}
                   </Button>
                 </div>
               </form>

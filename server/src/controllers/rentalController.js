@@ -4,9 +4,10 @@ import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
 import Coupon from "../models/Coupon.js";
 import Conversation from "../models/Conversation.js";
+import Escrow from "../models/Escrow.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { notifyUser, notifyAdmins } from "../utils/notificationHelper.js";
-import { getSetting } from "../utils/settingsHelper.js";
+import { getSetting, getAllPaymentSettings } from "../utils/settingsHelper.js";
 import emailService from "../services/emailService.js";
 import { baseLayout } from "../templates/baseLayout.js";
 import { createRefund } from "../services/paymentService.js";
@@ -15,9 +16,10 @@ import { createAndStoreInvoice } from "../services/invoiceService.js";
 const populateRequest = (query) =>
   query
     .populate("item")
-    .populate("owner", "name email campus location ratingsAverage ratingsCount avatarUrl balance")
-    .populate("renter", "name email campus location ratingsAverage ratingsCount avatarUrl balance")
-    .populate("poc", "name email campus location");
+    .populate("owner", "name email campus location ratingsAverage ratingsCount avatarUrl balance pendingBalance qrCodeUrl upiId")
+    .populate("renter", "name email campus location ratingsAverage ratingsCount avatarUrl balance pendingBalance")
+    .populate("poc", "name email campus location balance qrCodeUrl upiId")
+    .populate("escrow");
 
 const getRentalDurationDays = (startDate, endDate) => {
   const start = new Date(startDate);
@@ -119,7 +121,17 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     discountAmount = Math.min(discountAmount, basePrice);
   }
 
-  const totalPrice = basePrice - discountAmount;
+  const settings = await getAllPaymentSettings();
+  const deliveryFee = settings.delivery_fee || 50;
+  const commissionRate = settings.platform_commission_rate || 10;
+  const pocShareRate = settings.poc_share_rate || 80;
+
+  const itemPrice = basePrice - discountAmount;
+  const platformCommission = itemPrice * (commissionRate / 100);
+  const sellerEarnings = itemPrice - platformCommission;
+  const pocEarnings = deliveryFee * (pocShareRate / 100);
+  const platformDeliveryShare = deliveryFee - pocEarnings;
+  const totalPrice = itemPrice + deliveryFee;
 
   const renter = await User.findById(req.user._id);
 
@@ -154,7 +166,7 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
   const pickupQrCode = "P-" + Math.floor(100000 + Math.random() * 900000);
   const deliveryQrCode = "D-" + Math.floor(100000 + Math.random() * 900000);
 
-  const initialStatus = "Payment Successful";
+  const initialStatus = paymentMethod === "cod" ? "COD Pending" : "Pending Pickup";
 
   const request = await RentalRequest.create({
     requestType: normalizedRequestType,
@@ -166,7 +178,13 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     message: message || "",
     paymentMethod,
     status: initialStatus,
+    itemPrice,
+    deliveryFee,
     totalPrice,
+    commissionAmount: platformCommission,
+    sellerEarnings,
+    pocEarnings,
+    platformDeliveryShare,
     dummyPaymentStatus: paymentMethod === "cod" ? "cod_pending" : "captured",
     dummyPaymentReference: paymentReference || (paymentMethod === "cod" ? `COD-${Date.now()}` : `REF-${Date.now()}`),
     paymentReference: paymentReference || (paymentMethod === "cod" ? `COD-${Date.now()}` : `REF-${Date.now()}`),
@@ -177,6 +195,32 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     trackingHistory: [{ status: initialStatus, location: "Order Placed" }],
     couponCode: couponCode || "",
   });
+
+  // Create Escrow System record for online/wallet payments
+  if (paymentMethod !== "cod") {
+    const escrow = await Escrow.create({
+      rentalRequest: request._id,
+      buyer: renter._id,
+      seller: item.owner,
+      itemPrice,
+      deliveryFee,
+      totalAmount: totalPrice,
+      platformCommission,
+      sellerEarnings,
+      pocEarnings,
+      platformDeliveryShare,
+      status: "locked",
+    });
+    request.escrow = escrow._id;
+    await request.save();
+
+    // Lock funds in Seller pending balance
+    const seller = await User.findById(item.owner);
+    if (seller) {
+      seller.pendingBalance = (seller.pendingBalance || 0) + sellerEarnings;
+      await seller.save();
+    }
+  }
 
   // Automatically create a secure context-locked conversation for this order
   await Conversation.create({
@@ -564,21 +608,63 @@ export const confirmReceipt = asyncHandler(async (req, res) => {
     throw new Error("Order not found");
   }
 
-  if (request.renter.toString() !== req.user._id.toString()) {
+  if (request.renter.toString() !== req.user._id.toString() && req.user.role !== "admin") {
     res.status(403);
-    throw new Error("Only the buyer/renter can confirm delivery receipt");
+    throw new Error("Only the buyer/renter or admin can confirm delivery receipt");
+  }
+
+  if (request.earningsReleased) {
+    res.status(400);
+    throw new Error("Funds for this order have already been released");
   }
 
   const isRental = request.requestType === "rental";
 
-  // Calculate platform commission and release remainder to seller wallet
-  const commissionRate = await getSetting("commission_rate", 10);
-  const commission = request.totalPrice * (commissionRate / 100);
-  const payout = request.totalPrice - commission;
+  const settings = await getAllPaymentSettings();
+  const deliveryFee = request.deliveryFee || settings.delivery_fee || 50;
+  const commissionRate = settings.platform_commission_rate || 10;
+  const pocShareRate = settings.poc_share_rate || 80;
 
+  const itemPrice = request.itemPrice || (request.totalPrice - deliveryFee);
+  const platformCommission = request.commissionAmount || (itemPrice * (commissionRate / 100));
+  const sellerEarnings = request.sellerEarnings || (itemPrice - platformCommission);
+  const pocEarnings = request.pocEarnings || (deliveryFee * (pocShareRate / 100));
+  const platformDeliveryShare = request.platformDeliveryShare || (deliveryFee - pocEarnings);
+
+  // Release earnings to seller
   const seller = await User.findById(request.owner);
-  seller.balance += payout;
-  await seller.save();
+  if (seller) {
+    seller.balance = (seller.balance || 0) + sellerEarnings;
+    seller.pendingBalance = Math.max(0, (seller.pendingBalance || 0) - sellerEarnings);
+    await seller.save();
+  }
+
+  // Release delivery fee share to POC if assigned
+  if (request.poc) {
+    const pocUser = await User.findById(request.poc);
+    if (pocUser) {
+      pocUser.balance = (pocUser.balance || 0) + pocEarnings;
+      await pocUser.save();
+
+      // Transaction log for POC
+      await Transaction.create({
+        user: pocUser._id,
+        order: request._id,
+        amount: pocEarnings,
+        type: "delivery_income",
+        status: "completed",
+        paidAt: new Date(),
+      });
+    }
+  }
+
+  // Update Escrow record
+  const escrow = await Escrow.findOne({ rentalRequest: request._id });
+  if (escrow) {
+    escrow.status = "released";
+    escrow.releasedAt = new Date();
+    await escrow.save();
+  }
 
   // Update original payment transaction's escrow status
   try {
@@ -592,39 +678,56 @@ export const confirmReceipt = asyncHandler(async (req, res) => {
     console.error("Failed to update original transaction escrow status:", err.message);
   }
 
-  // Log transactions
+  // Log transactions for Seller, Item Commission, and Delivery Commission
   await Transaction.create({
-    user: seller._id,
+    user: request.owner,
     order: request._id,
-    amount: payout,
+    amount: sellerEarnings,
     type: "release_to_seller",
     status: "completed",
+    paidAt: new Date(),
   });
 
   await Transaction.create({
     user: req.user._id,
     order: request._id,
-    amount: commission,
+    amount: platformCommission,
     type: "commission",
     status: "completed",
+    paidAt: new Date(),
+  });
+
+  await Transaction.create({
+    user: req.user._id,
+    order: request._id,
+    amount: platformDeliveryShare,
+    type: "delivery_commission",
+    status: "completed",
+    paidAt: new Date(),
   });
 
   request.status = isRental ? "Rental Active" : "Completed";
   request.trackingStatus = isRental ? "Rental Active" : "Completed";
-  request.commissionAmount = commission;
+  request.commissionAmount = platformCommission;
+  request.sellerEarnings = sellerEarnings;
+  request.pocEarnings = pocEarnings;
+  request.platformDeliveryShare = platformDeliveryShare;
   request.earningsReleased = true;
   request.trackingHistory.push({ status: request.status, location: "Funds Released" });
   await request.save();
 
-  await notifyUser(request.owner, "Earnings Released!", `Rs. ${payout} has been credited to your wallet (after ${commissionRate}% commission of Rs. ${commission}) for selling/renting "${request.item.title}".`);
-  await notifyUser(req.user._id, "Order Receipt Confirmed", `Thank you! Funds have been released to the seller.`);
-  await notifyAdmins("Earnings Released", `Order ID ${request._id}: released Rs. ${payout} to Seller, commission of Rs. ${commission} earned.`);
+  await notifyUser(request.owner, "Earnings Released!", `Rs. ${sellerEarnings} has been credited to your wallet for "${request.item.title}".`);
+  if (request.poc) {
+    await notifyUser(request.poc, "Delivery Fee Credited!", `Rs. ${pocEarnings} delivery income credited to your wallet for order ${request._id}.`);
+  }
+  await notifyUser(request.renter, "Order Receipt Confirmed", `Thank you! Escrow funds have been released.`);
+  await notifyAdmins("Escrow Released", `Order ID ${request._id}: released Rs. ${sellerEarnings} to Seller, Rs. ${pocEarnings} to POC, Rs. ${platformCommission + platformDeliveryShare} to Platform Revenue.`);
 
   try {
     if (seller && seller.email) {
       const orderWithCommission = {
         ...request.toObject(),
-        commissionAmount: commission,
+        commissionAmount: platformCommission,
       };
       await emailService.sendSellerNotification(seller.email, orderWithCommission, request.item, "release_to_seller");
     }
@@ -1002,4 +1105,125 @@ export const notifyPocHandover = asyncHandler(async (req, res) => {
   }
 
   res.json({ success: true, message: "Handover signal sent to POC dispatcher." });
+});
+
+// POC Collect COD Cash
+export const collectCodCash = asyncHandler(async (req, res) => {
+  const request = await RentalRequest.findById(req.params.requestId).populate("item");
+  if (!request) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  if (request.poc?.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+    res.status(403);
+    throw new Error("Only the assigned POC can mark cash as collected");
+  }
+
+  request.codCollected = true;
+  request.trackingHistory.push({ status: "COD Collected", location: `Cash of Rs. ${request.totalPrice} collected by POC` });
+  await request.save();
+
+  await notifyAdmins("COD Cash Collected", `POC ${req.user.name} collected Rs. ${request.totalPrice} for Order ID ${request._id}. Please verify cash to release payouts.`);
+  await notifyUser(request.renter, "Cash Received", `POC ${req.user.name} has recorded cash collection of Rs. ${request.totalPrice}.`);
+
+  res.json(await populateRequest(RentalRequest.findById(request._id)));
+});
+
+// Admin Verify COD Cash & Trigger Release
+export const verifyCodCash = asyncHandler(async (req, res) => {
+  if (req.user.role !== "admin") {
+    res.status(403);
+    throw new Error("Access denied: Admins only");
+  }
+
+  const request = await RentalRequest.findById(req.params.requestId).populate("item");
+  if (!request) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  if (request.codVerifiedByAdmin) {
+    res.status(400);
+    throw new Error("COD cash for this order has already been verified");
+  }
+
+  const settings = await getAllPaymentSettings();
+  const deliveryFee = request.deliveryFee || settings.delivery_fee || 50;
+  const commissionRate = settings.platform_commission_rate || 10;
+  const pocShareRate = settings.poc_share_rate || 80;
+
+  const itemPrice = request.itemPrice || (request.totalPrice - deliveryFee);
+  const platformCommission = request.commissionAmount || (itemPrice * (commissionRate / 100));
+  const sellerEarnings = request.sellerEarnings || (itemPrice - platformCommission);
+  const pocEarnings = request.pocEarnings || (deliveryFee * (pocShareRate / 100));
+  const platformDeliveryShare = request.platformDeliveryShare || (deliveryFee - pocEarnings);
+
+  // Credit Seller Wallet
+  const seller = await User.findById(request.owner);
+  if (seller) {
+    seller.balance = (seller.balance || 0) + sellerEarnings;
+    await seller.save();
+  }
+
+  // Credit POC Wallet
+  if (request.poc) {
+    const pocUser = await User.findById(request.poc);
+    if (pocUser) {
+      pocUser.balance = (pocUser.balance || 0) + pocEarnings;
+      await pocUser.save();
+
+      await Transaction.create({
+        user: pocUser._id,
+        order: request._id,
+        amount: pocEarnings,
+        type: "delivery_income",
+        status: "completed",
+        paidAt: new Date(),
+      });
+    }
+  }
+
+  // Record Transactions
+  await Transaction.create({
+    user: request.owner,
+    order: request._id,
+    amount: sellerEarnings,
+    type: "release_to_seller",
+    status: "completed",
+    paidAt: new Date(),
+  });
+
+  await Transaction.create({
+    user: req.user._id,
+    order: request._id,
+    amount: platformCommission,
+    type: "commission",
+    status: "completed",
+    paidAt: new Date(),
+  });
+
+  await Transaction.create({
+    user: req.user._id,
+    order: request._id,
+    amount: platformDeliveryShare,
+    type: "delivery_commission",
+    status: "completed",
+    paidAt: new Date(),
+  });
+
+  request.codCollected = true;
+  request.codVerifiedByAdmin = true;
+  request.earningsReleased = true;
+  request.status = request.requestType === "rental" ? "Rental Active" : "Completed";
+  request.trackingStatus = request.status;
+  request.trackingHistory.push({ status: "COD Verified", location: `Admin verified cash of Rs. ${request.totalPrice}. Funds distributed.` });
+  await request.save();
+
+  await notifyUser(request.owner, "COD Earnings Released!", `Rs. ${sellerEarnings} credited to your wallet for Order ID ${request._id}.`);
+  if (request.poc) {
+    await notifyUser(request.poc, "Delivery Fee Credited!", `Rs. ${pocEarnings} delivery earnings credited to your wallet for Order ID ${request._id}.`);
+  }
+
+  res.json(await populateRequest(RentalRequest.findById(request._id)));
 });

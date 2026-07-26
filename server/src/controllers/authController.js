@@ -634,6 +634,18 @@ export const sendSignupOtp = asyncHandler(async (req, res) => {
   const otp = await otpService.createOtp(normalizedEmail, "signup");
   const emailRes = await emailService.sendOTPEmail(normalizedEmail, otp, "signup");
 
+  if (emailRes && !emailRes.success) {
+    if (process.env.NODE_ENV !== "production") {
+      return res.json({
+        success: true,
+        otp,
+        message: `[Dev Mode] Verification code: ${otp} (Email dispatch failed: ${emailRes.error})`,
+      });
+    }
+    res.status(500);
+    throw new Error(`Failed to send email verification code: ${emailRes.error || "Email service temporary issue"}`);
+  }
+
   const responseData = {
     success: true,
     message: "Signup verification code sent to your email",
@@ -641,9 +653,6 @@ export const sendSignupOtp = asyncHandler(async (req, res) => {
 
   if (process.env.NODE_ENV !== "production") {
     responseData.otp = otp;
-    if (emailRes && !emailRes.success) {
-      responseData.message = `[Dev Mode] Verification code: ${otp} (Email failed: ${emailRes.error})`;
-    }
   }
 
   res.json(responseData);
@@ -699,6 +708,18 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   const otp = await otpService.createOtp(normalizedEmail, "reset");
   const emailRes = await emailService.sendOTPEmail(normalizedEmail, otp, "reset");
 
+  if (emailRes && !emailRes.success) {
+    if (process.env.NODE_ENV !== "production") {
+      return res.json({
+        success: true,
+        otp,
+        message: `[Dev Mode] Verification code: ${otp} (Email dispatch failed: ${emailRes.error})`,
+      });
+    }
+    res.status(500);
+    throw new Error(`Failed to send email verification code: ${emailRes.error || "Email service temporary issue"}`);
+  }
+
   const responseData = {
     success: true,
     message: "Verification code sent to your email",
@@ -706,9 +727,6 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
   if (process.env.NODE_ENV !== "production") {
     responseData.otp = otp;
-    if (emailRes && !emailRes.success) {
-      responseData.message = `[Dev Mode] Verification code: ${otp} (Email failed: ${emailRes.error})`;
-    }
   }
 
   res.json(responseData);

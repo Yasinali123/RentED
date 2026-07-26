@@ -3,6 +3,7 @@ import axios from "axios";
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
   withCredentials: true,
+  timeout: 30000,
 });
 
 api.interceptors.request.use((config) => {
@@ -105,6 +106,8 @@ export const rentalApi = {
   adminUpdateRental: async (requestId, payload) => (await api.patch(`/rentals/${requestId}/admin-status`, payload)).data,
   rejectTask: async (requestId, reason) => (await api.patch(`/rentals/${requestId}/reject-assignment`, { reason })).data,
   handoverSignal: async (requestId) => (await api.post(`/rentals/${requestId}/handover`)).data,
+  collectCod: async (requestId) => (await api.patch(`/rentals/${requestId}/collect-cod`)).data,
+  verifyCod: async (requestId) => (await api.patch(`/rentals/${requestId}/verify-cod`)).data,
 };
 
 export const paymentApi = {

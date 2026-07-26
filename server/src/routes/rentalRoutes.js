@@ -17,6 +17,8 @@ import {
   adminUpdateRental,
   rejectDeliveryTask,
   notifyPocHandover,
+  collectCodCash,
+  verifyCodCash,
 } from "../controllers/rentalController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -41,5 +43,7 @@ router.patch("/:requestId/cancel", cancelRentalRequest);
 router.patch("/:requestId/admin-status", adminUpdateRental);
 router.patch("/:requestId/reject-assignment", rejectDeliveryTask);
 router.post("/:requestId/handover", notifyPocHandover);
+router.patch("/:requestId/collect-cod", collectCodCash);
+router.patch("/:requestId/verify-cod", verifyCodCash);
 
 export default router;

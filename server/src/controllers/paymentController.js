@@ -5,8 +5,9 @@ import Item from "../models/Item.js";
 import Coupon from "../models/Coupon.js";
 import Transaction from "../models/Transaction.js";
 import WithdrawalRequest from "../models/WithdrawalRequest.js";
+import Escrow from "../models/Escrow.js";
 import asyncHandler from "../utils/asyncHandler.js";
-import { getSetting } from "../utils/settingsHelper.js";
+import { getSetting, getAllPaymentSettings } from "../utils/settingsHelper.js";
 import { createRazorpayOrder, verifyPaymentSignature } from "../services/paymentService.js";
 import emailService from "../services/emailService.js";
 
@@ -79,7 +80,14 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
     }
   }
 
-  const totalPrice = basePrice - discountAmount;
+  const settings = await getAllPaymentSettings();
+  const deliveryFee = settings.delivery_fee || 50;
+  const commissionRate = settings.platform_commission_rate || 10;
+
+  const itemPrice = basePrice - discountAmount;
+  const platformCommission = itemPrice * (commissionRate / 100);
+  const sellerEarnings = itemPrice - platformCommission;
+  const totalPrice = itemPrice + deliveryFee;
 
   try {
     const order = await createRazorpayOrder(totalPrice);
@@ -90,6 +98,10 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
+      itemPrice,
+      deliveryFee,
+      platformCommission,
+      sellerEarnings,
       totalPrice,
     });
   } catch (error) {
@@ -204,12 +216,17 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     }
   }
 
-  const totalPrice = basePrice - discountAmount;
+  const settings = await getAllPaymentSettings();
+  const deliveryFee = settings.delivery_fee || 50;
+  const commissionRate = settings.platform_commission_rate || 10;
+  const pocShareRate = settings.poc_share_rate || 80;
 
-  // Calculate dynamic commission
-  const commissionRate = await getSetting("commission_rate", 10);
-  const commission = totalPrice * (commissionRate / 100);
-  const sellerAmount = totalPrice - commission;
+  const itemPrice = basePrice - discountAmount;
+  const platformCommission = itemPrice * (commissionRate / 100);
+  const sellerEarnings = itemPrice - platformCommission;
+  const pocEarnings = deliveryFee * (pocShareRate / 100);
+  const platformDeliveryShare = deliveryFee - pocEarnings;
+  const totalPrice = itemPrice + deliveryFee;
 
   const transaction = await Transaction.create({
     user: req.user._id,
@@ -222,9 +239,9 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     method: paymentMethodUsed,
     gateway: "razorpay",
     currency: "INR",
-    commission,
-    sellerAmount,
-    platformAmount: commission,
+    commission: platformCommission,
+    sellerAmount: sellerEarnings,
+    platformAmount: platformCommission + platformDeliveryShare,
     escrowStatus: "held",
     paidAt: new Date(),
   });
@@ -234,6 +251,13 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     message: "Payment verified successfully",
     paymentReference: razorpay_payment_id,
     transactionId: transaction._id,
+    itemPrice,
+    deliveryFee,
+    platformCommission,
+    sellerEarnings,
+    pocEarnings,
+    platformDeliveryShare,
+    totalPrice,
   });
 });
 
@@ -298,7 +322,10 @@ export const handleWebhook = asyncHandler(async (req, res) => {
 
 // Request Withdrawal
 export const requestWithdrawal = asyncHandler(async (req, res) => {
-  const { amount, bankDetails } = req.body;
+  const { amount, bankDetails, upiId, qrCodeUrl, paymentMethodType = "upi_id" } = req.body;
+
+  const settings = await getAllPaymentSettings();
+  const minWithdrawal = settings.min_withdrawal_amount || 500;
 
   const withdrawAmount = Number(amount);
   if (!withdrawAmount || withdrawAmount <= 0) {
@@ -306,9 +333,14 @@ export const requestWithdrawal = asyncHandler(async (req, res) => {
     throw new Error("Amount must be greater than zero");
   }
 
-  if (!bankDetails) {
+  if (withdrawAmount < minWithdrawal) {
     res.status(400);
-    throw new Error("Bank or UPI details are required");
+    throw new Error(`Minimum withdrawal amount is Rs. ${minWithdrawal}`);
+  }
+
+  if (!bankDetails && !upiId && !qrCodeUrl) {
+    res.status(400);
+    throw new Error("Bank, UPI ID, or QR Code details are required for withdrawal");
   }
 
   const user = await User.findById(req.user._id);
@@ -322,15 +354,29 @@ export const requestWithdrawal = asyncHandler(async (req, res) => {
     throw new Error(`Insufficient wallet balance. Available: Rs. ${user.balance}`);
   }
 
+  // Update user default payout info if supplied
+  if (qrCodeUrl) user.qrCodeUrl = qrCodeUrl;
+  if (upiId) user.upiId = upiId;
+  if (typeof bankDetails === "object") {
+    user.bankDetails = { ...user.bankDetails, ...bankDetails };
+  }
+
   // Debit balance upfront
   user.balance -= withdrawAmount;
   await user.save();
+
+  const formattedBankDetails = typeof bankDetails === "object"
+    ? `Bank: ${bankDetails.bankName || ""}, A/C: ${bankDetails.accountNumber || ""}, IFSC: ${bankDetails.ifscCode || ""}`
+    : (bankDetails || upiId || "QR Code Payout");
 
   const request = await WithdrawalRequest.create({
     user: user._id,
     amount: withdrawAmount,
     status: "pending",
-    bankDetails,
+    paymentMethodType,
+    bankDetails: formattedBankDetails,
+    upiId: upiId || user.upiId || "",
+    qrCodeUrl: qrCodeUrl || user.qrCodeUrl || "",
   });
 
   await Transaction.create({
@@ -356,7 +402,7 @@ export const getWithdrawals = asyncHandler(async (req, res) => {
   }
 
   const requests = await WithdrawalRequest.find(query)
-    .populate("user", "name email collegeName balance")
+    .populate("user", "name email collegeName balance qrCodeUrl upiId bankDetails role")
     .sort({ createdAt: -1 });
 
   res.json(requests);
