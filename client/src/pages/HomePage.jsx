@@ -24,7 +24,12 @@ import {
   Maximize2,
   ChevronLeft,
   ChevronRight,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
+
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -170,234 +175,115 @@ const showcaseItems = [
 
 
 
-function HeroShowcase({ heroState }) {
-  const [activeCard, setActiveCard] = useState(0);
+function HeroVideoShowcase({ heroState }) {
+  const videoRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
 
-  // Auto-cycle cards with 3D rotation (only when not collapsing)
-  useEffect(() => {
-    if (heroState === "collapsing" || heroState === "collapsed") return;
-    const interval = setInterval(() => {
-      setActiveCard((prev) => (prev + 1) % showcaseItems.length);
-    }, 4500);
-    return () => clearInterval(interval);
-  }, [heroState]);
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (isPlaying) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      videoRef.current.play();
+      setIsPlaying(true);
+    }
+  };
 
-  const current = showcaseItems[activeCard];
+  const toggleMute = () => {
+    if (!videoRef.current) return;
+    videoRef.current.muted = !isMuted;
+    setIsMuted(!isMuted);
+  };
+
   const isCollapsing = heroState === "collapsing";
 
   return (
-    <div className="relative h-[360px] sm:h-[440px] lg:h-[480px] w-full overflow-hidden sm:overflow-visible" style={{ perspective: "1200px" }}>
+    <div className={`relative w-full max-w-lg mx-auto lg:max-w-none transition-all duration-500 ${isCollapsing ? "animate-disappear-orbs" : ""}`}>
+      {/* Dynamic Ambient Glow Orbs in Background */}
+      <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-accent/30 via-emerald-400/20 to-indigo-500/30 blur-2xl opacity-70 animate-pulse pointer-events-none" />
 
-
-      {/* ── Multi-layer radial glow ── */}
-      <div className={`absolute inset-0 flex items-center justify-center pointer-events-none ${isCollapsing ? "animate-disappear-orbs" : ""}`}>
-        <div
-          className="absolute h-80 w-80 rounded-full blur-[100px] transition-all duration-1000"
-          style={{ backgroundColor: current.glow + "35" }}
-        />
-        <div
-          className="absolute h-56 w-56 rounded-full blur-[60px] transition-all duration-1000"
-          style={{ backgroundColor: current.glow + "20" }}
-        />
-        <div
-          className="absolute h-32 w-32 rounded-full blur-[40px] transition-all duration-1000"
-          style={{ backgroundColor: current.color + "30" }}
-        />
-      </div>
-
-      {/* ── Orbiting rings ── */}
-      <div className={`absolute inset-0 flex items-center justify-center pointer-events-none ${isCollapsing ? "animate-disappear-rings" : ""}`}>
-        {/* Outer ring */}
-        <div
-          className="absolute h-[380px] w-[380px] rounded-full border border-dashed border-ink/[0.07]"
-          style={{ animation: "orbitSpin 25s linear infinite" }}
-        />
-        {/* Inner ring */}
-        <div
-          className="absolute h-[280px] w-[280px] rounded-full border border-dotted border-ink/[0.05]"
-          style={{ animation: "orbitSpin 18s linear infinite reverse" }}
-        />
-        {/* Innermost ring (subtle) */}
-        <div
-          className="absolute h-[180px] w-[180px] rounded-full border border-ink/[0.03]"
-          style={{ animation: "orbitSpin 12s linear infinite" }}
-        />
-      </div>
-
-      {/* ── 3D Carousel Stage ── */}
-      <div className="absolute inset-0 flex items-center justify-center z-10">
-        <div className="carousel-stage">
-          {showcaseItems.map((item, idx) => {
-            // Determine position class
-            let positionClass = "card-hidden";
-            if (idx === activeCard) {
-              positionClass = "card-front";
-            } else if (idx === (activeCard + 1) % 3) {
-              positionClass = "card-right";
-            } else if (idx === (activeCard + 2) % 3) {
-              positionClass = "card-left";
-            }
-
-            // Determine if collapsing for exit animation class
-            const disappearClass = isCollapsing ? `animate-disappear-card-${idx}` : "";
-
-            return (
-              <div
-                key={idx}
-                onClick={() => {
-                  if (idx !== activeCard) {
-                    setActiveCard(idx);
-                  }
-                }}
-                className={`carousel-card ${positionClass} ${disappearClass} w-[220px] sm:w-[260px] select-none`}
-
-                style={{
-                  animation: idx === activeCard && !isCollapsing ? "heroFloat 6s ease-in-out infinite" : "none",
-                }}
-              >
-                {/* Card design */}
-                <div className="rounded-3xl border border-ink/10 bg-white p-5 shadow-xl shadow-ink/5 transition duration-300 hover:border-ink/20">
-                  {/* Category tag */}
-                  <div className="mb-4 flex items-center justify-between">
-                    <span
-                      className="rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white"
-                      style={{ backgroundColor: item.color }}
-                    >
-                      {item.tag}
-                    </span>
-                    <div className="flex items-center gap-1 rounded-full bg-ink/5 px-2 py-0.5">
-                      <Star className="h-3 w-3 fill-gold text-gold" />
-                      <span className="text-[10px] font-bold text-ink/80">{item.rating}</span>
-                    </div>
-                  </div>
-
-                  {/* Product image area */}
-                  <div
-                    className="relative mb-4 flex h-32 items-center justify-center rounded-2xl overflow-hidden"
-                    style={{ backgroundColor: item.color + "12" }}
-                  >
-                    {/* Inner glow */}
-                    <div
-                      className="absolute h-20 w-20 rounded-full blur-[25px]"
-                      style={{ backgroundColor: item.glow + "30" }}
-                    />
-                    {item.image ? (
-                      <img
-                        src={item.image}
-                        alt={item.title}
-                        className="relative h-full w-full object-cover transition-all duration-700 hover:scale-110"
-                      />
-                    ) : (
-                      <item.icon
-                        className="relative h-14 w-14 transition-all duration-700"
-                        style={{
-                          color: item.color,
-                          filter: `drop-shadow(0 0 16px ${item.glow}40)`,
-                        }}
-                      />
-                    )}
-                    {/* Shine sweep */}
-                    <div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-                      style={{ animation: "shineSweep 3s ease-in-out infinite" }}
-                    />
-                  </div>
-
-                  {/* Details */}
-                  <h4 className="text-sm font-bold text-ink leading-tight">{item.title}</h4>
-                  <p className="mt-1 text-[11px] text-ink/55">{item.subtitle}</p>
-
-                  {/* Price row */}
-                  <div className="mt-3 flex items-center justify-between">
-                    <p
-                      className="text-xl font-black"
-                      style={{ color: item.glow }}
-                    >
-                      {item.price}
-                    </p>
-                    <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-400">
-                      {item.savings}
-                    </span>
-                  </div>
-
-                  {/* Seller row */}
-                  <div className="mt-3.5 flex items-center gap-2.5 border-t border-ink/10 pt-3.5">
-                    <div
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                      style={{ backgroundColor: item.color }}
-                    >
-                      {item.seller[0]}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[11px] font-semibold text-ink/80 leading-tight">{item.seller}</p>
-                      <p className="text-[9px] text-ink/45">{item.college}</p>
-                    </div>
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Carousel Prev/Next Buttons ── */}
-      {!isCollapsing && (
-        <div className="absolute inset-x-2 top-1/2 -translate-y-1/2 flex justify-between z-20 pointer-events-none">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveCard((prev) => (prev - 1 + 3) % 3);
-            }}
-            className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-ink/10 bg-white shadow-sm text-ink/70 hover:bg-ink/5 hover:text-ink transition duration-200"
-            title="Previous Item"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveCard((prev) => (prev + 1) % 3);
-            }}
-            className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-ink/10 bg-white shadow-sm text-ink/70 hover:bg-ink/5 hover:text-ink transition duration-200"
-            title="Next Item"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-        </div>
-      )}
-
-
-
-      {/* ── Live indicator ── */}
-      <div className={`absolute left-4 top-0 flex items-center gap-2 rounded-full border border-ink/10 bg-white shadow-sm px-4 py-2 backdrop-blur-xl ${isCollapsing ? "animate-disappear-badge-3" : ""}`}>
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-        </span>
-        <span className="text-[11px] font-semibold text-ink/65">Live</span>
-      </div>
-
-
-
-      {/* ── Progress dots ── */}
-      <div className={`absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-2.5 transition-all duration-500 ${isCollapsing ? "opacity-0 scale-90" : "opacity-100"}`}>
-        {showcaseItems.map((item, i) => (
-          <button
-            key={i}
-            onClick={() => setActiveCard(i)}
-            className="relative h-2 rounded-full transition-all duration-500"
-            style={{
-              width: i === activeCard ? "2rem" : "0.5rem",
-              backgroundColor: i === activeCard ? item.color : "rgba(19,35,47,0.15)",
-              boxShadow: i === activeCard ? `0 0 8px ${item.color}50` : "none",
-            }}
+      {/* Main Glassmorphism Video Player Card */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/80 p-3 sm:p-4 shadow-2xl backdrop-blur-xl transition duration-500 hover:shadow-3xl">
+        
+        {/* Video Player Container */}
+        <div className="relative aspect-video sm:aspect-[4/3] lg:aspect-video w-full overflow-hidden rounded-2xl bg-ink/90 shadow-inner">
+          <video
+            ref={videoRef}
+            src="/videos/hero-bg.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
           />
-        ))}
+
+          {/* Video Dark Overlay Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-ink/20 pointer-events-none" />
+
+          {/* Top Header Badge */}
+          <div className="absolute left-3 top-3 sm:left-4 sm:top-4 flex items-center gap-2 rounded-full bg-black/60 px-3.5 py-1.5 backdrop-blur-md border border-white/20 shadow-md">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            </span>
+            <span className="text-[11px] font-bold tracking-wider text-white uppercase">Live Campus Rentals</span>
+          </div>
+
+          {/* Video Controls (Play/Pause & Mute) */}
+          <div className="absolute right-3 top-3 sm:right-4 sm:top-4 flex items-center gap-2 z-10">
+            <button
+              type="button"
+              onClick={toggleMute}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md border border-white/20 hover:bg-black/80 active:scale-95 transition"
+              title={isMuted ? "Unmute sound" : "Mute sound"}
+            >
+              {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={togglePlay}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md border border-white/20 hover:bg-black/80 active:scale-95 transition"
+              title={isPlaying ? "Pause video" : "Play video"}
+            >
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </button>
+          </div>
+
+          {/* Bottom Floating Card Badge */}
+          <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex items-center justify-between gap-2 rounded-2xl bg-white/90 p-3 backdrop-blur-md border border-white/60 shadow-lg">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-white font-black text-sm shrink-0 shadow-md">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-ink leading-tight">Hyperlocal Student Marketplace</p>
+                <p className="text-[10px] font-bold text-emerald-700 mt-0.5">Rent Books, Cycles & Gear from ₹15/day</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-extrabold text-emerald-800 shrink-0 border border-emerald-200">
+              Save Up to 80%
+            </span>
+          </div>
+        </div>
+
+        {/* Feature Highlights Row below video */}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="flex items-center gap-2 rounded-xl bg-canvas p-2.5 border border-ink/5">
+            <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span className="text-[11px] font-bold text-ink/80 truncate">Verified Student IDs</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl bg-canvas p-2.5 border border-ink/5">
+            <Zap className="h-4 w-4 text-accent shrink-0" />
+            <span className="text-[11px] font-bold text-ink/80 truncate">Same-Day Pickup</span>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
 
 
 
@@ -1055,12 +941,13 @@ function HomePage() {
               </form>
             </div>
 
-            {/* ── Right Column: 3D Rotating Carousel Hero Showcase ── */}
+            {/* ── Right Column: Animated Video Player Showcase ── */}
             <div 
               className="flex flex-col lg:col-span-6 space-y-4 justify-center"
             >
-              <HeroShowcase heroState={heroState} />
+              <HeroVideoShowcase heroState={heroState} />
             </div>
+
           </div>
 
           {/* ── Feature strip at bottom ── */}
