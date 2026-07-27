@@ -31,7 +31,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { itemApi, locationApi } from "../api/client";
 import ItemCard from "../components/items/ItemCard";
 import Button from "../components/ui/Button";
+import SmokyWaveCanvas from "../components/ui/SmokyWaveCanvas";
 import { landingStats } from "../data/sampleHighlights";
+
+
+
+
 import { useAuth } from "../context/AuthContext";
 import useCurrentLocation from "../hooks/useCurrentLocation";
 
@@ -410,9 +415,8 @@ function AnimatedCounter({ label, value, suffix = "" }) {
   return (
     <div
       ref={ref}
-      className={`group relative overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-7 shadow-soft backdrop-blur-sm transition-all duration-700 hover:-translate-y-2 hover:shadow-xl ${
-        visible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
-      }`}
+      className={`group relative overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-7 shadow-soft backdrop-blur-sm transition-all duration-700 hover:-translate-y-2 hover:shadow-xl ${visible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+        }`}
     >
       <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-gradient-to-br from-accent/10 to-gold/10 blur-2xl transition-transform duration-500 group-hover:scale-150" />
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/40">
@@ -437,11 +441,10 @@ function StepCard({ step, index, visible }) {
 
   return (
     <div
-      className={`group relative rounded-3xl border border-white/60 bg-white/70 p-8 shadow-soft backdrop-blur-sm transition-all duration-700 hover:-translate-y-3 hover:shadow-xl ${
-        visible
+      className={`group relative rounded-3xl border border-white/60 bg-white/70 p-8 shadow-soft backdrop-blur-sm transition-all duration-700 hover:-translate-y-3 hover:shadow-xl ${visible
           ? "translate-y-0 opacity-100"
           : "translate-y-12 opacity-0"
-      }`}
+        }`}
       style={{ transitionDelay: `${index * 150}ms` }}
     >
       {/* Step number badge */}
@@ -468,9 +471,8 @@ function StepCard({ step, index, visible }) {
 function TestimonialCard({ testimonial, visible, delay }) {
   return (
     <div
-      className={`rounded-3xl border border-white/60 bg-white/70 p-7 shadow-soft backdrop-blur-sm transition-all duration-700 hover:-translate-y-2 hover:shadow-xl ${
-        visible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
-      }`}
+      className={`rounded-3xl border border-white/60 bg-white/70 p-7 shadow-soft backdrop-blur-sm transition-all duration-700 hover:-translate-y-2 hover:shadow-xl ${visible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+        }`}
       style={{ transitionDelay: `${delay}ms` }}
     >
       <div className="mb-4 flex gap-1">
@@ -500,13 +502,12 @@ function TestimonialCard({ testimonial, visible, delay }) {
 function FeatureCard({ icon: Icon, title, description, gradient, index, visible }) {
   return (
     <div
-      className={`group relative overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-8 shadow-soft backdrop-blur-sm transition-all duration-700 hover:-translate-y-3 hover:shadow-xl ${
-        visible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
-      }`}
+      className={`group relative overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-8 shadow-soft backdrop-blur-sm transition-all duration-700 hover:-translate-y-3 hover:shadow-xl ${visible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
+        }`}
       style={{ transitionDelay: `${index * 120}ms` }}
     >
       <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-gradient-to-br opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-30"
-           style={{ backgroundImage: `linear-gradient(to bottom right, ${gradient})` }} />
+        style={{ backgroundImage: `linear-gradient(to bottom right, ${gradient})` }} />
       <div
         className={`mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg text-white transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`}
         style={{ backgroundImage: `linear-gradient(to bottom right, ${gradient})` }}
@@ -721,15 +722,15 @@ function HomePage() {
   }, [user, browserLoc.latitude, browserLoc.longitude]);
 
   useEffect(() => {
-    itemApi.list({ limit: 4 }).then(setTrendingItems).catch(() => {});
-    itemApi.list({ limit: 8 }).then(setNationwideItems).catch(() => {});
+    itemApi.list({ limit: 4 }).then(setTrendingItems).catch(() => { });
+    itemApi.list({ limit: 8 }).then(setNationwideItems).catch(() => { });
 
     if (user) {
       if (user.collegeName) {
         itemApi
           .list({ collegeName: user.collegeName, limit: 4 })
           .then(setCollegeItems)
-          .catch(() => {});
+          .catch(() => { });
       }
       if (user.city) {
         itemApi
@@ -741,7 +742,7 @@ function HomePage() {
                 .slice(0, 4)
             )
           )
-          .catch(() => {});
+          .catch(() => { });
       }
     }
 
@@ -757,7 +758,7 @@ function HomePage() {
           limit: 4,
         })
         .then(setNearbyItems)
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [user, browserLoc.latitude, browserLoc.longitude]);
 
@@ -797,7 +798,7 @@ function HomePage() {
     <div className="space-y-16 pb-8">
       {/* ════════════════════════════ HERO ════════════════════════════ */}
       {heroState === "collapsed" ? (
-        <div 
+        <div
           className="flex items-center justify-between rounded-3xl border border-white/60 bg-white/70 p-6 shadow-soft backdrop-blur-sm transition-all duration-500 hover:shadow-md"
           style={{ animation: "fadeSlideUp 0.5s ease-out" }}
         >
@@ -821,186 +822,134 @@ function HomePage() {
       ) : (
         <section
           ref={heroRef}
-          className={`relative min-h-[560px] sm:min-h-[620px] overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] bg-ink shadow-2xl border border-white/10 transition-all duration-700 ${
-            heroState === "visible" && heroVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
-          }`}
+          className={`relative min-h-[560px] sm:min-h-[620px] overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] bg-gradient-to-br from-[#ec6f36] via-[#e25f24] to-[#c94b15] shadow-2xl border border-accent/20 transition-all duration-700 ${heroState === "visible" && heroVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+            }`}
         >
-          {/* ── 4K Cinematic Background Video ── */}
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            onCanPlay={() => setVideoLoaded(true)}
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover z-0 opacity-40 scale-105 transition-all duration-1000"
-          >
-            <source src="/videos/hero-bg.mp4" type="video/mp4" />
-            <source src="https://assets.mixkit.co/videos/preview/mixkit-group-of-friends-studying-in-a-college-library-43513-large.mp4" type="video/mp4" />
-          </video>
+          {/* ── Brand Orange Base Layer ── */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#ec6f36] via-[#e25f24] to-[#c94b15] z-0" />
 
-          {/* ── High-Contrast Gradient Overlay for Legibility ── */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/90 via-black/75 to-black/50 z-[1]" />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(236,111,54,0.15),transparent_70%)] z-[1]" />
+          {/* ── Smooth Flowing Wave Canvas Layer ── */}
+          <SmokyWaveCanvas />
+
+          {/* ── Subtle Radial Gold Lighting Glow ── */}
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(242,198,109,0.25),transparent_60%)] z-[2]" />
+
+
+
+
 
           <div className="relative z-10 flex flex-col justify-between min-h-[560px] sm:min-h-[620px] p-6 sm:p-10 lg:p-14 text-white">
-            
+
             {/* ── Top Badge & Main Content ── */}
             <div className="max-w-3xl space-y-6 pt-4 sm:pt-6">
-              
+
               {/* Badge Pill */}
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 backdrop-blur-md border border-white/15">
-                <Sparkles className="h-4 w-4 text-accent animate-pulse" />
-                <span className="text-xs font-extrabold uppercase tracking-widest text-white/90">
-                  Verified Hyperlocal Campus Marketplace
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-1.5 backdrop-blur-md border border-white/30 shadow-sm">
+                <Sparkles className="h-4 w-4 text-amber-200 animate-pulse" />
+                <span className="text-xs font-extrabold uppercase tracking-widest text-white">
+                  Campus Marketplace
                 </span>
               </div>
 
+
               {/* Main Headline */}
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.1]">
-                Rent Anything on Campus. <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent via-amber-300 to-gold">
-                  Save Up to 80% vs Retail.
-                </span>
+                Rent, Buy & Sell <br />
+                <span className="text-amber-200">Second-Hand Essentials on Campus.</span>
               </h1>
 
+
+
               {/* Subheading */}
-              <p className="max-w-2xl text-sm sm:text-base leading-relaxed text-white/80 font-medium">
+              <p className="max-w-2xl text-sm sm:text-base leading-relaxed text-white/90 font-medium">
                 Connect directly with verified students on your campus to rent textbooks, calculators, electronics, cycles, and hostel rooms hassle-free.
               </p>
             </div>
 
-            {/* ── Center: Clean Professional E-Commerce Search Panel ── */}
-            <div className="w-full my-6">
-              <form
-                onSubmit={handleSearchSubmit}
-                className="w-full bg-white rounded-3xl p-3 sm:p-4 shadow-2xl border border-white/20 text-ink space-y-3"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 items-center">
-                  
-                  {/* Search Query Input */}
-                  <div className="md:col-span-4 relative flex items-center">
-                    <Search className="absolute left-4 h-5 w-5 text-ink/40 pointer-events-none" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="What do you need? (e.g. Chemistry, Casio)..."
-                      className="w-full rounded-2xl bg-canvas/60 py-3.5 pl-12 pr-4 text-sm font-semibold text-ink placeholder-ink/40 outline-none focus:bg-canvas transition border border-ink/5"
-                    />
-                  </div>
+            {/* Call to Action Buttons */}
+            {!user ? (
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <Link
+                  to="/signup"
+                  className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-accent text-white font-black text-sm px-7 py-3.5 shadow-xl hover:bg-orange-600 hover:scale-105 active:scale-95 transition duration-200 cursor-pointer border border-white/30"
+                >
+                  Get Started — It's Free
+                  <ArrowRight className="ml-2 h-4.5 w-4.5 text-white" />
+                </Link>
+                <Link
+                  to="/marketplace"
+                  className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-white/40 bg-white/10 backdrop-blur-md text-white font-extrabold text-sm px-7 py-3.5 hover:bg-white/20 hover:scale-105 active:scale-95 transition duration-200 cursor-pointer"
+                >
+                  Explore Marketplace
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <Link
+                  to="/marketplace"
+                  className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-accent text-white font-black text-sm px-7 py-3.5 shadow-xl hover:bg-orange-600 hover:scale-105 active:scale-95 transition duration-200 cursor-pointer border border-white/30"
+                >
+                  Browse Marketplace
+                  <ArrowRight className="ml-2 h-4.5 w-4.5 text-white" />
+                </Link>
+                <Link
+                  to="/dashboard"
+                  className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-white/40 bg-white/10 backdrop-blur-md text-white font-extrabold text-sm px-7 py-3.5 hover:bg-white/20 hover:scale-105 active:scale-95 transition duration-200 cursor-pointer"
+                >
+                  Go to Dashboard
+                </Link>
+              </div>
+            )}
 
-                  {/* Category Dropdown */}
-                  <div className="md:col-span-3 relative flex items-center">
-                    <select
-                      value={searchCategory}
-                      onChange={(e) => setSearchCategory(e.target.value)}
-                      className="w-full appearance-none rounded-2xl bg-canvas/60 py-3.5 px-4 text-sm font-semibold text-ink outline-none focus:bg-canvas transition border border-ink/5 cursor-pointer"
-                    >
-                      <option value="">All Categories</option>
-                      <option value="Books">📚 Books & Notes</option>
-                      <option value="Electronics">💻 Tech & Electronics</option>
-                      <option value="Bicycles">🚴 Bicycles & Cycles</option>
-                      <option value="Lab Gear">⚡ Calculators & Lab Gear</option>
-                      <option value="Rooms">🏠 Hostel Rooms & PGs</option>
-                    </select>
-                    <div className="pointer-events-none absolute right-4 border-l-4 border-r-4 border-t-4 border-transparent border-t-ink/40" />
-                  </div>
 
-                  {/* Campus Location Input */}
-                  <div className="md:col-span-3 relative flex items-center">
-                    <MapPin className="absolute left-4 h-5 w-5 text-accent pointer-events-none" />
-                    <input
-                      type="text"
-                      value={searchCampus}
-                      onChange={(e) => setSearchCampus(e.target.value)}
-                      placeholder="Your Campus / City..."
-                      className="w-full rounded-2xl bg-canvas/60 py-3.5 pl-12 pr-4 text-sm font-semibold text-ink placeholder-ink/40 outline-none focus:bg-canvas transition border border-ink/5"
-                    />
-                  </div>
-
-                  {/* Search Action Button */}
-                  <div className="md:col-span-2">
-                    <button
-                      type="submit"
-                      className="w-full h-12 rounded-2xl bg-accent text-white font-extrabold text-sm flex items-center justify-center gap-2 hover:bg-orange-600 active:scale-95 transition shadow-lg shadow-accent/20 cursor-pointer"
-                    >
-                      <Search className="h-4.5 w-4.5" />
-                      Find Deals
-                    </button>
-                  </div>
-                </div>
-
-                {/* Popular Search Category Chips */}
-                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-ink/5 text-xs">
-                  <span className="font-extrabold text-ink/50 uppercase tracking-wider text-[10px]">Popular:</span>
-                  {[
-                    { label: "📚 Engineering Books", query: "Engineering", category: "Books" },
-                    { label: "⚡ CASIO Calculators", query: "CASIO", category: "Lab Gear" },
-                    { label: "🚴 Campus Bicycles", query: "Cycle", category: "Bicycles" },
-                    { label: "💻 Laptops & iPad", query: "iPad", category: "Electronics" },
-                    { label: "🏠 PG Rooms", query: "Room", category: "Rooms" },
-                  ].map((chip) => (
-                    <button
-                      key={chip.label}
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery(chip.query);
-                        setSearchCategory(chip.category);
-                      }}
-                      className="rounded-full bg-ink/5 px-3 py-1 text-ink/75 font-semibold hover:bg-accent hover:text-white transition duration-150 cursor-pointer"
-                    >
-                      {chip.label}
-                    </button>
-                  ))}
-                </div>
-              </form>
-            </div>
 
             {/* ── Bottom: E-Commerce Trust Badges Strip ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-white/10 mt-2">
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-white/20 mt-2 bg-black/10 backdrop-blur-sm p-4 rounded-2xl">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-emerald-400 shrink-0 border border-white/10">
+                <div className="h-10 w-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 border border-white/30">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-xs font-extrabold text-white">Verified Students</p>
-                  <p className="text-[11px] text-white/60">College ID verified</p>
+                  <p className="text-[11px] text-white/80">College ID verified</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-accent shrink-0 border border-white/10">
+                <div className="h-10 w-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 border border-white/30">
                   <Wallet className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-xs font-extrabold text-white">Escrow Safety</p>
-                  <p className="text-[11px] text-white/60">Pay on delivery</p>
+                  <p className="text-[11px] text-white/80">Pay on delivery</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-amber-300 shrink-0 border border-white/10">
+                <div className="h-10 w-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-200 shrink-0 border border-white/30">
                   <Compass className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-xs font-extrabold text-white">Campus Pickup</p>
-                  <p className="text-[11px] text-white/60">Instant trade</p>
+                  <p className="text-[11px] text-white/80">Instant trade</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-indigo-300 shrink-0 border border-white/10">
+                <div className="h-10 w-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-200 shrink-0 border border-white/30">
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-xs font-extrabold text-white">Save Up to 80%</p>
-                  <p className="text-[11px] text-white/60">Below retail cost</p>
+                  <p className="text-[11px] text-white/80">Below retail cost</p>
                 </div>
               </div>
             </div>
 
           </div>
         </section>
+
       )}
 
 
@@ -1066,16 +1015,14 @@ function HomePage() {
       <section ref={stepsRef}>
         <div className="mb-10 text-center">
           <span
-            className={`mb-3 inline-block rounded-full bg-accent/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-accent transition-all duration-700 ${
-              stepsVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
-            }`}
+            className={`mb-3 inline-block rounded-full bg-accent/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-accent transition-all duration-700 ${stepsVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+              }`}
           >
             How it works
           </span>
           <h2
-            className={`text-3xl font-black text-ink sm:text-4xl transition-all duration-700 delay-100 ${
-              stepsVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
-            }`}
+            className={`text-3xl font-black text-ink sm:text-4xl transition-all duration-700 delay-100 ${stepsVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+              }`}
           >
             Three steps to smarter spending
           </h2>
@@ -1091,16 +1038,14 @@ function HomePage() {
       <section ref={featuresRef}>
         <div className="mb-10 text-center">
           <span
-            className={`mb-3 inline-block rounded-full bg-pine/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-pine transition-all duration-700 ${
-              featuresVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
-            }`}
+            className={`mb-3 inline-block rounded-full bg-pine/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-pine transition-all duration-700 ${featuresVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+              }`}
           >
             Why RentEd
           </span>
           <h2
-            className={`text-3xl font-black text-ink sm:text-4xl transition-all duration-700 delay-100 ${
-              featuresVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
-            }`}
+            className={`text-3xl font-black text-ink sm:text-4xl transition-all duration-700 delay-100 ${featuresVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+              }`}
           >
             Built for the campus lifestyle
           </h2>
@@ -1116,16 +1061,14 @@ function HomePage() {
       <section ref={testimonialsRef}>
         <div className="mb-10 text-center">
           <span
-            className={`mb-3 inline-block rounded-full bg-gold/20 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-ink/60 transition-all duration-700 ${
-              testimonialsVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
-            }`}
+            className={`mb-3 inline-block rounded-full bg-gold/20 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-ink/60 transition-all duration-700 ${testimonialsVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+              }`}
           >
             Student stories
           </span>
           <h2
-            className={`text-3xl font-black text-ink sm:text-4xl transition-all duration-700 delay-100 ${
-              testimonialsVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
-            }`}
+            className={`text-3xl font-black text-ink sm:text-4xl transition-all duration-700 delay-100 ${testimonialsVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+              }`}
           >
             Loved by students across India
           </h2>
@@ -1145,9 +1088,8 @@ function HomePage() {
       {/* ═══════════════════════ CTA ═════════════════════════════════ */}
       <section
         ref={ctaRef}
-        className={`relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-accent via-orange-500 to-gold p-10 text-center shadow-2xl shadow-accent/20 sm:p-14 lg:p-20 transition-all duration-1000 ${
-          ctaVisible ? "translate-y-0 opacity-100 scale-100" : "translate-y-10 opacity-0 scale-95"
-        }`}
+        className={`relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-accent via-orange-500 to-gold p-10 text-center shadow-2xl shadow-accent/20 sm:p-14 lg:p-20 transition-all duration-1000 ${ctaVisible ? "translate-y-0 opacity-100 scale-100" : "translate-y-10 opacity-0 scale-95"
+          }`}
       >
         {/* Decorative circles */}
         <div className="pointer-events-none absolute -left-16 -top-16 h-64 w-64 rounded-full border-2 border-white/10" />

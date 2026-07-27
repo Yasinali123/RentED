@@ -10,11 +10,20 @@
   }
   
   body {
-    @apply bg-canvas font-body text-ink antialiased overflow-x-hidden;
+    @apply bg-canvas font-body text-ink antialiased overflow-x-hidden transition-colors duration-300;
     background-image:
       radial-gradient(circle at top left, rgba(242, 198, 109, 0.28), transparent 28%),
       radial-gradient(circle at right 15%, rgba(39, 82, 69, 0.14), transparent 24%),
       linear-gradient(180deg, #fbf8f1 0%, #f3ece0 100%);
+  }
+
+  .dark body {
+    background-color: #0f172a;
+    color: #f8fafc;
+    background-image:
+      radial-gradient(circle at top left, rgba(236, 111, 54, 0.18), transparent 28%),
+      radial-gradient(circle at right 15%, rgba(30, 41, 59, 0.6), transparent 24%),
+      linear-gradient(180deg, #0f172a 0%, #020617 100%);
   }
 
   h1,
@@ -24,6 +33,7 @@
     @apply font-display;
   }
 }
+
 
 @layer components {
   .panel {
@@ -63,6 +73,63 @@
     display: none;
   }
 }
+
+/* ─── Comprehensive Dark Mode Component Overrides ─── */
+.dark .panel {
+  background-color: rgba(30, 41, 59, 0.85);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+.dark .input,
+.dark .select,
+.dark .textarea {
+  background-color: #1e293b;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+}
+
+.dark .table-responsive-container {
+  background-color: #1e293b;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+
+
+
+.dark aside {
+  background-color: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important;
+}
+
+.dark .text-ink {
+  color: #f8fafc;
+}
+
+.dark .text-ink\/70,
+.dark .text-ink\/65,
+.dark .text-ink\/55,
+.dark .text-ink\/50,
+.dark .text-ink\/40 {
+  color: #94a3b8;
+}
+
+.dark .bg-white {
+  background-color: #1e293b;
+}
+
+.dark .bg-canvas {
+  background-color: #0f172a;
+}
+
+.dark .border-ink\/5,
+.dark .border-ink\/10,
+.dark .border-ink\/15 {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
 
 /* ─── Homepage keyframe animations ─── */
 

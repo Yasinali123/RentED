@@ -38,14 +38,15 @@ function MarketplacePage() {
     <div className="space-y-6">
       <div className="panel flex flex-col gap-4 p-5 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-ink/45 font-bold">Student marketplace</p>
-          <h1 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-extrabold text-ink leading-tight">
+          <p className="text-xs uppercase tracking-[0.24em] text-accent dark:text-amber-400 font-extrabold">Student marketplace</p>
+          <h1 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-extrabold text-ink dark:text-white leading-tight">
             Rent, buy, or sell books, gear, and rooms nearby
           </h1>
-          <p className="mt-2.5 max-w-2xl text-xs sm:text-sm leading-relaxed text-ink/65">
+          <p className="mt-2.5 max-w-2xl text-xs sm:text-sm leading-relaxed text-ink/65 dark:text-slate-300">
             Search by name, filter by category or location, and connect directly with students who
             already have what you need.
           </p>
+
         </div>
       </div>
 

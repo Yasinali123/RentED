@@ -35,9 +35,10 @@ function ItemCard({ item }) {
           />
           <div className="absolute left-3 top-3 sm:left-4 sm:top-4 max-w-[70%]">
             <div className="flex flex-wrap gap-1.5">
-              <span className="chip text-[10px] sm:text-xs py-0.5 px-2.5 bg-white/90 backdrop-blur-xs font-bold text-ink">{item.category}</span>
-              <span className="chip text-[10px] sm:text-xs py-0.5 px-2.5 bg-white/90 backdrop-blur-xs font-bold text-pine">{getListingTypeLabel(item)}</span>
+              <span className="chip text-[10px] sm:text-xs py-0.5 px-2.5 bg-white/90 dark:bg-slate-800 dark:text-slate-100 backdrop-blur-xs font-bold text-ink">{item.category}</span>
+              <span className="chip text-[10px] sm:text-xs py-0.5 px-2.5 bg-white/90 dark:bg-slate-800 dark:text-emerald-400 backdrop-blur-xs font-bold text-pine">{getListingTypeLabel(item)}</span>
             </div>
+
           </div>
           {isUnavailable ? (
             <div className="absolute right-3 top-3 sm:right-4 sm:top-4">
