@@ -23,7 +23,7 @@ function Footer() {
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-12 pb-12 border-b border-ink/5">
           
           {/* Brand Col */}
-          <div className="lg:col-span-4 space-y-5">
+          <div className="lg:col-span-4 space-y-5 text-center sm:text-left flex flex-col items-center sm:items-start">
             <Link to="/" className="flex items-center gap-2.5 group">
               <img
                 src="/logo-icon.png"
@@ -43,7 +43,7 @@ function Footer() {
               India's premium hyperlocal campus rental and resale marketplace. Rent books, electronics, bikes, and daily essentials from verified students on your campus.
             </p>
             {/* Social Icons */}
-            <div className="flex items-center gap-4 pt-2">
+            <div className="flex items-center justify-center sm:justify-start gap-4 pt-2">
               {[
                 { icon: Twitter, href: "https://twitter.com" },
                 { icon: Instagram, href: "https://instagram.com" },
@@ -55,7 +55,7 @@ function Footer() {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink/5 text-ink/75 hover:bg-accent hover:text-white transition duration-200"
+                  className="flex h-10 w-10 items-center justify-center rounded-2xl bg-ink/5 text-ink/75 hover:bg-accent hover:text-white transition duration-200 min-h-[44px] min-w-[44px]"
                 >
                   <social.icon className="h-4.5 w-4.5" />
                 </a>

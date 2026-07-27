@@ -4,8 +4,13 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  
   body {
-    @apply bg-canvas font-body text-ink antialiased;
+    @apply bg-canvas font-body text-ink antialiased overflow-x-hidden;
     background-image:
       radial-gradient(circle at top left, rgba(242, 198, 109, 0.28), transparent 28%),
       radial-gradient(circle at right 15%, rgba(39, 82, 69, 0.14), transparent 24%),
@@ -22,11 +27,11 @@
 
 @layer components {
   .panel {
-    @apply rounded-3xl border border-white/70 bg-white/80 shadow-soft backdrop-blur;
+    @apply rounded-2xl sm:rounded-3xl border border-white/70 bg-white/80 shadow-soft backdrop-blur p-4 sm:p-6;
   }
 
   .input {
-    @apply w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20;
+    @apply w-full min-h-[44px] sm:min-h-[48px] rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20;
   }
 
   .select {
@@ -39,6 +44,23 @@
 
   .chip {
     @apply inline-flex items-center rounded-full bg-pine/10 px-3 py-1 text-xs font-medium text-pine;
+  }
+
+  .btn-touch {
+    @apply min-h-[44px] sm:min-h-[48px] min-w-[44px] sm:min-w-[48px] flex items-center justify-center;
+  }
+
+  .table-responsive-container {
+    @apply w-full overflow-x-auto rounded-2xl border border-ink/5 bg-white shadow-xs;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
 
@@ -363,6 +385,39 @@
 .animate-disappear-badge-4 {
   animation: disappearScale 0.5s cubic-bezier(0.76, 0, 0.24, 1) 0.18s forwards;
 }
+
+/* ─── Mobile Drawer & Modal Animations ─── */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Mobile responsive modal dialog helper */
+.modal-responsive {
+  @apply w-[92%] sm:w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl p-4 sm:p-6 bg-white shadow-2xl border border-ink/10;
+}
+
 
 
 

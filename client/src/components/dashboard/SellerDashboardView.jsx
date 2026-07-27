@@ -249,14 +249,14 @@ function SellerDashboardView({ dashboard, onRefresh }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-ink/5 gap-6">
+      <div className="flex border-b border-ink/10 gap-2 sm:gap-6 overflow-x-auto whitespace-nowrap no-scrollbar pb-1">
         <button
           onClick={() => {
             setActiveTab("orders");
             setEditingItem(null);
           }}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "orders" ? "border-accent text-accent" : "border-transparent text-ink/55 hover:text-ink"
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "orders" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
           Incoming Orders & Requests ({incomingRequests.length})
@@ -266,8 +266,8 @@ function SellerDashboardView({ dashboard, onRefresh }) {
             setActiveTab("inventory");
             setEditingItem(null);
           }}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "inventory" ? "border-accent text-accent" : "border-transparent text-ink/55 hover:text-ink"
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "inventory" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
           Manage Inventory ({listedItems.length})
@@ -277,8 +277,8 @@ function SellerDashboardView({ dashboard, onRefresh }) {
             setActiveTab("new-listing");
             setEditingItem(null);
           }}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "new-listing" ? "border-accent text-accent" : "border-transparent text-ink/55 hover:text-ink"
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "new-listing" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
           {editingItem ? "Edit Listing" : "Add New Listing"}
@@ -288,8 +288,8 @@ function SellerDashboardView({ dashboard, onRefresh }) {
             setActiveTab("wallet");
             setEditingItem(null);
           }}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "wallet" ? "border-accent text-accent" : "border-transparent text-ink/55 hover:text-ink"
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "wallet" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
           💳 Wallet & Payouts
@@ -299,8 +299,8 @@ function SellerDashboardView({ dashboard, onRefresh }) {
             setActiveTab("settings");
             setEditingItem(null);
           }}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "settings" ? "border-accent text-accent" : "border-transparent text-ink/55 hover:text-ink"
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "settings" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
           ⚙️ Settings
@@ -311,8 +311,8 @@ function SellerDashboardView({ dashboard, onRefresh }) {
             setEditingItem(null);
             fetchSalesInvoices();
           }}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "invoices" ? "border-accent text-accent" : "border-transparent text-ink/55 hover:text-ink"
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "invoices" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
           🧾 Sales Invoices
@@ -713,8 +713,9 @@ function SellerDashboardView({ dashboard, onRefresh }) {
                   <p className="text-xs text-ink/40 py-4 text-center">No withdrawal request history yet.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left">
+                    <table className="w-full text-xs text-left min-w-[500px]">
                       <thead>
+
                         <tr className="border-b border-ink/10 text-ink/50 font-bold">
                           <th className="py-2">Date</th>
                           <th className="py-2">Amount</th>

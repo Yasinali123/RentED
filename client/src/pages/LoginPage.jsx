@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Chrome } from "lucide-react";
+import { Chrome, Eye, EyeOff } from "lucide-react";
 
 import Button from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
@@ -10,6 +10,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -50,42 +51,58 @@ function LoginPage() {
   };
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto max-w-md px-2 sm:px-0">
       {/* Traditional Login Form */}
-      <form className="panel space-y-5 p-8" onSubmit={handleSubmit}>
+      <form className="panel space-y-5 p-5 sm:p-8" onSubmit={handleSubmit}>
         <div>
-          <p className="text-sm uppercase tracking-[0.25em] text-ink/45">Welcome back</p>
-          <h1 className="mt-2 text-4xl font-bold">Log in to RentEd</h1>
+          <p className="text-xs uppercase tracking-[0.25em] text-ink/45 font-bold">Welcome back</p>
+          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-ink">Log in to RentEd</h1>
         </div>
         
-        <input
-          className="input"
-          placeholder="Email"
-          type="email"
-          value={form.email}
-          onChange={(event) => setForm({ ...form, email: event.target.value })}
-          required
-        />
+        <div>
+          <label className="text-xs font-bold uppercase text-ink/50 mb-1 block">Email address</label>
+          <input
+            className="input"
+            placeholder="student@college.edu"
+            type="email"
+            value={form.email}
+            onChange={(event) => setForm({ ...form, email: event.target.value })}
+            required
+          />
+        </div>
         
-        <input
-          className="input"
-          placeholder="Password"
-          type="password"
-          value={form.password}
-          onChange={(event) => setForm({ ...form, password: event.target.value })}
-          required
-        />
+        <div className="relative">
+          <label className="text-xs font-bold uppercase text-ink/50 mb-1 block">Password</label>
+          <div className="relative">
+            <input
+              className="input pr-12"
+              placeholder="••••••••"
+              type={showPassword ? "text" : "password"}
+              value={form.password}
+              onChange={(event) => setForm({ ...form, password: event.target.value })}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-ink/40 hover:text-ink min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Toggle password visibility"
+            >
+              {showPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+            </button>
+          </div>
+        </div>
 
-        <div className="flex justify-between items-center text-sm">
-          <Link className="font-semibold text-accent hover:underline" to="/forgot-password">
+        <div className="flex justify-end items-center text-xs">
+          <Link className="font-bold text-accent hover:underline" to="/forgot-password">
             Forgot Password?
           </Link>
         </div>
 
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {error ? <p className="text-xs font-bold text-red-600 bg-red-50 p-3 rounded-xl border border-red-100">{error}</p> : null}
         
-        <div className="space-y-3">
-          <Button type="submit" variant="secondary" className="w-full" disabled={submitting}>
+        <div className="space-y-3 pt-2">
+          <Button type="submit" variant="secondary" className="w-full min-h-[48px] font-bold" disabled={submitting}>
             {submitting ? "Logging in..." : "Login"}
           </Button>
 
@@ -93,7 +110,7 @@ function LoginPage() {
             type="button"
             onClick={handleGoogleLogin}
             variant="ghost"
-            className="w-full flex items-center justify-center gap-2 border border-ink/10 bg-white/50 hover:bg-white"
+            className="w-full flex items-center justify-center gap-2 border border-ink/10 bg-white/50 hover:bg-white min-h-[48px] font-bold"
             disabled={submitting}
           >
             <Chrome className="h-4 w-4 text-red-500" />
@@ -101,9 +118,9 @@ function LoginPage() {
           </Button>
         </div>
 
-        <p className="text-sm text-ink/60">
+        <p className="text-xs text-center sm:text-left text-ink/60 pt-2">
           New here?{" "}
-          <Link className="font-semibold text-accent" to="/signup">
+          <Link className="font-bold text-accent hover:underline" to="/signup">
             Create an account
           </Link>
         </p>

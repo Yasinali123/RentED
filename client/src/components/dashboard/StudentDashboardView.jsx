@@ -221,76 +221,76 @@ function StudentDashboardView({ dashboard, onRefresh }) {
   return (
     <div className="space-y-8">
       {/* Metrics Row */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="panel p-6 bg-gradient-to-br from-indigo-50 to-white border-indigo-100 flex items-center justify-between">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="panel p-5 sm:p-6 bg-gradient-to-br from-indigo-50 to-white border-indigo-100 flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink/40">Escrow Wallet</p>
-            <p className="text-3xl font-black text-indigo-700 mt-2">Rs. {stats.balance}</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-ink/40">Escrow Wallet</p>
+            <p className="text-2xl sm:text-3xl font-black text-indigo-700 mt-2">Rs. {stats.balance}</p>
           </div>
-          <div className="h-12 w-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700">
+          <div className="h-12 w-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
             <Wallet className="h-6 w-6" />
           </div>
         </div>
 
-        <div className="panel p-6 bg-gradient-to-br from-emerald-50 to-white border-emerald-100 flex items-center justify-between">
+        <div className="panel p-5 sm:p-6 bg-gradient-to-br from-emerald-50 to-white border-emerald-100 flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink/40">Active Rentals</p>
-            <p className="text-3xl font-black text-emerald-700 mt-2">{stats.activeRentals}</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-ink/40">Active Rentals</p>
+            <p className="text-2xl sm:text-3xl font-black text-emerald-700 mt-2">{stats.activeRentals}</p>
           </div>
-          <div className="h-12 w-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700">
+          <div className="h-12 w-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
             <ShoppingBag className="h-6 w-6" />
           </div>
         </div>
 
-        <div className="panel p-6 bg-gradient-to-br from-orange-50 to-white border-orange-100 flex items-center justify-between">
+        <div className="panel p-5 sm:p-6 bg-gradient-to-br from-orange-50 to-white border-orange-100 flex items-center justify-between sm:col-span-2 lg:col-span-1">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink/40">Total Escrow Spent</p>
-            <p className="text-3xl font-black text-orange-700 mt-2">Rs. {stats.totalSpent}</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-ink/40">Total Escrow Spent</p>
+            <p className="text-2xl sm:text-3xl font-black text-orange-700 mt-2">Rs. {stats.totalSpent}</p>
           </div>
-          <div className="h-12 w-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-700">
+          <div className="h-12 w-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-700 shrink-0">
             <Heart className="h-6 w-6" />
           </div>
         </div>
       </div>
 
       {/* Tabs Selector */}
-      <div className="flex border-b border-ink/5 gap-6">
+      <div className="flex border-b border-ink/10 gap-2 sm:gap-6 overflow-x-auto whitespace-nowrap no-scrollbar pb-1">
         <button
           onClick={() => setActiveTab("orders")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "orders" ? "border-accent text-accent" : "border-transparent text-ink/50 hover:text-ink"
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "orders" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
           Your Orders & Bookings ({rentedItems.length})
         </button>
         <button
           onClick={() => setActiveTab("wishlist")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "wishlist" ? "border-accent text-accent" : "border-transparent text-ink/50 hover:text-ink"
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "wishlist" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
           Wishlist ({wishlistItems.length})
         </button>
         <button
           onClick={() => setActiveTab("wallet")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "wallet" ? "border-accent text-accent" : "border-transparent text-ink/50 hover:text-ink"
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "wallet" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
           Wallet Deposit
         </button>
         <button
           onClick={() => setActiveTab("settings")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "settings" ? "border-accent text-accent" : "border-transparent text-ink/50 hover:text-ink"
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "settings" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
           ⚙️ Settings
         </button>
         <button
           onClick={() => { setActiveTab("invoices"); fetchInvoices(); }}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "invoices" ? "border-accent text-accent" : "border-transparent text-ink/50 hover:text-ink"
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "invoices" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
           🧾 My Invoices
@@ -507,7 +507,7 @@ function StudentDashboardView({ dashboard, onRefresh }) {
             </div>
           ) : (
             <div className="panel overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[650px]">
                 <thead>
                   <tr className="border-b border-ink/5">
                     <th className="text-left p-3 text-[10px] font-black uppercase tracking-wider text-ink/40">Invoice #</th>

@@ -267,36 +267,51 @@ function ChatPage() {
   const activeTypingUser = selectedConversation ? typingUsers[selectedConversation._id] : null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       <div>
-        <p className="text-sm uppercase tracking-[0.25em] text-ink/45">Real-time Deal Chat</p>
-        <h1 className="mt-2 text-4xl font-bold">Coordinate orders, logistics and payouts instantly</h1>
-        {feedback ? <p className="mt-2 text-sm text-red-500 font-semibold">{feedback}</p> : null}
+        <p className="text-xs uppercase tracking-[0.25em] text-ink/45 font-bold">Real-time Deal Chat</p>
+        <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-ink">Coordinate orders, logistics & payouts</h1>
+        {feedback ? <p className="mt-1 text-xs text-red-500 font-semibold">{feedback}</p> : null}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
-        <ConversationList
-          conversations={conversations}
-          selectedId={selectedConversation?._id}
-          onSelect={handleSelectConversation}
-          currentUserId={user?._id}
-          onlineStatusMap={onlineStatusMap}
-        />
-        <ChatWindow
-          conversation={selectedConversation}
-          messages={messages}
-          currentUserId={user?._id}
-          onSend={handleSend}
-          onDeleteMessage={handleDeleteMessage}
-          onScrollTop={handleScrollTop}
-          hasMore={hasMore}
-          loadingMessages={loadingMessages}
-          typingUser={activeTypingUser}
-          onlineStatus={selectedConversation && user
-            ? onlineStatusMap[selectedConversation.participants.find(p => p._id !== user._id)?._id]
-            : null
-          }
-        />
+      <div className="grid gap-4 sm:gap-6 xl:grid-cols-[340px_1fr] relative min-h-[500px]">
+        {/* Contacts List: Shown on Desktop, or on Mobile when no conversation is actively open */}
+        <div className={`${selectedConversation ? "hidden xl:block" : "block"}`}>
+          <ConversationList
+            conversations={conversations}
+            selectedId={selectedConversation?._id}
+            onSelect={handleSelectConversation}
+            currentUserId={user?._id}
+            onlineStatusMap={onlineStatusMap}
+          />
+        </div>
+
+        {/* Active Chat Window: Shown on Desktop, or on Mobile when a conversation is selected */}
+        <div className={`${!selectedConversation ? "hidden xl:block" : "block"}`}>
+          {selectedConversation && (
+            <button
+              onClick={() => setSelectedConversation(null)}
+              className="xl:hidden mb-3 inline-flex items-center gap-2 text-xs font-bold text-accent bg-accent/10 px-3.5 py-2 rounded-full min-h-[44px]"
+            >
+              ← Back to Conversations
+            </button>
+          )}
+          <ChatWindow
+            conversation={selectedConversation}
+            messages={messages}
+            currentUserId={user?._id}
+            onSend={handleSend}
+            onDeleteMessage={handleDeleteMessage}
+            onScrollTop={handleScrollTop}
+            hasMore={hasMore}
+            loadingMessages={loadingMessages}
+            typingUser={activeTypingUser}
+            onlineStatus={selectedConversation && user
+              ? onlineStatusMap[selectedConversation.participants?.find(p => p._id !== user._id)?._id]
+              : null
+            }
+          />
+        </div>
       </div>
     </div>
   );

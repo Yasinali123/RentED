@@ -570,7 +570,7 @@ function AdminDashboardView({ dashboard, onRefresh }) {
   return (
     <div className="flex flex-col lg:flex-row gap-6 items-start">
       {/* Side Operation Selector */}
-      <aside className="w-full lg:w-64 shrink-0 bg-white border border-ink/5 rounded-3xl p-4 flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible shadow-sm">
+      <aside className="w-full lg:w-64 shrink-0 bg-white border border-ink/5 rounded-2xl sm:rounded-3xl p-3 sm:p-4 flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible no-scrollbar shadow-sm">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
