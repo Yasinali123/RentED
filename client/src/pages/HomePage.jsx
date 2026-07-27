@@ -24,12 +24,7 @@ import {
   Maximize2,
   ChevronLeft,
   ChevronRight,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
-
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -175,115 +170,234 @@ const showcaseItems = [
 
 
 
-function HeroVideoShowcase({ heroState }) {
-  const videoRef = useRef(null);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(true);
+function HeroShowcase({ heroState }) {
+  const [activeCard, setActiveCard] = useState(0);
 
-  const togglePlay = () => {
-    if (!videoRef.current) return;
-    if (isPlaying) {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      videoRef.current.play();
-      setIsPlaying(true);
-    }
-  };
+  // Auto-cycle cards with 3D rotation (only when not collapsing)
+  useEffect(() => {
+    if (heroState === "collapsing" || heroState === "collapsed") return;
+    const interval = setInterval(() => {
+      setActiveCard((prev) => (prev + 1) % showcaseItems.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [heroState]);
 
-  const toggleMute = () => {
-    if (!videoRef.current) return;
-    videoRef.current.muted = !isMuted;
-    setIsMuted(!isMuted);
-  };
-
+  const current = showcaseItems[activeCard];
   const isCollapsing = heroState === "collapsing";
 
   return (
-    <div className={`relative w-full max-w-lg mx-auto lg:max-w-none transition-all duration-500 ${isCollapsing ? "animate-disappear-orbs" : ""}`}>
-      {/* Dynamic Ambient Glow Orbs in Background */}
-      <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-accent/30 via-emerald-400/20 to-indigo-500/30 blur-2xl opacity-70 animate-pulse pointer-events-none" />
+    <div className="relative h-[360px] sm:h-[440px] lg:h-[480px] w-full overflow-hidden sm:overflow-visible" style={{ perspective: "1200px" }}>
 
-      {/* Main Glassmorphism Video Player Card */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/80 p-3 sm:p-4 shadow-2xl backdrop-blur-xl transition duration-500 hover:shadow-3xl">
-        
-        {/* Video Player Container */}
-        <div className="relative aspect-video sm:aspect-[4/3] lg:aspect-video w-full overflow-hidden rounded-2xl bg-ink/90 shadow-inner">
-          <video
-            ref={videoRef}
-            src="/videos/hero-bg.mp4"
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
+
+      {/* ── Multi-layer radial glow ── */}
+      <div className={`absolute inset-0 flex items-center justify-center pointer-events-none ${isCollapsing ? "animate-disappear-orbs" : ""}`}>
+        <div
+          className="absolute h-80 w-80 rounded-full blur-[100px] transition-all duration-1000"
+          style={{ backgroundColor: current.glow + "35" }}
+        />
+        <div
+          className="absolute h-56 w-56 rounded-full blur-[60px] transition-all duration-1000"
+          style={{ backgroundColor: current.glow + "20" }}
+        />
+        <div
+          className="absolute h-32 w-32 rounded-full blur-[40px] transition-all duration-1000"
+          style={{ backgroundColor: current.color + "30" }}
+        />
+      </div>
+
+      {/* ── Orbiting rings ── */}
+      <div className={`absolute inset-0 flex items-center justify-center pointer-events-none ${isCollapsing ? "animate-disappear-rings" : ""}`}>
+        {/* Outer ring */}
+        <div
+          className="absolute h-[380px] w-[380px] rounded-full border border-dashed border-ink/[0.07]"
+          style={{ animation: "orbitSpin 25s linear infinite" }}
+        />
+        {/* Inner ring */}
+        <div
+          className="absolute h-[280px] w-[280px] rounded-full border border-dotted border-ink/[0.05]"
+          style={{ animation: "orbitSpin 18s linear infinite reverse" }}
+        />
+        {/* Innermost ring (subtle) */}
+        <div
+          className="absolute h-[180px] w-[180px] rounded-full border border-ink/[0.03]"
+          style={{ animation: "orbitSpin 12s linear infinite" }}
+        />
+      </div>
+
+      {/* ── 3D Carousel Stage ── */}
+      <div className="absolute inset-0 flex items-center justify-center z-10">
+        <div className="carousel-stage">
+          {showcaseItems.map((item, idx) => {
+            // Determine position class
+            let positionClass = "card-hidden";
+            if (idx === activeCard) {
+              positionClass = "card-front";
+            } else if (idx === (activeCard + 1) % 3) {
+              positionClass = "card-right";
+            } else if (idx === (activeCard + 2) % 3) {
+              positionClass = "card-left";
+            }
+
+            // Determine if collapsing for exit animation class
+            const disappearClass = isCollapsing ? `animate-disappear-card-${idx}` : "";
+
+            return (
+              <div
+                key={idx}
+                onClick={() => {
+                  if (idx !== activeCard) {
+                    setActiveCard(idx);
+                  }
+                }}
+                className={`carousel-card ${positionClass} ${disappearClass} w-[220px] sm:w-[260px] select-none`}
+
+                style={{
+                  animation: idx === activeCard && !isCollapsing ? "heroFloat 6s ease-in-out infinite" : "none",
+                }}
+              >
+                {/* Card design */}
+                <div className="rounded-3xl border border-ink/10 bg-white p-5 shadow-xl shadow-ink/5 transition duration-300 hover:border-ink/20">
+                  {/* Category tag */}
+                  <div className="mb-4 flex items-center justify-between">
+                    <span
+                      className="rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white"
+                      style={{ backgroundColor: item.color }}
+                    >
+                      {item.tag}
+                    </span>
+                    <div className="flex items-center gap-1 rounded-full bg-ink/5 px-2 py-0.5">
+                      <Star className="h-3 w-3 fill-gold text-gold" />
+                      <span className="text-[10px] font-bold text-ink/80">{item.rating}</span>
+                    </div>
+                  </div>
+
+                  {/* Product image area */}
+                  <div
+                    className="relative mb-4 flex h-32 items-center justify-center rounded-2xl overflow-hidden"
+                    style={{ backgroundColor: item.color + "12" }}
+                  >
+                    {/* Inner glow */}
+                    <div
+                      className="absolute h-20 w-20 rounded-full blur-[25px]"
+                      style={{ backgroundColor: item.glow + "30" }}
+                    />
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        className="relative h-full w-full object-cover transition-all duration-700 hover:scale-110"
+                      />
+                    ) : (
+                      <item.icon
+                        className="relative h-14 w-14 transition-all duration-700"
+                        style={{
+                          color: item.color,
+                          filter: `drop-shadow(0 0 16px ${item.glow}40)`,
+                        }}
+                      />
+                    )}
+                    {/* Shine sweep */}
+                    <div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+                      style={{ animation: "shineSweep 3s ease-in-out infinite" }}
+                    />
+                  </div>
+
+                  {/* Details */}
+                  <h4 className="text-sm font-bold text-ink leading-tight">{item.title}</h4>
+                  <p className="mt-1 text-[11px] text-ink/55">{item.subtitle}</p>
+
+                  {/* Price row */}
+                  <div className="mt-3 flex items-center justify-between">
+                    <p
+                      className="text-xl font-black"
+                      style={{ color: item.glow }}
+                    >
+                      {item.price}
+                    </p>
+                    <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-400">
+                      {item.savings}
+                    </span>
+                  </div>
+
+                  {/* Seller row */}
+                  <div className="mt-3.5 flex items-center gap-2.5 border-t border-ink/10 pt-3.5">
+                    <div
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                      style={{ backgroundColor: item.color }}
+                    >
+                      {item.seller[0]}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[11px] font-semibold text-ink/80 leading-tight">{item.seller}</p>
+                      <p className="text-[9px] text-ink/45">{item.college}</p>
+                    </div>
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Carousel Prev/Next Buttons ── */}
+      {!isCollapsing && (
+        <div className="absolute inset-x-2 top-1/2 -translate-y-1/2 flex justify-between z-20 pointer-events-none">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveCard((prev) => (prev - 1 + 3) % 3);
+            }}
+            className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-ink/10 bg-white shadow-sm text-ink/70 hover:bg-ink/5 hover:text-ink transition duration-200"
+            title="Previous Item"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveCard((prev) => (prev + 1) % 3);
+            }}
+            className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-ink/10 bg-white shadow-sm text-ink/70 hover:bg-ink/5 hover:text-ink transition duration-200"
+            title="Next Item"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
+
+
+      {/* ── Live indicator ── */}
+      <div className={`absolute left-4 top-0 flex items-center gap-2 rounded-full border border-ink/10 bg-white shadow-sm px-4 py-2 backdrop-blur-xl ${isCollapsing ? "animate-disappear-badge-3" : ""}`}>
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+        </span>
+        <span className="text-[11px] font-semibold text-ink/65">Live</span>
+      </div>
+
+
+
+      {/* ── Progress dots ── */}
+      <div className={`absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-2.5 transition-all duration-500 ${isCollapsing ? "opacity-0 scale-90" : "opacity-100"}`}>
+        {showcaseItems.map((item, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveCard(i)}
+            className="relative h-2 rounded-full transition-all duration-500"
+            style={{
+              width: i === activeCard ? "2rem" : "0.5rem",
+              backgroundColor: i === activeCard ? item.color : "rgba(19,35,47,0.15)",
+              boxShadow: i === activeCard ? `0 0 8px ${item.color}50` : "none",
+            }}
           />
-
-          {/* Video Dark Overlay Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-ink/20 pointer-events-none" />
-
-          {/* Top Header Badge */}
-          <div className="absolute left-3 top-3 sm:left-4 sm:top-4 flex items-center gap-2 rounded-full bg-black/60 px-3.5 py-1.5 backdrop-blur-md border border-white/20 shadow-md">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            </span>
-            <span className="text-[11px] font-bold tracking-wider text-white uppercase">Live Campus Rentals</span>
-          </div>
-
-          {/* Video Controls (Play/Pause & Mute) */}
-          <div className="absolute right-3 top-3 sm:right-4 sm:top-4 flex items-center gap-2 z-10">
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md border border-white/20 hover:bg-black/80 active:scale-95 transition"
-              title={isMuted ? "Unmute sound" : "Mute sound"}
-            >
-              {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
-            <button
-              type="button"
-              onClick={togglePlay}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md border border-white/20 hover:bg-black/80 active:scale-95 transition"
-              title={isPlaying ? "Pause video" : "Play video"}
-            >
-              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            </button>
-          </div>
-
-          {/* Bottom Floating Card Badge */}
-          <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex items-center justify-between gap-2 rounded-2xl bg-white/90 p-3 backdrop-blur-md border border-white/60 shadow-lg">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-white font-black text-sm shrink-0 shadow-md">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-xs font-black text-ink leading-tight">Hyperlocal Student Marketplace</p>
-                <p className="text-[10px] font-bold text-emerald-700 mt-0.5">Rent Books, Cycles & Gear from ₹15/day</p>
-              </div>
-            </div>
-            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-extrabold text-emerald-800 shrink-0 border border-emerald-200">
-              Save Up to 80%
-            </span>
-          </div>
-        </div>
-
-        {/* Feature Highlights Row below video */}
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="flex items-center gap-2 rounded-xl bg-canvas p-2.5 border border-ink/5">
-            <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-            <span className="text-[11px] font-bold text-ink/80 truncate">Verified Student IDs</span>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl bg-canvas p-2.5 border border-ink/5">
-            <Zap className="h-4 w-4 text-accent shrink-0" />
-            <span className="text-[11px] font-bold text-ink/80 truncate">Same-Day Pickup</span>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
 }
-
 
 
 
@@ -707,274 +821,188 @@ function HomePage() {
       ) : (
         <section
           ref={heroRef}
-          className={`hero-transition relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#e8f2ee] via-[#f7f5ef] to-[#f4ebe1] border border-emerald-900/5 shadow-2xl shadow-emerald-900/5 ${
-            heroState === "collapsing" ? "hero-collapsing" : ""
-          } ${
+          className={`relative min-h-[560px] sm:min-h-[620px] overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] bg-ink shadow-2xl border border-white/10 transition-all duration-700 ${
             heroState === "visible" && heroVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
           }`}
         >
-          {/* Collapse/Minimize Banner Button */}
-          {heroState !== "collapsing" && (
-            <button
-              onClick={handleCollapse}
-              className="absolute right-6 top-6 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-ink/10 bg-ink/5 text-ink/50 hover:bg-ink/10 hover:text-ink hover:scale-105 active:scale-95 transition duration-200"
-              title="Minimize Header Banner"
-            >
-              <Minimize2 className="h-5 w-5" />
-            </button>
-          )}
-
-          {/* Animated Mesh Gradients - Color shifting drift orbs */}
-          <div className={`pointer-events-none absolute inset-0 overflow-hidden z-0 ${heroState === 'collapsing' ? 'animate-disappear-orbs' : ''}`}>
-            {/* Orb 1: Orange Accent (Top Left) */}
-            <div 
-              className="absolute -left-20 -top-20 h-[380px] w-[380px] rounded-full bg-accent/8 blur-[110px] mix-blend-multiply"
-              style={{ animation: "meshDrift1 18s ease-in-out infinite" }}
-            />
-            {/* Orb 2: Emerald Green (Center-Right) */}
-            <div 
-              className="absolute right-1/4 top-1/4 h-[340px] w-[340px] rounded-full bg-emerald-600/6 blur-[100px] mix-blend-multiply"
-              style={{ animation: "meshDrift2 14s ease-in-out infinite" }}
-            />
-            {/* Orb 3: Purple/Indigo (Bottom Right) */}
-            <div 
-              className="absolute -right-20 -bottom-20 h-[480px] w-[480px] rounded-full bg-violet-600/8 blur-[130px] mix-blend-multiply"
-              style={{ animation: "meshDrift1 22s ease-in-out infinite reverse" }}
-            />
-            {/* Orb 4: Warm Gold (Bottom Left) */}
-            <div 
-              className="absolute left-1/3 bottom-10 h-[300px] w-[300px] rounded-full bg-gold/8 blur-[90px] mix-blend-multiply"
-              style={{ animation: "meshDrift2 16s ease-in-out infinite reverse" }}
-            />
-            {/* Radial overlay to darken edges */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,rgba(247,243,234,0.65)_85%)]" />
-          </div>
-
-          {/* Video Background Layer */}
+          {/* ── 4K Cinematic Background Video ── */}
           <video
             autoPlay
             loop
             muted
             playsInline
             onCanPlay={() => setVideoLoaded(true)}
-            className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-0 transition-all duration-[1500ms] ${
-              videoLoaded && heroState !== "collapsing" ? "opacity-[0.65] scale-100" : "opacity-0 scale-105"
-            }`}
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover z-0 opacity-40 scale-105 transition-all duration-1000"
           >
             <source src="/videos/hero-bg.mp4" type="video/mp4" />
+            <source src="https://assets.mixkit.co/videos/preview/mixkit-group-of-friends-studying-in-a-college-library-43513-large.mp4" type="video/mp4" />
           </video>
 
-          {/* Grid pattern overlay */}
-          <div
-            className={`pointer-events-none absolute inset-0 opacity-[0.025] ${heroState === 'collapsing' ? 'animate-disappear-orbs' : ''}`}
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(19,35,47,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(19,35,47,0.1) 1px, transparent 1px)",
-              backgroundSize: "30px 30px",
-            }}
-          />
+          {/* ── High-Contrast Gradient Overlay for Legibility ── */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/90 via-black/75 to-black/50 z-[1]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(236,111,54,0.15),transparent_70%)] z-[1]" />
 
-          <div className="relative z-10 grid gap-10 px-6 py-12 sm:px-10 lg:grid-cols-12 lg:gap-8 lg:p-14 xl:p-16">
+          <div className="relative z-10 flex flex-col justify-between min-h-[560px] sm:min-h-[620px] p-6 sm:p-10 lg:p-14 text-white">
             
-            {/* ── Left Column: Headline & Search Widget ── */}
-            <div className="flex flex-col justify-center lg:col-span-6 space-y-6">
-              <div className={`flex items-center gap-2 ${heroState === 'collapsing' ? 'animate-disappear-left-title' : ''}`}>
-                <span className="h-1 w-8 rounded-full bg-accent" />
-                <span className="text-xs font-bold uppercase tracking-[0.25em] text-accent">Campus Marketplace</span>
+            {/* ── Top Badge & Main Content ── */}
+            <div className="max-w-3xl space-y-6 pt-4 sm:pt-6">
+              
+              {/* Badge Pill */}
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 backdrop-blur-md border border-white/15">
+                <Sparkles className="h-4 w-4 text-accent animate-pulse" />
+                <span className="text-xs font-extrabold uppercase tracking-widest text-white/90">
+                  Verified Hyperlocal Campus Marketplace
+                </span>
               </div>
 
-              <h1 className={`text-4xl font-black leading-[1.1] text-ink sm:text-5xl xl:text-6xl tracking-tight ${
-                heroState === 'collapsing' ? 'animate-disappear-left-title' : ''
-              }`}>
-                Rent Essentials.
-                <br />
-                Buy Second-Hand.
-                <br />
-                Save Semesters.
+              {/* Main Headline */}
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.1]">
+                Rent Anything on Campus. <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent via-amber-300 to-gold">
+                  Save Up to 80% vs Retail.
+                </span>
               </h1>
 
-              <p className={`max-w-lg text-sm leading-relaxed text-ink/65 sm:text-base ${
-                heroState === 'collapsing' ? 'animate-disappear-left-sub' : ''
-              }`}>
-                Skip the retail price tag. Rent temporary college essentials or buy second-hand gear from verified students right on your campus.
+              {/* Subheading */}
+              <p className="max-w-2xl text-sm sm:text-base leading-relaxed text-white/80 font-medium">
+                Connect directly with verified students on your campus to rent textbooks, calculators, electronics, cycles, and hostel rooms hassle-free.
               </p>
+            </div>
 
-              {/* Call to Actions for top of landing page */}
-              {!user ? (
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <Button
-                    as={Link}
-                    to="/signup"
-                    variant="secondary"
-                    className="!py-2.5 !px-5 text-sm font-bold shadow-md hover:scale-105 transition-all duration-200"
-                  >
-                    Get Started — It's Free
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                  <Button
-                    as={Link}
-                    to="/login"
-                    variant="ghost"
-                    className="border border-ink/15 hover:bg-ink/5 !py-2.5 !px-5 text-sm font-bold transition-all duration-200"
-                  >
-                    Login to Account
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <Button
-                    as={Link}
-                    to="/marketplace"
-                    variant="secondary"
-                    className="!py-2.5 !px-5 text-sm font-bold shadow-md hover:scale-105 transition-all duration-200"
-                  >
-                    Browse Marketplace
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                  <Button
-                    as={Link}
-                    to="/dashboard"
-                    variant="ghost"
-                    className="border border-ink/15 hover:bg-ink/5 !py-2.5 !px-5 text-sm font-bold transition-all duration-200"
-                  >
-                    Go to Dashboard
-                  </Button>
-                </div>
-              )}
-
-              {/* ── Interactive Search & Filter Panel ── */}
+            {/* ── Center: Clean Professional E-Commerce Search Panel ── */}
+            <div className="w-full my-6">
               <form
                 onSubmit={handleSearchSubmit}
-                className={`w-full space-y-4 rounded-2xl border border-ink/10 bg-white/40 p-5 backdrop-blur-md shadow-xl shadow-ink/5 ${
-                  heroState === 'collapsing' ? 'animate-disappear-left-search' : ''
-                }`}
-                style={{ animation: heroState !== 'collapsing' ? "fadeSlideUp 0.8s ease-out 0.3s both" : "none" }}
+                className="w-full bg-white rounded-3xl p-3 sm:p-4 shadow-2xl border border-white/20 text-ink space-y-3"
               >
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 items-center">
                   
-                  {/* Search input */}
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-ink/50">Search For</label>
-                    <div className="relative flex items-center">
-                      <Search className="absolute left-3.5 h-4.5 w-4.5 text-ink/40" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Books, cycles, tech..."
-                        className="w-full rounded-xl border border-ink/15 bg-white/50 py-3 pl-11 pr-4 text-sm text-ink placeholder-ink/30 outline-none transition focus:border-accent focus:bg-white"
-                      />
-                    </div>
+                  {/* Search Query Input */}
+                  <div className="md:col-span-4 relative flex items-center">
+                    <Search className="absolute left-4 h-5 w-5 text-ink/40 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="What do you need? (e.g. Chemistry, Casio)..."
+                      className="w-full rounded-2xl bg-canvas/60 py-3.5 pl-12 pr-4 text-sm font-semibold text-ink placeholder-ink/40 outline-none focus:bg-canvas transition border border-ink/5"
+                    />
                   </div>
 
-                  {/* Category select */}
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-ink/50">Category</label>
-                    <div className="relative flex items-center">
-                      <select
-                        value={searchCategory}
-                        onChange={(e) => setSearchCategory(e.target.value)}
-                        className="w-full appearance-none rounded-xl border border-ink/15 bg-white/50 py-3 px-3.5 text-sm text-ink/85 outline-none transition focus:border-accent focus:bg-white"
-                      >
-                        <option value="">All Categories</option>
-                        <option value="Books">Books</option>
-                        <option value="Electronics">Electronics</option>
-                        <option value="Bicycles">Bicycles</option>
-                        <option value="Lab Gear">Lab Gear</option>
-                        <option value="Rooms">Rooms</option>
-                      </select>
-                      <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-ink/40" />
-                    </div>
+                  {/* Category Dropdown */}
+                  <div className="md:col-span-3 relative flex items-center">
+                    <select
+                      value={searchCategory}
+                      onChange={(e) => setSearchCategory(e.target.value)}
+                      className="w-full appearance-none rounded-2xl bg-canvas/60 py-3.5 px-4 text-sm font-semibold text-ink outline-none focus:bg-canvas transition border border-ink/5 cursor-pointer"
+                    >
+                      <option value="">All Categories</option>
+                      <option value="Books">📚 Books & Notes</option>
+                      <option value="Electronics">💻 Tech & Electronics</option>
+                      <option value="Bicycles">🚴 Bicycles & Cycles</option>
+                      <option value="Lab Gear">⚡ Calculators & Lab Gear</option>
+                      <option value="Rooms">🏠 Hostel Rooms & PGs</option>
+                    </select>
+                    <div className="pointer-events-none absolute right-4 border-l-4 border-r-4 border-t-4 border-transparent border-t-ink/40" />
                   </div>
 
-                  {/* Campus input */}
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-ink/50">Campus Location</label>
-                    <div className="relative flex items-center">
-                      <MapPin className="absolute left-3.5 h-4.5 w-4.5 text-ink/40" />
-                      <input
-                        type="text"
-                        value={searchCampus}
-                        onChange={(e) => setSearchCampus(e.target.value)}
-                        placeholder="Select campus..."
-                        className="w-full rounded-xl border border-ink/15 bg-white/50 py-3 pl-11 pr-4 text-sm text-ink placeholder-ink/30 outline-none transition focus:border-accent focus:bg-white"
-                      />
-                    </div>
+                  {/* Campus Location Input */}
+                  <div className="md:col-span-3 relative flex items-center">
+                    <MapPin className="absolute left-4 h-5 w-5 text-accent pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchCampus}
+                      onChange={(e) => setSearchCampus(e.target.value)}
+                      placeholder="Your Campus / City..."
+                      className="w-full rounded-2xl bg-canvas/60 py-3.5 pl-12 pr-4 text-sm font-semibold text-ink placeholder-ink/40 outline-none focus:bg-canvas transition border border-ink/5"
+                    />
                   </div>
 
+                  {/* Search Action Button */}
+                  <div className="md:col-span-2">
+                    <button
+                      type="submit"
+                      className="w-full h-12 rounded-2xl bg-accent text-white font-extrabold text-sm flex items-center justify-center gap-2 hover:bg-orange-600 active:scale-95 transition shadow-lg shadow-accent/20 cursor-pointer"
+                    >
+                      <Search className="h-4.5 w-4.5" />
+                      Find Deals
+                    </button>
+                  </div>
                 </div>
 
-                {/* Submit Row */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2 border-t border-ink/10">
-                  {/* Popular suggestions */}
-                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink/50">
-                    <span>Try:</span>
-                    {[
-                      { label: "Textbooks", query: "Chemistry", tab: "Books" },
-                      { label: "Calculators", query: "CASIO", tab: "Electronics" },
-                      { label: "Bicycles", query: "Cycle", tab: "Bicycles" }
-                    ].map((tag) => (
-                      <button
-                        key={tag.label}
-                        type="button"
-                        onClick={() => {
-                          setSearchQuery(tag.query);
-                          setSearchCategory(tag.tab);
-                          setActiveHeroTab(tag.tab);
-                        }}
-                        className="rounded-lg bg-ink/5 px-2.5 py-1 text-ink/65 hover:bg-ink/10 hover:text-ink transition"
-                      >
-                        {tag.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Solid Orange Submit */}
-                  <button
-                    type="submit"
-                    className="rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-white hover:bg-orange-500 hover:scale-[1.02] active:scale-[0.98] transition duration-200 flex items-center justify-center gap-2"
-                  >
-                    <Search className="h-4 w-4" />
-                    Find Items
-                  </button>
+                {/* Popular Search Category Chips */}
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-ink/5 text-xs">
+                  <span className="font-extrabold text-ink/50 uppercase tracking-wider text-[10px]">Popular:</span>
+                  {[
+                    { label: "📚 Engineering Books", query: "Engineering", category: "Books" },
+                    { label: "⚡ CASIO Calculators", query: "CASIO", category: "Lab Gear" },
+                    { label: "🚴 Campus Bicycles", query: "Cycle", category: "Bicycles" },
+                    { label: "💻 Laptops & iPad", query: "iPad", category: "Electronics" },
+                    { label: "🏠 PG Rooms", query: "Room", category: "Rooms" },
+                  ].map((chip) => (
+                    <button
+                      key={chip.label}
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery(chip.query);
+                        setSearchCategory(chip.category);
+                      }}
+                      className="rounded-full bg-ink/5 px-3 py-1 text-ink/75 font-semibold hover:bg-accent hover:text-white transition duration-150 cursor-pointer"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
                 </div>
               </form>
             </div>
 
-            {/* ── Right Column: Animated Video Player Showcase ── */}
-            <div 
-              className="flex flex-col lg:col-span-6 space-y-4 justify-center"
-            >
-              <HeroVideoShowcase heroState={heroState} />
-            </div>
-
-          </div>
-
-          {/* ── Feature strip at bottom ── */}
-          <div className={`relative z-10 border-t border-ink/[0.06] bg-ink/[0.015] backdrop-blur-sm ${
-            heroState === "collapsing" ? "animate-disappear-strip" : ""
-          }`}>
-            <div className="grid grid-cols-2 divide-y divide-ink/[0.06] sm:divide-y-0 lg:grid-cols-4 divide-x divide-ink/[0.06]">
-              {[
-                { icon: ShieldCheck, title: "Verified Students Only", desc: "College ID checks on all accounts" },
-                { icon: Wallet, title: "Flexible Student Deals", desc: "Rent daily, weekly, or buy outright" },
-                { icon: Compass, title: "Hyper-local Pickup", desc: "Instantly trade on campus grounds" },
-                { icon: Sparkles, title: "Circular Economy", desc: "Reduce wastage, save money" },
-              ].map((feat, idx) => (
-                <div key={idx} className="flex items-center gap-4 px-6 py-5 lg:px-8 lg:py-6 group transition-colors hover:bg-ink/[0.015]">
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent transition-all duration-300 group-hover:scale-110 group-hover:rotate-3">
-                    <feat.icon className="h-5.5 w-5.5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-ink/85">{feat.title}</p>
-                    <p className="text-xs text-ink/45">{feat.desc}</p>
-                  </div>
+            {/* ── Bottom: E-Commerce Trust Badges Strip ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-white/10 mt-2">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-emerald-400 shrink-0 border border-white/10">
+                  <ShieldCheck className="h-5 w-5" />
                 </div>
-              ))}
+                <div>
+                  <p className="text-xs font-extrabold text-white">Verified Students</p>
+                  <p className="text-[11px] text-white/60">College ID verified</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-accent shrink-0 border border-white/10">
+                  <Wallet className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-extrabold text-white">Escrow Safety</p>
+                  <p className="text-[11px] text-white/60">Pay on delivery</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-amber-300 shrink-0 border border-white/10">
+                  <Compass className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-extrabold text-white">Campus Pickup</p>
+                  <p className="text-[11px] text-white/60">Instant trade</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-indigo-300 shrink-0 border border-white/10">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-extrabold text-white">Save Up to 80%</p>
+                  <p className="text-[11px] text-white/60">Below retail cost</p>
+                </div>
+              </div>
             </div>
+
           </div>
         </section>
       )}
+
 
       {/* ══════════════════════ ANIMATED STATS ═══════════════════════ */}
       <section className="grid gap-5 sm:grid-cols-3">
