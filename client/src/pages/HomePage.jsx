@@ -186,7 +186,8 @@ function HeroShowcase({ heroState }) {
   const isCollapsing = heroState === "collapsing";
 
   return (
-    <div className="relative h-[480px] w-full" style={{ perspective: "1200px" }}>
+    <div className="relative h-[360px] sm:h-[440px] lg:h-[480px] w-full overflow-hidden sm:overflow-visible" style={{ perspective: "1200px" }}>
+
 
       {/* ── Multi-layer radial glow ── */}
       <div className={`absolute inset-0 flex items-center justify-center pointer-events-none ${isCollapsing ? "animate-disappear-orbs" : ""}`}>
@@ -248,7 +249,8 @@ function HeroShowcase({ heroState }) {
                     setActiveCard(idx);
                   }
                 }}
-                className={`carousel-card ${positionClass} ${disappearClass} w-[260px] select-none`}
+                className={`carousel-card ${positionClass} ${disappearClass} w-[220px] sm:w-[260px] select-none`}
+
                 style={{
                   animation: idx === activeCard && !isCollapsing ? "heroFloat 6s ease-in-out infinite" : "none",
                 }}

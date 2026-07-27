@@ -250,6 +250,21 @@
   pointer-events: auto;
 }
 
+@media (max-width: 640px) {
+  .card-front {
+    transform: translate3d(0, 0, 30px) rotateY(0deg) scale(0.95);
+  }
+  .card-right {
+    transform: translate3d(65px, 0, -60px) rotateY(-18deg) scale(0.72);
+    opacity: 0.35;
+  }
+  .card-left {
+    transform: translate3d(-65px, 0, -60px) rotateY(18deg) scale(0.72);
+    opacity: 0.35;
+  }
+}
+
+
 /* Hero container height collapse transition */
 .hero-transition {
   transition: max-height 0.85s cubic-bezier(0.16, 1, 0.3, 1),
