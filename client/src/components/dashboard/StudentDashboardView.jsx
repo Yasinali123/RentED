@@ -221,43 +221,43 @@ function StudentDashboardView({ dashboard, onRefresh }) {
   return (
     <div className="space-y-8">
       {/* Metrics Row */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="panel p-5 sm:p-6 bg-gradient-to-br from-indigo-50 to-white border-indigo-100 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-ink/40">Escrow Wallet</p>
-            <p className="text-2xl sm:text-3xl font-black text-indigo-700 mt-2">Rs. {stats.balance}</p>
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="panel p-4 sm:p-6 bg-gradient-to-br from-indigo-50 to-white border-indigo-100 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink/40 truncate">Escrow Wallet</p>
+            <p className="text-xl sm:text-3xl font-black text-indigo-700 mt-1 sm:mt-2 truncate">Rs. {stats.balance}</p>
           </div>
-          <div className="h-12 w-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
-            <Wallet className="h-6 w-6" />
-          </div>
-        </div>
-
-        <div className="panel p-5 sm:p-6 bg-gradient-to-br from-emerald-50 to-white border-emerald-100 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-ink/40">Active Rentals</p>
-            <p className="text-2xl sm:text-3xl font-black text-emerald-700 mt-2">{stats.activeRentals}</p>
-          </div>
-          <div className="h-12 w-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
-            <ShoppingBag className="h-6 w-6" />
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
+            <Wallet className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
         </div>
 
-        <div className="panel p-5 sm:p-6 bg-gradient-to-br from-orange-50 to-white border-orange-100 flex items-center justify-between sm:col-span-2 lg:col-span-1">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-ink/40">Total Escrow Spent</p>
-            <p className="text-2xl sm:text-3xl font-black text-orange-700 mt-2">Rs. {stats.totalSpent}</p>
+        <div className="panel p-4 sm:p-6 bg-gradient-to-br from-emerald-50 to-white border-emerald-100 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink/40 truncate">Active Rentals</p>
+            <p className="text-xl sm:text-3xl font-black text-emerald-700 mt-1 sm:mt-2 truncate">{stats.activeRentals}</p>
           </div>
-          <div className="h-12 w-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-700 shrink-0">
-            <Heart className="h-6 w-6" />
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+            <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6" />
+          </div>
+        </div>
+
+        <div className="panel p-4 sm:p-6 bg-gradient-to-br from-orange-50 to-white border-orange-100 flex items-center justify-between gap-3 sm:col-span-2 lg:col-span-1">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink/40 truncate">Total Escrow Spent</p>
+            <p className="text-xl sm:text-3xl font-black text-orange-700 mt-1 sm:mt-2 truncate">Rs. {stats.totalSpent}</p>
+          </div>
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-700 shrink-0">
+            <Heart className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
         </div>
       </div>
 
       {/* Tabs Selector */}
-      <div className="flex border-b border-ink/10 gap-2 sm:gap-6 overflow-x-auto whitespace-nowrap no-scrollbar pb-1">
+      <div className="flex border-b border-ink/10 gap-1 sm:gap-6 overflow-x-auto whitespace-nowrap no-scrollbar pb-1 px-1">
         <button
           onClick={() => setActiveTab("orders")}
-          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+          className={`pb-2.5 sm:pb-3 px-2.5 sm:px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
             activeTab === "orders" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
@@ -265,7 +265,7 @@ function StudentDashboardView({ dashboard, onRefresh }) {
         </button>
         <button
           onClick={() => setActiveTab("wishlist")}
-          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+          className={`pb-2.5 sm:pb-3 px-2.5 sm:px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
             activeTab === "wishlist" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
@@ -273,7 +273,7 @@ function StudentDashboardView({ dashboard, onRefresh }) {
         </button>
         <button
           onClick={() => setActiveTab("wallet")}
-          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+          className={`pb-2.5 sm:pb-3 px-2.5 sm:px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
             activeTab === "wallet" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
@@ -281,7 +281,7 @@ function StudentDashboardView({ dashboard, onRefresh }) {
         </button>
         <button
           onClick={() => setActiveTab("settings")}
-          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+          className={`pb-2.5 sm:pb-3 px-2.5 sm:px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
             activeTab === "settings" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
@@ -289,7 +289,7 @@ function StudentDashboardView({ dashboard, onRefresh }) {
         </button>
         <button
           onClick={() => { setActiveTab("invoices"); fetchInvoices(); }}
-          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+          className={`pb-2.5 sm:pb-3 px-2.5 sm:px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
             activeTab === "invoices" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
           }`}
         >
@@ -301,9 +301,9 @@ function StudentDashboardView({ dashboard, onRefresh }) {
       {activeTab === "orders" && (
         <div className="space-y-6">
           {rentedItems.length === 0 ? (
-            <div className="panel p-10 text-center text-ink/50">
-              <ShoppingBag className="h-12 w-12 mx-auto text-ink/20 mb-3" />
-              <p className="font-bold">No active orders or rentals</p>
+            <div className="panel p-6 sm:p-10 text-center text-ink/50">
+              <ShoppingBag className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-ink/20 mb-3" />
+              <p className="font-bold text-sm sm:text-base">No active orders or rentals</p>
               <p className="text-xs text-ink/40 mt-1">Browse the student marketplace to rent books, calculators, and PG listings!</p>
               <Link to="/marketplace" className="inline-flex mt-4 text-xs font-bold text-accent hover:underline">
                 Go to Marketplace →
@@ -311,17 +311,17 @@ function StudentDashboardView({ dashboard, onRefresh }) {
             </div>
           ) : (
             rentedItems.map((request) => (
-              <div key={request._id} className="panel p-6 space-y-4">
+              <div key={request._id} className="panel p-4 sm:p-6 space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
                     <img
                       src={request.item?.image || "https://placehold.co/150x150?text=Item"}
                       alt={request.item?.title}
-                      className="h-16 w-16 rounded-xl object-cover border border-ink/5 shrink-0 bg-mist"
+                      className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl object-cover border border-ink/5 shrink-0 bg-mist"
                     />
-                    <div>
-                      <h3 className="font-bold text-lg">{request.item?.title}</h3>
-                      <p className="text-xs text-ink/50 mt-0.5">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-base sm:text-lg text-ink break-words">{request.item?.title}</h3>
+                      <p className="text-xs text-ink/50 mt-0.5 break-words">
                         Seller: <b>{request.owner?.name}</b> • Campus: {request.item?.collegeName}
                       </p>
                       <p className="text-xs text-ink/50 mt-1 flex flex-wrap items-center gap-2">
@@ -342,15 +342,15 @@ function StudentDashboardView({ dashboard, onRefresh }) {
                         )}
                       </p>
                       {request.paymentMethod !== "cod" && request.dummyPaymentReference && (
-                        <p className="text-[10px] text-ink/40 mt-1 font-mono">
+                        <p className="text-[10px] text-ink/40 mt-1 font-mono break-all">
                           TxID: {request.dummyPaymentReference}
                         </p>
                       )}
                     </div>
                   </div>
-                  <div className="text-right sm:self-center">
-                    <p className="text-sm font-semibold text-ink/40">Amount Paid</p>
-                    <p className="text-xl font-black text-ink">Rs. {request.totalPrice}</p>
+                  <div className="text-left sm:text-right sm:self-center shrink-0">
+                    <p className="text-xs font-semibold text-ink/40">Amount Paid</p>
+                    <p className="text-lg sm:text-xl font-black text-ink">Rs. {request.totalPrice}</p>
                   </div>
                 </div>
 
@@ -358,9 +358,9 @@ function StudentDashboardView({ dashboard, onRefresh }) {
                 <OrderTimeline request={request} />
 
                 {/* Operations */}
-                <div className="flex flex-wrap gap-2 pt-2 justify-end items-center">
+                <div className="flex flex-wrap gap-2 pt-2 justify-start sm:justify-end items-center w-full">
                   {request.disputed && (
-                    <span className="text-[10px] font-black tracking-wider uppercase text-red-700 bg-red-50 border border-red-200 px-3 py-1 rounded-full animate-pulse mr-auto">
+                    <span className="text-[10px] font-black tracking-wider uppercase text-red-700 bg-red-50 border border-red-200 px-3 py-1 rounded-full animate-pulse w-full sm:w-auto sm:mr-auto text-center">
                       ⚠️ Escrow Disputed: Under Investigation
                     </span>
                   )}

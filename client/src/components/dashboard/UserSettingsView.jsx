@@ -406,7 +406,7 @@ function UserSettingsView({ onRefresh }) {
   return (
     <div className="flex flex-col lg:flex-row gap-6 items-start min-h-[550px]">
       {/* Left Sidebar Navigation */}
-      <aside className="w-full lg:w-64 shrink-0 bg-white border border-ink/5 rounded-3xl p-4 flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible shadow-sm">
+      <aside className="w-full lg:w-64 shrink-0 bg-white border border-ink/5 rounded-3xl p-2 sm:p-4 flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible shadow-sm no-scrollbar">
         <div className="hidden lg:block px-3 py-2 text-xs font-black uppercase text-accent tracking-widest border-b border-ink/5 mb-2">
           ⚙️ User Settings
         </div>
@@ -420,13 +420,13 @@ function UserSettingsView({ onRefresh }) {
                 setFeedbackMsg("");
                 setErrorMsg("");
               }}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl text-xs font-black tracking-wider uppercase transition-all whitespace-nowrap lg:whitespace-normal w-full justify-start ${
+              className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black tracking-wider uppercase transition-all whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink lg:w-full justify-start ${
                 activeSection === item.id
                   ? "bg-accent text-white shadow-md shadow-accent/20"
                   : "bg-transparent text-ink/65 hover:bg-canvas hover:text-ink"
               }`}
             >
-              <Icon className="h-4.5 w-4.5" />
+              <Icon className="h-4 w-4 sm:h-4.5 sm:w-4.5 shrink-0" />
               <span>{item.label}</span>
             </button>
           );
@@ -434,7 +434,7 @@ function UserSettingsView({ onRefresh }) {
       </aside>
 
       {/* Right Workstation Panel */}
-      <div className="flex-1 w-full min-w-0 panel p-6 bg-white border border-ink/5 rounded-3xl min-h-[450px]">
+      <div className="flex-1 w-full min-w-0 panel p-4 sm:p-6 bg-white border border-ink/5 rounded-3xl min-h-[450px]">
         {/* Dynamic Alerts */}
         {feedbackMsg && (
           <div className="mb-4 p-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-fadeIn">

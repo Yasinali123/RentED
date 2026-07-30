@@ -214,37 +214,37 @@ function SellerDashboardView({ dashboard, onRefresh }) {
   return (
     <div className="space-y-8">
       {/* Analytics Cards */}
-      <div className="grid gap-4 sm:grid-cols-4">
-        <div className="panel p-5 bg-gradient-to-br from-emerald-50/55 to-white border-emerald-100/60">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink/40">Total Revenue</p>
-            <DollarSign className="h-5 w-5 text-emerald-600" />
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-4">
+        <div className="panel p-4 sm:p-5 bg-gradient-to-br from-emerald-50/55 to-white border-emerald-100/60">
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-ink/40 truncate">Total Revenue</p>
+            <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 shrink-0" />
           </div>
-          <p className="text-2xl font-black text-emerald-800 mt-2">Rs. {stats.totalRevenue}</p>
+          <p className="text-lg sm:text-2xl font-black text-emerald-800 mt-1 sm:mt-2 truncate">Rs. {stats.totalRevenue}</p>
         </div>
 
-        <div className="panel p-5 bg-gradient-to-br from-indigo-50/55 to-white border-indigo-100/60">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink/40">Monthly Revenue</p>
-            <DollarSign className="h-5 w-5 text-indigo-600" />
+        <div className="panel p-4 sm:p-5 bg-gradient-to-br from-indigo-50/55 to-white border-indigo-100/60">
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-ink/40 truncate">Monthly Revenue</p>
+            <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600 shrink-0" />
           </div>
-          <p className="text-2xl font-black text-indigo-800 mt-2">Rs. {stats.monthlyRevenue}</p>
+          <p className="text-lg sm:text-2xl font-black text-indigo-800 mt-1 sm:mt-2 truncate">Rs. {stats.monthlyRevenue}</p>
         </div>
 
-        <div className="panel p-5 bg-gradient-to-br from-orange-50/55 to-white border-orange-100/60">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink/40">Active Rentals</p>
-            <ShoppingCart className="h-5 w-5 text-orange-600" />
+        <div className="panel p-4 sm:p-5 bg-gradient-to-br from-orange-50/55 to-white border-orange-100/60">
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-ink/40 truncate">Active Rentals</p>
+            <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 shrink-0" />
           </div>
-          <p className="text-2xl font-black text-orange-800 mt-2">{stats.activeRentals}</p>
+          <p className="text-lg sm:text-2xl font-black text-orange-800 mt-1 sm:mt-2 truncate">{stats.activeRentals}</p>
         </div>
 
-        <div className="panel p-5 bg-gradient-to-br from-purple-50/55 to-white border-purple-100/60">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink/40">Products Listed</p>
-            <Tag className="h-5 w-5 text-purple-600" />
+        <div className="panel p-4 sm:p-5 bg-gradient-to-br from-purple-50/55 to-white border-purple-100/60">
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-ink/40 truncate">Products Listed</p>
+            <Tag className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 shrink-0" />
           </div>
-          <p className="text-2xl font-black text-purple-800 mt-2">{stats.totalProducts}</p>
+          <p className="text-lg sm:text-2xl font-black text-purple-800 mt-1 sm:mt-2 truncate">{stats.totalProducts}</p>
         </div>
       </div>
 
