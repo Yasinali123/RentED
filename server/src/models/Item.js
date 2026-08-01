@@ -48,10 +48,12 @@ const itemSchema = new mongoose.Schema(
         "Engineering Books",
         "Calculators",
         "Lab Equipment",
+        "Equipment",
         "Electronics",
         "Hostel Essentials",
         "Furniture",
-        "Room / PG Listings"
+        "Room / PG Listings",
+        "Rooms"
       ],
       required: true,
     },
@@ -65,24 +67,23 @@ const itemSchema = new mongoose.Schema(
     },
     country: {
       type: String,
-      required: true,
       trim: true,
       default: "India",
     },
     state: {
       type: String,
-      required: true,
       trim: true,
+      default: "General",
     },
     city: {
       type: String,
-      required: true,
       trim: true,
+      default: "General",
     },
     collegeName: {
       type: String,
-      required: true,
       trim: true,
+      default: "Campus",
     },
     location: {
       type: String,

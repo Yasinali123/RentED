@@ -158,10 +158,12 @@ function ItemForm({ onSubmit, itemToEdit = null, onCancel = null }) {
     "Engineering Books",
     "Calculators",
     "Lab Equipment",
+    "Equipment",
     "Electronics",
     "Hostel Essentials",
     "Furniture",
     "Room / PG Listings",
+    "Rooms",
   ];
 
   return (

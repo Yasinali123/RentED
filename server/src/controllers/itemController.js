@@ -138,19 +138,21 @@ export const createItem = asyncHandler(async (req, res) => {
     salePrice: normalizedSalePrice,
     category,
     country: pickupCountry || req.user.country || "India",
-    state: pickupState || req.user.state || "",
-    city: pickupCity || req.user.city || "",
-    collegeName: college || req.user.collegeName || "",
+    state: pickupState || req.user.state || "General",
+    city: pickupCity || req.user.city || "General",
+    collegeName: college || req.user.collegeName || "Campus",
     location: String(pickupAddress || location || req.user.location || "").trim(),
     campus: String(campus || req.user.campus || "").trim(),
-    pickupLatitude: pickupLatitude ? Number(pickupLatitude) : req.user.latitude,
-    pickupLongitude: pickupLongitude ? Number(pickupLongitude) : req.user.longitude,
+    pickupLatitude: pickupLatitude ? Number(pickupLatitude) : (req.user.latitude || null),
+    pickupLongitude: pickupLongitude ? Number(pickupLongitude) : (req.user.longitude || null),
     college: college || req.user.college || "",
     district: district || req.user.district || "",
     pickupAddress: String(pickupAddress || location || req.user.location || "").trim(),
     geometry: (pickupLongitude && pickupLatitude)
       ? { type: "Point", coordinates: [Number(pickupLongitude), Number(pickupLatitude)] }
-      : req.user.geometry,
+      : (req.user.geometry && req.user.geometry.coordinates && req.user.geometry.coordinates.length === 2 && (req.user.geometry.coordinates[0] || req.user.geometry.coordinates[1]))
+        ? req.user.geometry
+        : { type: "Point", coordinates: [77.2090, 28.6139] },
     images: images,
     condition: condition || "Good",
     brand: String(brand || "").trim(),
@@ -187,10 +189,6 @@ export const getItems = asyncHandler(async (req, res) => {
   // Check if we can resolve coordinates (either query parameters or req.user profile coordinates)
   let latVal = lat ? Number(lat) : null;
   let lngVal = lng ? Number(lng) : null;
-  if (!latVal && !lngVal && req.user && req.user.latitude && req.user.longitude) {
-    latVal = req.user.latitude;
-    lngVal = req.user.longitude;
-  }
 
   const query = { isApproved: { $ne: false } };
 
@@ -207,7 +205,15 @@ export const getItems = asyncHandler(async (req, res) => {
   }
 
   if (category && category !== "All") {
-    query.category = category;
+    if (category === "Equipment") {
+      query.category = { $in: ["Equipment", "Lab Equipment", "Calculators", "Electronics"] };
+    } else if (category === "Rooms") {
+      query.category = { $in: ["Rooms", "Room / PG Listings"] };
+    } else if (category === "Books") {
+      query.category = { $in: ["Books", "Engineering Books", "Medical Books", "Law Books", "Commerce Books", "Topper Notes"] };
+    } else {
+      query.category = category;
+    }
   }
 
   if (location) {
@@ -247,12 +253,15 @@ export const getItems = asyncHandler(async (req, res) => {
   const parsedLimit = Number.parseInt(limit, 10) || 50;
   let items = [];
 
-  if (latVal && lngVal) {
+  // Only use geoNear aggregation if radius filter is requested or lat/lng query params are provided
+  if ((radius || lat || lng) && (latVal || lat) && (lngVal || lng)) {
+    const searchLat = latVal || Number(lat);
+    const searchLng = lngVal || Number(lng);
     const maxDist = radius ? Number(radius) * 1000 : 25000000;
     const pipeline = [
       {
         $geoNear: {
-          near: { type: "Point", coordinates: [lngVal, latVal] },
+          near: { type: "Point", coordinates: [searchLng, searchLat] },
           distanceField: "distance",
           maxDistance: maxDist,
           spherical: true,

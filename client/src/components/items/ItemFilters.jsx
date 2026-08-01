@@ -42,8 +42,19 @@ function ItemFilters({ filters, onChange }) {
           >
             <option value="All">All Categories</option>
             <option value="Books">Books</option>
-            <option value="Equipment">Equipment</option>
-            <option value="Rooms">Rooms</option>
+            <option value="Engineering Books">Engineering Books</option>
+            <option value="Medical Books">Medical Books</option>
+            <option value="Law Books">Law Books</option>
+            <option value="Commerce Books">Commerce Books</option>
+            <option value="Topper Notes">Topper Notes</option>
+            <option value="Calculators">Calculators</option>
+            <option value="Lab Equipment">Lab Equipment</option>
+            <option value="Equipment">All Equipment / Gear</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Hostel Essentials">Hostel Essentials</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Room / PG Listings">Room / PG Listings</option>
+            <option value="Rooms">All Rooms</option>
           </select>
         </div>
         

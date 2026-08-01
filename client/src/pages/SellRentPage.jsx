@@ -35,7 +35,7 @@ function SellRentPage() {
   const [selectedFiles, setSelectedFiles] = useState([]); // [{ file, previewUrl }]
   const [uploadProgress, setUploadProgress] = useState(0);
   const [commissionRate, setCommissionRate] = useState(10);
-  const isRoomCategory = form.category === "Rooms";
+  const isRoomCategory = form.category === "Rooms" || form.category === "Room / PG Listings";
 
   useEffect(() => {
     const fetchCommissionRate = async () => {
@@ -263,7 +263,18 @@ function SellRentPage() {
               onChange={(event) => handleChange("category", event.target.value)}
             >
               <option value="Books">Books</option>
-              <option value="Equipment">Equipment</option>
+              <option value="Topper Notes">Topper Notes</option>
+              <option value="Medical Books">Medical Books</option>
+              <option value="Law Books">Law Books</option>
+              <option value="Commerce Books">Commerce Books</option>
+              <option value="Engineering Books">Engineering Books</option>
+              <option value="Calculators">Calculators</option>
+              <option value="Lab Equipment">Lab Equipment</option>
+              <option value="Equipment">Equipment / Gear</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Hostel Essentials">Hostel Essentials</option>
+              <option value="Furniture">Furniture</option>
+              <option value="Room / PG Listings">Room / PG Listings</option>
               <option value="Rooms">Rooms</option>
             </select>
             <select
