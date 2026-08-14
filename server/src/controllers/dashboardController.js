@@ -181,8 +181,8 @@ export const getDashboard = asyncHandler(async (req, res) => {
 
     // Grouping tasks
     const pendingPickups = [
-      ...allTasks.filter((t) => t.status === "Seller Accepted"),
-      ...myTasks.filter((t) => t.status === "POC Assigned" || t.status === "Pickup Scheduled"),
+      ...allTasks.filter((t) => t.status === "Seller Accepted" && !t.poc),
+      ...myTasks.filter((t) => ["POC Assigned", "Pickup Scheduled", "Seller Accepted", "Pending Pickup", "Payment Successful", "COD Pending"].includes(t.status)),
     ];
 
     const outForDelivery = myTasks.filter((t) => t.status === "Out For Delivery" || t.status === "Picked Up");

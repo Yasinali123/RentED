@@ -231,7 +231,7 @@ function PocDashboardView({ dashboard, onRefresh }) {
   // Group tasks from dashboard mapping
   const pendingClaims = incomingRequests || []; 
   const myAssignedTasks = [
-    ...rentedItems.filter((t) => ["POC Assigned", "Pickup Scheduled"].includes(t.status)),
+    ...rentedItems.filter((t) => ["POC Assigned", "Pickup Scheduled", "Seller Accepted", "Pending Pickup", "Payment Successful", "COD Pending", "Order Placed"].includes(t.status)),
   ]; 
   const myActiveDeliveries = [
     ...rentedItems.filter((t) => ["Picked Up", "Out For Delivery"].includes(t.status)),

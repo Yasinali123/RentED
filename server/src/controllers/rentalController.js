@@ -987,11 +987,42 @@ export const adminUpdateRental = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error("Invalid POC User");
       }
+
+      const isNewPocAssignment = !oldPoc || oldPoc.toString() !== pocUser._id.toString();
       request.poc = pocUser._id;
-      if (request.status === "Seller Accepted") {
+
+      if (["Seller Accepted", "Pending Pickup", "Payment Successful", "COD Pending", "Order Placed", "Pending"].includes(request.status)) {
         request.status = "POC Assigned";
         request.trackingStatus = "POC Assigned";
-        request.trackingHistory.push({ status: "POC Assigned", location: `POC dispatcher assigned by Admin` });
+        request.trackingHistory.push({ status: "POC Assigned", location: `POC dispatcher ${pocUser.name} assigned by Admin` });
+      }
+
+      // Notify the newly assigned POC, renter, and seller
+      if (isNewPocAssignment) {
+        await notifyUser(
+          pocUser._id,
+          "New Delivery Task Assigned",
+          `Admin assigned you to deliver order #${request._id.toString().slice(-6).toUpperCase()} for "${request.item.title}". Open your POC Dashboard to start collection.`,
+          "assigned_task"
+        );
+        await notifyUser(
+          request.renter,
+          "POC Courier Assigned",
+          `Campus POC ${pocUser.name} has been assigned to deliver your order for "${request.item.title}".`
+        );
+        await notifyUser(
+          request.owner,
+          "POC Assigned for Pickup",
+          `Campus POC ${pocUser.name} has been assigned to collect "${request.item.title}" from you.`
+        );
+
+        try {
+          if (pocUser.email) {
+            await emailService.sendPickupNotification(pocUser.email, request, request.item, "poc");
+          }
+        } catch (err) {
+          console.error("Failed to send POC assignment email:", err.message);
+        }
       }
     }
   }
@@ -1026,7 +1057,7 @@ export const adminUpdateRental = asyncHandler(async (req, res) => {
       }
       
       const newPocUser = await User.findById(request.poc);
-      conversation.lastMessage = `POC ${newPocUser.name} assigned to order chat.`;
+      conversation.lastMessage = `POC ${newPocUser.name} assigned to order chat by Admin.`;
       conversation.lastMessageAt = new Date();
       await conversation.save();
     }
