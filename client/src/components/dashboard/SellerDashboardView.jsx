@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { DollarSign, Tag, ShoppingCart, Activity, Plus, Edit3, Trash2, CheckCircle2, XCircle, QrCode, FileText, RefreshCw } from "lucide-react";
 
@@ -6,8 +6,10 @@ import ItemForm from "../items/ItemForm";
 import Button from "../ui/Button";
 import { itemApi, rentalApi, disputeApi, paymentApi, invoiceApi, getErrorMessage } from "../../api/client";
 import UserSettingsView from "./UserSettingsView";
+import { useAuth } from "../../context/AuthContext";
 
 function SellerDashboardView({ dashboard, onRefresh }) {
+  const { user } = useAuth();
   const { stats, listedItems, incomingRequests } = dashboard;
   const [activeTab, setActiveTab] = useState("orders"); // "orders", "inventory", "new-listing"
   const [editingItem, setEditingItem] = useState(null);
@@ -37,13 +39,25 @@ function SellerDashboardView({ dashboard, onRefresh }) {
   // Withdrawal state variables
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
   const [withdrawalMethod, setWithdrawalMethod] = useState("upi_qr"); // "upi_qr", "upi", or "bank"
-  const [upiId, setUpiId] = useState("");
-  const [qrCodeUrlInput, setQrCodeUrlInput] = useState("");
-  const [bankAccount, setBankAccount] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [ifscCode, setIfscCode] = useState("");
+  const [upiId, setUpiId] = useState(user?.upiId || "");
+  const [qrCodeUrlInput, setQrCodeUrlInput] = useState(user?.qrCodeUrl || "");
+  const [bankAccount, setBankAccount] = useState(user?.bankDetails?.accountNumber || "");
+  const [bankName, setBankName] = useState(user?.bankDetails?.bankName || "");
+  const [ifscCode, setIfscCode] = useState(user?.bankDetails?.ifscCode || "");
   const [withdrawFeedback, setWithdrawFeedback] = useState("");
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      if (user.upiId) setUpiId(user.upiId);
+      if (user.qrCodeUrl) setQrCodeUrlInput(user.qrCodeUrl);
+      if (user.bankDetails) {
+        if (user.bankDetails.accountNumber) setBankAccount(user.bankDetails.accountNumber);
+        if (user.bankDetails.bankName) setBankName(user.bankDetails.bankName);
+        if (user.bankDetails.ifscCode) setIfscCode(user.bankDetails.ifscCode);
+      }
+    }
+  }, [user]);
 
   const handleWithdrawSubmit = async (e) => {
     e.preventDefault();

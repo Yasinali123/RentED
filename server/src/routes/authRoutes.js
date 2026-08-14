@@ -22,7 +22,7 @@ import {
   logoutAllSessions,
 } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
-import { uploadAvatar } from "../middleware/upload.js";
+import { uploadProfileFiles } from "../middleware/upload.js";
 
 const router = express.Router();
 
@@ -41,7 +41,7 @@ router.get("/users", protect, getAllUsers);
 router.patch("/users/:userId/status", protect, updateUserStatus);
 router.get("/me", protect, getMe);
 router.post("/add-balance", protect, addBalance);
-router.patch("/profile", protect, uploadAvatar, updateProfile);
+router.patch("/profile", protect, uploadProfileFiles, updateProfile);
 
 router.get("/sessions", protect, listSessions);
 router.delete("/sessions/:sessionId", protect, revokeSession);

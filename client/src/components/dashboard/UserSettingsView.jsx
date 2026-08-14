@@ -125,11 +125,88 @@ function UserSettingsView({ onRefresh }) {
   // Security Toggles
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(user?.twoFactorEnabled || false);
 
-  // Payments additions
+  // Payments & Payout details state
   const [walletAmount, setWalletAmount] = useState("");
   const [withdrawAmount, setWalletWithdraw] = useState("");
-  const [savedUpi, setSavedUpi] = useState("rohan@upi");
-  const [savedCard, setSavedCard] = useState("**** **** **** 4562");
+  const [payoutForm, setPayoutForm] = useState({
+    upiId: user?.upiId || "",
+    accountHolderName: user?.bankDetails?.accountHolderName || "",
+    bankName: user?.bankDetails?.bankName || "",
+    accountNumber: user?.bankDetails?.accountNumber || "",
+    ifscCode: user?.bankDetails?.ifscCode || "",
+  });
+  const [qrCodeFile, setQrCodeFile] = useState(null);
+  const [qrCodePreview, setQrCodePreview] = useState(user?.qrCodeUrl || "");
+  const [savingPayout, setSavingPayout] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setPayoutForm({
+        upiId: user.upiId || "",
+        accountHolderName: user.bankDetails?.accountHolderName || "",
+        bankName: user.bankDetails?.bankName || "",
+        accountNumber: user.bankDetails?.accountNumber || "",
+        ifscCode: user.bankDetails?.ifscCode || "",
+      });
+      setQrCodePreview(user.qrCodeUrl || "");
+    }
+  }, [user]);
+
+  const handleQrCodeSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+    if (!allowedTypes.includes(file.type)) {
+      setErrorMsg("Only JPG, PNG and WEBP formats are allowed for QR code.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg("QR Code file size too large. Maximum 5MB allowed.");
+      return;
+    }
+
+    setErrorMsg("");
+    setQrCodeFile(file);
+    setQrCodePreview(URL.createObjectURL(file));
+  };
+
+  const handlePayoutSave = async (e) => {
+    e.preventDefault();
+    setFeedbackMsg("");
+    setErrorMsg("");
+    setSavingPayout(true);
+    try {
+      const formData = new FormData();
+      formData.append("upiId", payoutForm.upiId.trim());
+      formData.append(
+        "bankDetails",
+        JSON.stringify({
+          accountHolderName: payoutForm.accountHolderName.trim(),
+          bankName: payoutForm.bankName.trim(),
+          accountNumber: payoutForm.accountNumber.trim(),
+          ifscCode: payoutForm.ifscCode.trim().toUpperCase(),
+        })
+      );
+      if (qrCodeFile) {
+        formData.append("qrCode", qrCodeFile);
+      }
+
+      const res = await authApi.updateProfile(formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setUser(res.user);
+      setFeedbackMsg("Payout details & UPI QR code saved successfully!");
+      setQrCodeFile(null);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      setErrorMsg(getErrorMessage(err));
+    } finally {
+      setSavingPayout(false);
+    }
+  };
 
   // Appearance
   const [appearance, setAppearance] = useState({
@@ -1068,41 +1145,138 @@ function UserSettingsView({ onRefresh }) {
             </div>
 
             {/* Wallet Info row */}
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-1">
               <div className="panel p-5 bg-gradient-to-br from-accent to-accent/90 border-none text-white shadow-lg shadow-accent/15">
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-85">Available Escrow Balance</p>
                 <p className="text-3xl font-black mt-2">Rs. {user?.balance || 0}</p>
                 <p className="text-[9px] font-bold opacity-75 mt-2">RentED Sandbox wallet credits</p>
               </div>
-
-              {/* UPI Form */}
-              <div className="p-4 border border-ink/5 bg-canvas/10 rounded-2xl flex flex-col justify-between">
-                <div>
-                  <h3 className="text-[10px] font-black text-ink/50 uppercase tracking-wider">Saved UPI ID</h3>
-                  <input
-                    className="input mt-1.5 py-1 px-3 text-xs w-full font-mono font-bold"
-                    value={savedUpi}
-                    onChange={(e) => setSavedUpi(e.target.value)}
-                  />
-                </div>
-                <span className="text-[9px] text-ink/40 block mt-2">Used for escrow seller payouts</span>
-              </div>
-
-              {/* Saved Card */}
-              <div className="p-4 border border-ink/5 bg-canvas/10 rounded-2xl flex flex-col justify-between">
-                <div>
-                  <h3 className="text-[10px] font-black text-ink/50 uppercase tracking-wider">Default Debit Card</h3>
-                  <input
-                    className="input mt-1.5 py-1 px-3 text-xs w-full font-mono font-bold"
-                    value={savedCard}
-                    onChange={(e) => setSavedCard(e.target.value)}
-                  />
-                </div>
-                <span className="text-[9px] text-ink/40 block mt-2">Mock card for instant testing</span>
-              </div>
             </div>
 
-            {/* Wallet deposit and withdraw forms */}
+            {/* Payout Details & QR Code Setup Form (For Sellers, POCs, and Students) */}
+            <form onSubmit={handlePayoutSave} className="p-5 border border-indigo-100 bg-indigo-50/30 rounded-3xl space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-indigo-100 pb-3">
+                <div>
+                  <h3 className="text-sm font-black text-indigo-950 uppercase tracking-wider flex items-center gap-2">
+                    🏦 Payout & Bank Account Details
+                  </h3>
+                  <p className="text-xs text-indigo-900/60">
+                    Sellers and Campus POCs: Save your payout details so the platform can transfer your item sales & delivery earnings.
+                  </p>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full">
+                  {user?.role === "poc" ? "Campus POC Courier" : user?.role === "seller" ? "Campus Seller" : "Student Profile"}
+                </span>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* UPI ID */}
+                <div className="space-y-1">
+                  <label className="text-xs font-black uppercase text-ink/65">UPI ID (VPA)</label>
+                  <input
+                    type="text"
+                    className="input text-xs font-mono font-bold"
+                    placeholder="e.g. yourname@upi or 9876543210@paytm"
+                    value={payoutForm.upiId}
+                    onChange={(e) => setPayoutForm({ ...payoutForm, upiId: e.target.value })}
+                  />
+                  <p className="text-[10px] text-ink/40">Direct UPI address for instant payouts.</p>
+                </div>
+
+                {/* QR Code Upload */}
+                <div className="space-y-1">
+                  <label className="text-xs font-black uppercase text-ink/65">UPI QR Code Image</label>
+                  <div className="flex items-center gap-3">
+                    {qrCodePreview ? (
+                      <a href={qrCodePreview} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={qrCodePreview}
+                          alt="UPI QR Code"
+                          className="h-12 w-12 object-cover rounded-xl border border-indigo-200 hover:scale-105 transition"
+                        />
+                      </a>
+                    ) : (
+                      <div className="h-12 w-12 rounded-xl border border-dashed border-ink/20 bg-white flex items-center justify-center text-[9px] text-ink/40 text-center font-bold">
+                        No QR
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <label className="cursor-pointer bg-white hover:bg-mist text-ink font-bold text-xs py-1.5 px-3 rounded-full border border-ink/15 inline-block">
+                        Choose QR Photo
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          onChange={handleQrCodeSelect}
+                        />
+                      </label>
+                      <p className="text-[10px] text-ink/40 mt-1">Admin will scan this image to transfer money.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Account Holder Name */}
+                <div className="space-y-1">
+                  <label className="text-xs font-black uppercase text-ink/65">Account Holder Name</label>
+                  <input
+                    type="text"
+                    className="input text-xs font-semibold"
+                    placeholder="Full name as on bank passbook"
+                    value={payoutForm.accountHolderName}
+                    onChange={(e) => setPayoutForm({ ...payoutForm, accountHolderName: e.target.value })}
+                  />
+                </div>
+
+                {/* Bank Name */}
+                <div className="space-y-1">
+                  <label className="text-xs font-black uppercase text-ink/65">Bank Name</label>
+                  <input
+                    type="text"
+                    className="input text-xs font-semibold"
+                    placeholder="e.g. State Bank of India, HDFC, ICICI..."
+                    value={payoutForm.bankName}
+                    onChange={(e) => setPayoutForm({ ...payoutForm, bankName: e.target.value })}
+                  />
+                </div>
+
+                {/* Account Number */}
+                <div className="space-y-1">
+                  <label className="text-xs font-black uppercase text-ink/65">Bank Account Number</label>
+                  <input
+                    type="text"
+                    className="input text-xs font-mono font-bold"
+                    placeholder="e.g. 123456789012"
+                    value={payoutForm.accountNumber}
+                    onChange={(e) => setPayoutForm({ ...payoutForm, accountNumber: e.target.value })}
+                  />
+                </div>
+
+                {/* IFSC Code */}
+                <div className="space-y-1">
+                  <label className="text-xs font-black uppercase text-ink/65">IFSC Code</label>
+                  <input
+                    type="text"
+                    className="input text-xs font-mono font-bold uppercase"
+                    placeholder="e.g. SBIN0001234"
+                    value={payoutForm.ifscCode}
+                    onChange={(e) => setPayoutForm({ ...payoutForm, ifscCode: e.target.value.toUpperCase() })}
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  className="text-xs py-2 px-6 rounded-full font-bold shadow-sm"
+                  disabled={savingPayout}
+                >
+                  {savingPayout ? "Saving Details..." : "Save Payout & Bank Info"}
+                </Button>
+              </div>
+            </form>
+
+            {/* Wallet deposit form */}
             <div className="grid gap-4 sm:grid-cols-2">
               <form onSubmit={handleAddFunds} className="p-4 border border-ink/5 rounded-2xl bg-canvas/10 space-y-3">
                 <h3 className="text-xs font-black text-accent uppercase tracking-wider">Load Sandbox Wallet</h3>

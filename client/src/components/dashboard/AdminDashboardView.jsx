@@ -1404,44 +1404,72 @@ function AdminDashboardView({ dashboard, onRefresh }) {
                     <thead>
                       <tr className="border-b border-ink/5 text-ink/40 uppercase">
                         <th className="py-2">Date Requested</th>
-                        <th className="py-2">User Profile</th>
+                        <th className="py-2">User Profile & Role</th>
                         <th className="py-2">Wallet Balance</th>
                         <th className="py-2">Payout Amount</th>
-                        <th className="py-2">Seller QR / Transfer Info</th>
+                        <th className="py-2">UPI / QR Code / Bank Details</th>
                         <th className="py-2 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-ink/5">
                       {withdrawals.filter(w => w.status === "pending").map((w) => {
                         const qrUrl = w.qrCodeUrl || w.user?.qrCodeUrl;
+                        const userRole = w.user?.role || "user";
+                        const isPoc = userRole === "poc";
+                        const isSeller = userRole === "seller";
+                        const bankInfo = w.user?.bankDetails;
+
                         return (
                           <tr key={w._id}>
                             <td className="py-3 text-ink/50">
                               {new Date(w.createdAt).toLocaleString()}
                             </td>
                             <td className="py-3 font-bold text-ink">
-                              {w.user?.name || "Seller"}
-                              <span className="text-[10px] text-ink/40 block mt-0.5">{w.user?.email} • Role: {w.user?.role}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span>{w.user?.name || "User"}</span>
+                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                                  isPoc ? "bg-purple-50 text-purple-700 border-purple-200" :
+                                  isSeller ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                  "bg-mist text-ink/60 border-ink/10"
+                                }`}>
+                                  {isPoc ? "POC Delivery" : isSeller ? "Seller Item Payout" : userRole}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-ink/40 block mt-0.5">{w.user?.email} • College: {w.user?.collegeName || "Campus"}</span>
                             </td>
                             <td className="py-3 font-medium text-ink/70">
                               Rs. {w.user?.balance ?? w.amount}
                             </td>
-                            <td className="py-3 font-black text-indigo-700">
+                            <td className="py-3 font-black text-indigo-700 text-sm">
                               Rs. {w.amount}
                             </td>
-                            <td className="py-3 font-semibold text-ink/80 max-w-[220px]">
-                              <span className="chip uppercase text-[9px] py-0.5 px-2 bg-mist border text-ink mr-1.5">{w.paymentMethodType || w.paymentMethod}</span>
-                              <span className="truncate block mt-0.5 text-[11px]" title={w.bankDetails}>{w.bankDetails || w.upiId}</span>
-                              {qrUrl && (
-                                <a
-                                  href={qrUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full hover:bg-indigo-100"
-                                >
-                                  📷 View Seller QR Code
-                                </a>
-                              )}
+                            <td className="py-3 font-semibold text-ink/80 max-w-[260px]">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="chip uppercase text-[9px] py-0.5 px-2 bg-mist border text-ink">{w.paymentMethodType || w.paymentMethod}</span>
+                                  {w.upiId || w.user?.upiId ? (
+                                    <span className="font-mono text-xs text-indigo-900 font-bold">{w.upiId || w.user?.upiId}</span>
+                                  ) : null}
+                                </div>
+                                <p className="text-[11px] text-ink/70 leading-snug break-words" title={w.bankDetails}>
+                                  {w.bankDetails || (bankInfo?.accountNumber ? `Bank: ${bankInfo.bankName} • A/C: ${bankInfo.accountNumber} • IFSC: ${bankInfo.ifscCode}` : "UPI Payout")}
+                                </p>
+                                {qrUrl && (
+                                  <div className="flex items-center gap-2 pt-1">
+                                    <a href={qrUrl} target="_blank" rel="noopener noreferrer">
+                                      <img src={qrUrl} alt="QR Code" className="h-9 w-9 object-cover rounded-lg border border-indigo-200 hover:scale-105 transition" />
+                                    </a>
+                                    <a
+                                      href={qrUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-full hover:bg-indigo-100 inline-flex items-center gap-1"
+                                    >
+                                      📷 View Full QR Image
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td className="py-3 text-right">
                               <div className="flex justify-end gap-1.5">

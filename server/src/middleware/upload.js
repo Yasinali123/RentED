@@ -46,6 +46,21 @@ const avatarStorage = new CloudinaryStorage({
   },
 });
 
+// Storage configuration for payout QR codes
+const qrCodeStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "RentED/qrcodes",
+    allowed_formats: ["jpg", "png", "jpeg", "webp"],
+    transformation: [{ quality: "auto", fetch_format: "auto" }],
+    public_id: (req, file) => {
+      const ext = path.extname(file.originalname);
+      const name = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9]/g, "_");
+      return `qr_${name}_${Date.now()}`;
+    },
+  },
+});
+
 // Multer upload configurations
 const uploadItemsMulter = multer({
   storage: itemStorage,
@@ -59,6 +74,34 @@ const uploadAvatarMulter = multer({
   storage: avatarStorage,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: fileFilter,
+});
+
+const uploadQrCodeMulter = multer({
+  storage: qrCodeStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: fileFilter,
+});
+
+// Custom engine for handling multiple file types (avatar + qrCode)
+const profileFieldsMulter = multer({
+  storage: new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: (req, file) => {
+      const isQr = file.fieldname === "qrCode";
+      return {
+        folder: isQr ? "RentED/qrcodes" : "RentED/avatars",
+        allowed_formats: ["jpg", "png", "jpeg", "webp"],
+        transformation: [{ quality: "auto", fetch_format: "auto" }],
+        public_id: `${file.fieldname}_${Date.now()}`,
+      };
+    },
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024,
   },
   fileFilter: fileFilter,
 });
@@ -109,6 +152,18 @@ export const uploadAvatar = (req, res, next) => {
 
   uploadSingle(req, res, (err) => {
     handleUploadError(err, res, next, "Avatar Upload:");
+  });
+};
+
+// Middleware for user profile updates with optional avatar and qrCode uploads
+export const uploadProfileFiles = (req, res, next) => {
+  const uploadFields = profileFieldsMulter.fields([
+    { name: "avatar", maxCount: 1 },
+    { name: "qrCode", maxCount: 1 },
+  ]);
+
+  uploadFields(req, res, (err) => {
+    handleUploadError(err, res, next, "Profile Upload:");
   });
 };
 

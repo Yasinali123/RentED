@@ -60,6 +60,9 @@ const sanitizeUser = (user) => ({
   deliveryPreferences: user.deliveryPreferences || {},
   rentalPreferences: user.rentalPreferences || {},
   marketplacePreferences: user.marketplacePreferences || {},
+  qrCodeUrl: user.qrCodeUrl || "",
+  upiId: user.upiId || "",
+  bankDetails: user.bankDetails || { accountNumber: "", ifscCode: "", accountHolderName: "", bankName: "" },
 });
 
 // @desc    Register a new user
@@ -1013,7 +1016,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
     "name", "username", "bio", "email", "phone", "collegeName", "course",
     "studentId", "twoFactorEnabled", "notifications", "preferredDistance",
     "academicProfile", "appearance", "deliveryPreferences", "rentalPreferences",
-    "marketplacePreferences", "avatarUrl", "country", "state", "city", "institutionType", "campus", "location"
+    "marketplacePreferences", "avatarUrl", "country", "state", "city", "institutionType", "campus", "location",
+    "qrCodeUrl", "upiId", "bankDetails"
   ];
 
   let emailChanged = false;
@@ -1024,7 +1028,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
       }
       if ([
         "notifications", "academicProfile", "appearance",
-        "deliveryPreferences", "rentalPreferences", "marketplacePreferences"
+        "deliveryPreferences", "rentalPreferences", "marketplacePreferences", "bankDetails"
       ].includes(field)) {
         user[field] = parseJsonField(req.body[field]);
       } else {
@@ -1033,7 +1037,25 @@ export const updateProfile = asyncHandler(async (req, res) => {
     }
   });
 
-  if (req.file) {
+  if (req.files) {
+    if (req.files.avatar && req.files.avatar[0]) {
+      const avatarFile = req.files.avatar[0];
+      if (user.avatarPublicId) {
+        try {
+          await cloudinary.uploader.destroy(user.avatarPublicId);
+        } catch (err) {
+          console.error(`Failed to delete old avatar ${user.avatarPublicId} from Cloudinary:`, err);
+        }
+      }
+      user.avatarUrl = avatarFile.path;
+      user.avatarPublicId = avatarFile.filename;
+    }
+
+    if (req.files.qrCode && req.files.qrCode[0]) {
+      const qrFile = req.files.qrCode[0];
+      user.qrCodeUrl = qrFile.path;
+    }
+  } else if (req.file) {
     if (user.avatarPublicId) {
       try {
         await cloudinary.uploader.destroy(user.avatarPublicId);
