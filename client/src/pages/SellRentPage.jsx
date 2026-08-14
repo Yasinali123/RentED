@@ -64,7 +64,7 @@ function SellRentPage() {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const handleFileSelect = (event) => {
+  const handleFileSelect = async (event) => {
     const files = Array.from(event.target.files || []);
     setFeedback("");
 
@@ -73,21 +73,29 @@ function SellRentPage() {
       return;
     }
 
-    const validated = [];
     const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+    const validated = [];
 
     for (const file of files) {
       if (!allowedTypes.includes(file.type)) {
         setFeedback(`Invalid file format: ${file.name}. Only JPG, PNG, and WEBP allowed.`);
         return;
       }
-      if (file.size > 10 * 1024 * 1024) {
-        setFeedback(`File too large: ${file.name}. Max size allowed is 10MB.`);
+      if (file.size > 15 * 1024 * 1024) {
+        setFeedback(`File too large: ${file.name}. Max size allowed is 15MB.`);
         return;
       }
+
+      // Compress photo immediately upon selection to release mobile RAM memory
+      const compressedFile = await compressImage(file, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.75,
+      });
+
       validated.push({
-        file,
-        previewUrl: URL.createObjectURL(file),
+        file: compressedFile,
+        previewUrl: URL.createObjectURL(compressedFile),
       });
     }
 
