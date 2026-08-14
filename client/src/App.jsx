@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Route, Routes } from "react-router-dom";
 
 import AppShell from "./components/layout/AppShell";
@@ -15,6 +16,17 @@ import SignupPage from "./pages/SignupPage";
 import EmailVerificationPage from "./pages/EmailVerificationPage";
 
 function App() {
+  // Warm up Render backend on app initial load
+  useEffect(() => {
+    const apiUrl = import.meta.env.VITE_API_URL || "/api";
+    const healthEndpoint = `${apiUrl.replace(/\/$/, "")}/health`;
+    
+    // Non-blocking ping to wake up free-tier backend from sleep
+    fetch(healthEndpoint, { method: "GET", mode: "cors" }).catch(() => {
+      // Ignore background ping errors
+    });
+  }, []);
+
   return (
     <ErrorBoundary>
       <Routes>

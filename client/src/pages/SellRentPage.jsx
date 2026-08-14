@@ -6,6 +6,7 @@ import { getErrorMessage, itemApi, settingsApi } from "../api/client";
 import Button from "../components/ui/Button";
 import LocationPicker from "../components/maps/LocationPicker";
 import { useAuth } from "../context/AuthContext";
+import { compressImage } from "../utils/imageCompressor";
 
 const initialState = {
   title: "",
@@ -32,6 +33,7 @@ function SellRentPage() {
   const [pickedLocation, setPickedLocation] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]); // [{ file, previewUrl }]
   const [uploadProgress, setUploadProgress] = useState(0);
   const [commissionRate, setCommissionRate] = useState(10);
@@ -79,8 +81,8 @@ function SellRentPage() {
         setFeedback(`Invalid file format: ${file.name}. Only JPG, PNG, and WEBP allowed.`);
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        setFeedback(`File too large: ${file.name}. Max size allowed is 5MB.`);
+      if (file.size > 10 * 1024 * 1024) {
+        setFeedback(`File too large: ${file.name}. Max size allowed is 10MB.`);
         return;
       }
       validated.push({
@@ -111,6 +113,7 @@ function SellRentPage() {
     }
 
     setSubmitting(true);
+    setSubmitStatus("Optimizing image sizes...");
     setUploadProgress(0);
 
     try {
@@ -144,16 +147,27 @@ function SellRentPage() {
       details.forEach((detail) => formData.append("details", detail));
       tags.forEach((tag) => formData.append("tags", tag));
 
-      selectedFiles.forEach((fileObj) => {
-        formData.append("photos", fileObj.file);
-      });
+      // Compress each selected photo before appending to formData
+      for (let i = 0; i < selectedFiles.length; i++) {
+        setSubmitStatus(`Optimizing photo ${i + 1} of ${selectedFiles.length}...`);
+        const fileObj = selectedFiles[i];
+        const compressedFile = await compressImage(fileObj.file, {
+          maxWidth: 1600,
+          maxHeight: 1600,
+          quality: 0.8,
+        });
+        formData.append("photos", compressedFile);
+      }
 
+      setSubmitStatus("Publishing listing...");
       const createdItem = await itemApi.create(formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
+        timeout: 120000,
         onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          const total = progressEvent.total || 1;
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / total);
           setUploadProgress(percentCompleted);
         },
       });
@@ -164,6 +178,7 @@ function SellRentPage() {
       setUploadProgress(0);
     } finally {
       setSubmitting(false);
+      setSubmitStatus("");
     }
   };
 
@@ -361,16 +376,16 @@ function SellRentPage() {
             </label>
 
             {/* Upload Progress Bar */}
-            {submitting && uploadProgress > 0 && (
+            {submitting && (
               <div className="space-y-1">
                 <div className="flex justify-between text-xs font-bold text-accent">
-                  <span>Uploading to Cloudinary...</span>
-                  <span>{uploadProgress}%</span>
+                  <span>{submitStatus || "Publishing listing..."}</span>
+                  {uploadProgress > 0 && <span>{uploadProgress}%</span>}
                 </div>
                 <div className="w-full bg-mist h-2 rounded-full overflow-hidden">
                   <div
                     className="bg-accent h-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
+                    style={{ width: `${uploadProgress > 0 ? uploadProgress : 100}%` }}
                   />
                 </div>
               </div>
@@ -388,6 +403,7 @@ function SellRentPage() {
                         type="button"
                         className="font-semibold text-red-600"
                         onClick={() => handleRemoveFile(index)}
+                        disabled={submitting}
                       >
                         Remove
                       </button>
@@ -436,9 +452,9 @@ function SellRentPage() {
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button type="submit" variant="secondary" className="sm:flex-1" disabled={submitting}>
-              {submitting ? "Publishing listing..." : "Publish listing"}
+              {submitting ? submitStatus || "Publishing listing..." : "Publish listing"}
             </Button>
-            <Button type="button" variant="ghost" className="sm:flex-1" onClick={() => navigate("/marketplace")}>
+            <Button type="button" variant="ghost" className="sm:flex-1" onClick={() => navigate("/marketplace")} disabled={submitting}>
               Back to marketplace
             </Button>
           </div>

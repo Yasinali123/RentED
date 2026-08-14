@@ -90,7 +90,8 @@ app.use("/api/auth/verify-otp", authRateLimiter);
 app.use("/api/auth/verify-email", authRateLimiter);
 
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", service: "RentEd API" });
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.json({ status: "ok", service: "RentEd API", timestamp: new Date().toISOString() });
 });
 
 app.use("/api/auth", authRoutes);

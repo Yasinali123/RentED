@@ -66,7 +66,7 @@ export const authApi = {
   getUsers: async () => (await api.get("/auth/users")).data,
   updateUserStatus: async (userId, payload) => (await api.patch(`/auth/users/${userId}/status`, payload)).data,
   addBalance: async (payload) => (await api.post("/auth/add-balance", payload)).data,
-  updateProfile: async (payload, config = {}) => (await api.patch("/auth/profile", payload, config)).data,
+  updateProfile: async (payload, config = {}) => (await api.patch("/auth/profile", payload, { timeout: 120000, ...config })).data,
   verifyEmail: async (payload) => (await api.post("/auth/verify-email", payload)).data,
   refresh: async () => (await api.post("/auth/refresh")).data,
   logout: async () => (await api.post("/auth/logout")).data,
@@ -80,8 +80,8 @@ export const itemApi = {
   list: async (params) => (await api.get("/items", { params })).data,
   getById: async (itemId) => (await api.get(`/items/${itemId}`)).data,
   getMine: async () => (await api.get("/items/mine")).data,
-  create: async (payload, config = {}) => (await api.post("/items", payload, config)).data,
-  update: async (itemId, payload, config = {}) => (await api.patch(`/items/${itemId}`, payload, config)).data,
+  create: async (payload, config = {}) => (await api.post("/items", payload, { timeout: 120000, ...config })).data,
+  update: async (itemId, payload, config = {}) => (await api.patch(`/items/${itemId}`, payload, { timeout: 120000, ...config })).data,
   delete: async (itemId) => (await api.delete(`/items/${itemId}`)).data,
   toggleWishlist: async (itemId) => (await api.post(`/items/${itemId}/wishlist`)).data,
 };
@@ -135,6 +135,7 @@ export const chatApi = {
       headers: {
         "Content-Type": "multipart/form-data",
       },
+      timeout: 120000,
     })).data,
 };
 
