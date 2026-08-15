@@ -103,6 +103,16 @@ export const validateCoupon = asyncHandler(async (req, res) => {
     throw new Error("This coupon has expired.");
   }
 
+  // Check per-user usage limits
+  if (req.user) {
+    const userUses = (coupon.usedBy || []).filter((u) => u.user.toString() === req.user._id.toString()).length;
+    const maxUses = coupon.maxUsesPerUser || 1;
+    if (userUses >= maxUses) {
+      res.status(400);
+      throw new Error("You have already redeemed this coupon code.");
+    }
+  }
+
   // Calculate discount
   let discountAmount = 0;
   if (coupon.discountType === "percentage") {

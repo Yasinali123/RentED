@@ -390,6 +390,15 @@ export const requestWithdrawal = asyncHandler(async (req, res) => {
     throw new Error("User not found");
   }
 
+  const existingPending = await WithdrawalRequest.findOne({
+    user: req.user._id,
+    status: "pending",
+  });
+  if (existingPending) {
+    res.status(400);
+    throw new Error("You already have a pending withdrawal request. Please wait for Admin approval before submitting another.");
+  }
+
   if (user.balance < withdrawAmount) {
     res.status(400);
     throw new Error(`Insufficient wallet balance. Available: Rs. ${user.balance}`);

@@ -115,6 +115,13 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
       throw new Error("This coupon has expired.");
     }
 
+    const userUses = (coupon.usedBy || []).filter((u) => u.user.toString() === req.user._id.toString()).length;
+    const maxUses = coupon.maxUsesPerUser || 1;
+    if (userUses >= maxUses) {
+      res.status(400);
+      throw new Error("You have already used this coupon code.");
+    }
+
     if (coupon.discountType === "percentage") {
       discountAmount = (basePrice * coupon.value) / 100;
     } else {
@@ -252,6 +259,16 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     if (seller) {
       seller.pendingBalance = roundCurrency((seller.pendingBalance || 0) + sellerEarnings);
       await seller.save();
+    }
+  }
+
+  // Record coupon redemption
+  if (couponCode) {
+    const coupon = await Coupon.findOne({ code: couponCode.trim().toUpperCase() });
+    if (coupon) {
+      coupon.usedBy = coupon.usedBy || [];
+      coupon.usedBy.push({ user: renter._id, order: request._id, usedAt: new Date() });
+      await coupon.save();
     }
   }
 
@@ -535,9 +552,16 @@ export const verifyPickup = asyncHandler(async (req, res) => {
     throw new Error("Only the assigned POC can verify this pickup");
   }
 
-  if (request.pickupQrCode !== qrCode) {
+  if ((request.failedPickupAttempts || 0) >= 5) {
     res.status(400);
-    throw new Error("Invalid Pickup QR Code");
+    throw new Error("Maximum pickup verification attempts exceeded (5/5). Please contact Admin support.");
+  }
+
+  if (request.pickupQrCode !== qrCode) {
+    request.failedPickupAttempts = (request.failedPickupAttempts || 0) + 1;
+    await request.save();
+    res.status(400);
+    throw new Error(`Invalid Pickup QR Code (Attempt ${request.failedPickupAttempts}/5)`);
   }
 
   request.status = "Picked Up";
@@ -604,9 +628,16 @@ export const verifyDelivery = asyncHandler(async (req, res) => {
     throw new Error("Only the assigned POC can verify delivery");
   }
 
-  if (request.deliveryQrCode !== qrCode) {
+  if ((request.failedDeliveryAttempts || 0) >= 5) {
     res.status(400);
-    throw new Error("Invalid Delivery QR Code");
+    throw new Error("Maximum delivery verification attempts exceeded (5/5). Please contact Admin support.");
+  }
+
+  if (request.deliveryQrCode !== qrCode) {
+    request.failedDeliveryAttempts = (request.failedDeliveryAttempts || 0) + 1;
+    await request.save();
+    res.status(400);
+    throw new Error(`Invalid Delivery QR Code (Attempt ${request.failedDeliveryAttempts}/5)`);
   }
 
   request.status = "Delivered";
@@ -900,11 +931,20 @@ export const cancelRentalRequest = asyncHandler(async (req, res) => {
     await seller.save();
   }
 
-  // Update Escrow record
+  // Release Escrow record
   const escrow = await Escrow.findOne({ rentalRequest: request._id });
   if (escrow) {
     escrow.status = "refunded";
     await escrow.save();
+  }
+
+  // Release coupon redemption if applied
+  if (request.couponCode) {
+    const coupon = await Coupon.findOne({ code: request.couponCode.trim().toUpperCase() });
+    if (coupon && coupon.usedBy) {
+      coupon.usedBy = coupon.usedBy.filter((u) => u.order?.toString() !== request._id.toString());
+      await coupon.save();
+    }
   }
 
   // Refund buyer if payment was online/wallet or if COD cash was already collected

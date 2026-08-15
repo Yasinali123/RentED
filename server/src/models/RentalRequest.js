@@ -148,6 +148,14 @@ const rentalRequestSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    failedPickupAttempts: {
+      type: Number,
+      default: 0,
+    },
+    failedDeliveryAttempts: {
+      type: Number,
+      default: 0,
+    },
     proofPhoto: {
       type: String,
       default: "",

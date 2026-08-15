@@ -27,6 +27,28 @@ const couponSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    usedBy: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        order: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "RentalRequest",
+          default: null,
+        },
+        usedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    maxUsesPerUser: {
+      type: Number,
+      default: 1,
+    },
   },
   { timestamps: true }
 );
