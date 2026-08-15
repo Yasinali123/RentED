@@ -225,8 +225,6 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     sellerEarnings,
     pocEarnings,
     platformDeliveryShare,
-    dummyPaymentStatus: paymentMethod === "cod" ? "cod_pending" : "captured",
-    dummyPaymentReference: finalPaymentRef,
     paymentReference: finalPaymentRef,
     deliveryAddress: deliveryAddress || renter.location,
     pickupQrCode,

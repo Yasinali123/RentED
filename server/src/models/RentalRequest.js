@@ -114,15 +114,6 @@ const rentalRequestSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    dummyPaymentStatus: {
-      type: String,
-      enum: ["not_started", "authorized", "captured", "cod_pending"],
-      default: "not_started",
-    },
-    dummyPaymentReference: {
-      type: String,
-      default: "",
-    },
     paymentReference: {
       type: String,
       default: "",

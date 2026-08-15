@@ -372,7 +372,7 @@ export const createAndStoreInvoice = async (order) => {
       platformCommission: commission,
       totalAmount: order.totalPrice,
       paymentMethod: order.paymentMethod || "online",
-      paymentId: order.paymentReference || order.dummyPaymentReference || "",
+      paymentId: order.paymentReference || "",
       orderId: order._id.toString(),
     };
 
@@ -399,7 +399,7 @@ export const createAndStoreInvoice = async (order) => {
       platformCommission: commission,
       totalAmount: order.totalPrice,
       paymentMethod: order.paymentMethod || "online",
-      paymentId: order.paymentReference || order.dummyPaymentReference || "",
+      paymentId: order.paymentReference || "",
       pdfUrl: url,
       pdfPublicId: publicId,
       qrCodeData: `RentED Invoice | ${invoiceNumber} | Order: ${order._id} | Amount: Rs.${order.totalPrice}`,

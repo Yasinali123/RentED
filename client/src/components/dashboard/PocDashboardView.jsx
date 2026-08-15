@@ -58,19 +58,16 @@ function PocDashboardView({ dashboard, onRefresh }) {
 
   // Profile fields state
   const [pocProfile, setPocProfile] = useState({
-    phone: user?.phone || "9876543210",
+    phone: user?.phone || "",
     email: user?.email || "",
     avatarUrl: user?.avatarUrl || "",
-    college: user?.collegeName || user?.campus || "ADC Campus",
+    college: user?.collegeName || user?.campus || "",
     isOnline: true,
-    bankDetails: "SBI Account: xxxxxxx4562 (IFS Code: SBIN0004523)"
+    bankDetails: user?.bankDetails?.accountNumber ? `${user.bankDetails.bankName || "Bank"}: ${user.bankDetails.accountNumber} (${user.bankDetails.ifscCode || ""})` : ""
   });
 
-  // Built-in Chat Mock
-  const [chats, setChats] = useState([
-    { sender: "Admin", text: "Please pick up the Calculators order from Aiden at the Science library today.", time: "10:30 AM" },
-    { sender: "Seller (Aiden)", text: "Hi POC, I've left the books at the main reception for collection.", time: "11:15 AM" }
-  ]);
+  // Communication messages state
+  const [chats, setChats] = useState([]);
   const [chatInput, setChatInput] = useState("");
 
   // Exception Reports State
@@ -80,23 +77,13 @@ function PocDashboardView({ dashboard, onRefresh }) {
     details: ""
   });
 
-  // Mock Notifications
-  const [pocNotifications, setPocNotifications] = useState([
-    { id: 1, title: "New Assignment", message: "A new calculator pickup is available at the engineering branch.", time: "Just Now", type: "new" },
-    { id: 2, title: "Pickup Reminder", message: "Please collect Aiden's listed textbook by 3:00 PM.", time: "1 hour ago", type: "reminder" },
-    { id: 3, title: "Order Cancelled", message: "Renter cancelled order for PG room booking inspection.", time: "2 hours ago", type: "cancel" }
-  ]);
-
-  const allNotifications = [
-    ...notifications.map((n) => ({
-      id: n._id,
-      title: n.title,
-      message: n.message,
-      time: new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: n.type || "general"
-    })),
-    ...pocNotifications
-  ];
+  const allNotifications = notifications.map((n) => ({
+    id: n._id,
+    title: n.title,
+    message: n.message,
+    time: new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    type: n.type || "general"
+  }));
 
   // Handle task actions
   const handleClaimTask = async (orderId) => {

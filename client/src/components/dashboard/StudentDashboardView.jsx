@@ -341,9 +341,9 @@ function StudentDashboardView({ dashboard, onRefresh }) {
                           </span>
                         )}
                       </p>
-                      {request.paymentMethod !== "cod" && request.dummyPaymentReference && (
+                      {request.paymentMethod !== "cod" && request.paymentReference && (
                         <p className="text-[10px] text-ink/40 mt-1 font-mono break-all">
-                          TxID: {request.dummyPaymentReference}
+                          TxID: {request.paymentReference}
                         </p>
                       )}
                     </div>
