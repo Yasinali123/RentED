@@ -1,4 +1,5 @@
 import Item from "../models/Item.js";
+import RentalRequest from "../models/RentalRequest.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import cloudinary from "../config/cloudinary.js";
 
@@ -498,6 +499,32 @@ export const deleteItem = asyncHandler(async (req, res) => {
   if (item.owner.toString() !== req.user._id.toString() && req.user.role !== "admin") {
     res.status(403);
     throw new Error("Access denied");
+  }
+
+  const activeRequest = await RentalRequest.findOne({
+    item: item._id,
+    status: {
+      $in: [
+        "Pending Payment",
+        "Payment Successful",
+        "COD Pending",
+        "Pending Pickup",
+        "Seller Accepted",
+        "POC Assigned",
+        "Pickup Scheduled",
+        "Picked Up",
+        "Out For Delivery",
+        "Delivered",
+        "Rental Active",
+        "Return Requested",
+        "Returned",
+      ],
+    },
+  });
+
+  if (activeRequest) {
+    res.status(400);
+    throw new Error("Cannot delete item while it has an active order or ongoing rental transaction.");
   }
 
   // Delete all related images from Cloudinary automatically
