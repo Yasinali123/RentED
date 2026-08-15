@@ -10,7 +10,7 @@ import { notifyUser, notifyAdmins } from "../utils/notificationHelper.js";
 import { getSetting, getAllPaymentSettings } from "../utils/settingsHelper.js";
 import emailService from "../services/emailService.js";
 import { baseLayout } from "../templates/baseLayout.js";
-import { createRefund } from "../services/paymentService.js";
+import { createRefund, roundCurrency, fetchRazorpayPayment } from "../services/paymentService.js";
 import { createAndStoreInvoice } from "../services/invoiceService.js";
 
 const populateRequest = (query) =>
@@ -86,10 +86,12 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     throw new Error("You already have an active booking or order for this item");
   }
 
-  const basePrice =
+  const rawBasePrice =
     normalizedRequestType === "purchase"
       ? item.salePrice ?? item.rentalPrice ?? item.price
       : getRentalDurationDays(startDate, endDate) * (item.rentalPrice ?? item.salePrice ?? item.price);
+
+  const basePrice = roundCurrency(rawBasePrice);
 
   if (!Number.isFinite(basePrice) || basePrice < 0) {
     res.status(400);
@@ -121,25 +123,54 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     discountAmount = Math.min(discountAmount, basePrice);
   }
 
+  discountAmount = roundCurrency(discountAmount);
   const settings = await getAllPaymentSettings();
-  const deliveryFee = settings.delivery_fee || 50;
+  const deliveryFee = roundCurrency(settings.delivery_fee || 50);
   const commissionRate = settings.platform_commission_rate || 10;
   const pocShareRate = settings.poc_share_rate || 80;
 
-  const itemPrice = basePrice - discountAmount;
-  const platformCommission = itemPrice * (commissionRate / 100);
-  const sellerEarnings = itemPrice - platformCommission;
-  const pocEarnings = deliveryFee * (pocShareRate / 100);
-  const platformDeliveryShare = deliveryFee - pocEarnings;
-  const totalPrice = itemPrice + deliveryFee;
+  const itemPrice = roundCurrency(basePrice - discountAmount);
+  const platformCommission = roundCurrency(itemPrice * (commissionRate / 100));
+  const sellerEarnings = roundCurrency(itemPrice - platformCommission);
+  const pocEarnings = roundCurrency(deliveryFee * (pocShareRate / 100));
+  const platformDeliveryShare = roundCurrency(deliveryFee - pocEarnings);
+  const totalPrice = roundCurrency(itemPrice + deliveryFee);
 
   const renter = await User.findById(req.user._id);
 
-  const isDirectPayment = paymentReference && (
-    paymentReference.startsWith("pay_") ||
-    paymentReference.startsWith("RENTED-SANDBOX-") ||
-    paymentReference.startsWith("order_")
-  );
+  // Validate online payment reference security guard
+  let isDirectPayment = false;
+  let verifiedDirectTx = null;
+
+  if (paymentMethod === "online" && paymentReference) {
+    if (paymentReference.startsWith("pay_") || paymentReference.startsWith("order_")) {
+      verifiedDirectTx = await Transaction.findOne({
+        paymentId: paymentReference,
+        user: renter._id,
+        status: "completed",
+      });
+      if (verifiedDirectTx) {
+        isDirectPayment = true;
+      } else {
+        // Double-check with Razorpay SDK
+        try {
+          const razorpayPayment = await fetchRazorpayPayment(paymentReference);
+          if (razorpayPayment && (razorpayPayment.status === "captured" || razorpayPayment.status === "authorized")) {
+            isDirectPayment = true;
+          }
+        } catch (err) {
+          console.error("Razorpay payment reference verification failed:", err.message);
+        }
+      }
+    } else if (paymentReference.startsWith("RENTED-SANDBOX-")) {
+      isDirectPayment = true;
+    }
+
+    if (!isDirectPayment) {
+      res.status(400);
+      throw new Error("Invalid or unverified online payment reference");
+    }
+  }
 
   // Prevent duplicate checkout payment submissions
   if (paymentMethod !== "cod" && paymentReference) {
@@ -152,13 +183,13 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     }
   }
 
-  // Payments (online + UPI apps): debit renter wallet immediately for escrow holding unless paid directly via Razorpay.
-  if (paymentMethod !== "cod" && !isDirectPayment) {
+  // Handle Wallet / Escrow balance deductions
+  if (paymentMethod === "wallet" || (paymentMethod !== "cod" && !isDirectPayment)) {
     if (renter.balance < totalPrice) {
       res.status(400);
       throw new Error(`Insufficient wallet balance. You need Rs. ${totalPrice} (Your Balance: Rs. ${renter.balance})`);
     }
-    renter.balance -= totalPrice;
+    renter.balance = roundCurrency(renter.balance - totalPrice);
     await renter.save();
   }
 
@@ -167,6 +198,8 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
   const deliveryQrCode = "D-" + Math.floor(100000 + Math.random() * 900000);
 
   const initialStatus = paymentMethod === "cod" ? "COD Pending" : "Pending Pickup";
+  const finalPaymentMethod = paymentMethod === "wallet" ? "wallet" : (paymentMethod === "cod" ? "cod" : "online");
+  const finalPaymentRef = paymentReference || (paymentMethod === "wallet" ? `pay_wallet_${Date.now()}` : (paymentMethod === "cod" ? `COD-${Date.now()}` : `REF-${Date.now()}`));
 
   const request = await RentalRequest.create({
     requestType: normalizedRequestType,
@@ -176,7 +209,7 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     startDate: normalizedRequestType === "rental" ? startDate : null,
     endDate: normalizedRequestType === "rental" ? endDate : null,
     message: message || "",
-    paymentMethod,
+    paymentMethod: finalPaymentMethod,
     status: initialStatus,
     itemPrice,
     deliveryFee,
@@ -186,8 +219,8 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     pocEarnings,
     platformDeliveryShare,
     dummyPaymentStatus: paymentMethod === "cod" ? "cod_pending" : "captured",
-    dummyPaymentReference: paymentReference || (paymentMethod === "cod" ? `COD-${Date.now()}` : `REF-${Date.now()}`),
-    paymentReference: paymentReference || (paymentMethod === "cod" ? `COD-${Date.now()}` : `REF-${Date.now()}`),
+    dummyPaymentReference: finalPaymentRef,
+    paymentReference: finalPaymentRef,
     deliveryAddress: deliveryAddress || renter.location,
     pickupQrCode,
     deliveryQrCode,
@@ -217,7 +250,7 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     // Lock funds in Seller pending balance
     const seller = await User.findById(item.owner);
     if (seller) {
-      seller.pendingBalance = (seller.pendingBalance || 0) + sellerEarnings;
+      seller.pendingBalance = roundCurrency((seller.pendingBalance || 0) + sellerEarnings);
       await seller.save();
     }
   }
@@ -238,12 +271,9 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
 
   // Link transactions / Create new wallet payouts
   if (paymentMethod !== "cod") {
-    if (isDirectPayment && paymentReference.startsWith("pay_")) {
-      const tx = await Transaction.findOne({ paymentId: paymentReference });
-      if (tx) {
-        tx.order = request._id;
-        await tx.save();
-      }
+    if (isDirectPayment && verifiedDirectTx) {
+      verifiedDirectTx.order = request._id;
+      await verifiedDirectTx.save();
     } else {
       await Transaction.create({
         user: renter._id,
@@ -251,8 +281,8 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
         amount: totalPrice,
         type: "payment",
         status: "completed",
-        paymentId: paymentReference || `pay_wallet_${Date.now()}`,
-        gateway: paymentReference.startsWith("RENTED-SANDBOX-") ? "sandbox" : "wallet",
+        paymentId: finalPaymentRef,
+        gateway: paymentMethod === "wallet" ? "wallet" : (finalPaymentRef.startsWith("RENTED-SANDBOX-") ? "sandbox" : "razorpay"),
         escrowStatus: "held",
         paidAt: new Date(),
       });
@@ -863,12 +893,32 @@ export const cancelRentalRequest = asyncHandler(async (req, res) => {
   request.trackingStatus = "Cancelled";
   request.trackingHistory.push({ status: "Cancelled", location: "Cancelled by User" });
 
-  // Refund buyer if payment was online
-  if (request.paymentMethod !== "cod") {
+  // Unlock seller's pending balance if held
+  const seller = await User.findById(request.owner);
+  if (seller && request.paymentMethod !== "cod") {
+    seller.pendingBalance = Math.max(0, roundCurrency((seller.pendingBalance || 0) - request.sellerEarnings));
+    await seller.save();
+  }
+
+  // Update Escrow record
+  const escrow = await Escrow.findOne({ rentalRequest: request._id });
+  if (escrow) {
+    escrow.status = "refunded";
+    await escrow.save();
+  }
+
+  // Refund buyer if payment was online/wallet or if COD cash was already collected
+  if (request.paymentMethod !== "cod" || request.codCollected) {
     const renter = await User.findById(request.renter);
     const originalTx = await Transaction.findOne({ order: request._id, type: "payment" });
 
-    if (originalTx && originalTx.paymentId && originalTx.paymentId.startsWith("pay_")) {
+    if (
+      originalTx &&
+      originalTx.gateway === "razorpay" &&
+      originalTx.paymentId &&
+      originalTx.paymentId.startsWith("pay_") &&
+      !originalTx.paymentId.startsWith("pay_wallet_")
+    ) {
       try {
         const refund = await createRefund(originalTx.paymentId, request.totalPrice);
         originalTx.escrowStatus = "refunded";
@@ -889,7 +939,7 @@ export const cancelRentalRequest = asyncHandler(async (req, res) => {
         });
       } catch (err) {
         console.error("Razorpay refund failed, fallback to wallet balance:", err.message);
-        renter.balance += request.totalPrice;
+        renter.balance = roundCurrency((renter.balance || 0) + request.totalPrice);
         await renter.save();
 
         await Transaction.create({
@@ -901,11 +951,13 @@ export const cancelRentalRequest = asyncHandler(async (req, res) => {
         });
       }
     } else {
-      renter.balance += request.totalPrice;
-      await renter.save();
+      if (renter) {
+        renter.balance = roundCurrency((renter.balance || 0) + request.totalPrice);
+        await renter.save();
+      }
 
       await Transaction.create({
-        user: renter._id,
+        user: request.renter,
         order: request._id,
         amount: request.totalPrice,
         type: "refund",

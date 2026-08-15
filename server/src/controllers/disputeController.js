@@ -2,11 +2,12 @@ import Dispute from "../models/Dispute.js";
 import RentalRequest from "../models/RentalRequest.js";
 import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
+import Escrow from "../models/Escrow.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { notifyUser, notifyAdmins } from "../utils/notificationHelper.js";
-import { getSetting } from "../utils/settingsHelper.js";
+import { getAllPaymentSettings } from "../utils/settingsHelper.js";
 import emailService from "../services/emailService.js";
-import { createRefund } from "../services/paymentService.js";
+import { createRefund, roundCurrency } from "../services/paymentService.js";
 
 export const raiseDispute = asyncHandler(async (req, res) => {
   const { orderId, reason } = req.body;
@@ -121,11 +122,30 @@ export const resolveDispute = asyncHandler(async (req, res) => {
   const seller = await User.findById(order.owner);
 
   if (action === "refund") {
-    // Return all money to student's wallet balance
-    if (order.paymentMethod !== "cod") {
+    // Unlock seller's pending balance
+    if (seller) {
+      seller.pendingBalance = Math.max(0, roundCurrency((seller.pendingBalance || 0) - (order.sellerEarnings || 0)));
+      await seller.save();
+    }
+
+    // Update Escrow record
+    const escrow = await Escrow.findOne({ rentalRequest: order._id });
+    if (escrow) {
+      escrow.status = "refunded";
+      await escrow.save();
+    }
+
+    // Return money to student's wallet / original payment
+    if (order.paymentMethod !== "cod" || order.codCollected) {
       const originalTx = await Transaction.findOne({ order: order._id, type: "payment" });
 
-      if (originalTx && originalTx.paymentId && originalTx.paymentId.startsWith("pay_")) {
+      if (
+        originalTx &&
+        originalTx.gateway === "razorpay" &&
+        originalTx.paymentId &&
+        originalTx.paymentId.startsWith("pay_") &&
+        !originalTx.paymentId.startsWith("pay_wallet_")
+      ) {
         try {
           const refund = await createRefund(originalTx.paymentId, order.totalPrice);
           originalTx.escrowStatus = "refunded";
@@ -146,7 +166,7 @@ export const resolveDispute = asyncHandler(async (req, res) => {
           });
         } catch (err) {
           console.error("Dispute Razorpay refund failed, fallback to wallet:", err.message);
-          renter.balance += order.totalPrice;
+          renter.balance = roundCurrency((renter.balance || 0) + order.totalPrice);
           await renter.save();
 
           await Transaction.create({
@@ -158,11 +178,13 @@ export const resolveDispute = asyncHandler(async (req, res) => {
           });
         }
       } else {
-        renter.balance += order.totalPrice;
-        await renter.save();
+        if (renter) {
+          renter.balance = roundCurrency((renter.balance || 0) + order.totalPrice);
+          await renter.save();
+        }
 
         await Transaction.create({
-          user: renter._id,
+          user: order.renter,
           order: order._id,
           amount: order.totalPrice,
           type: "refund",
@@ -180,66 +202,101 @@ export const resolveDispute = asyncHandler(async (req, res) => {
     order.status = "Refund Completed";
     order.trackingStatus = "Refund Completed";
     dispute.status = "resolved_refunded";
-  } else if (action === "release") {
-    // Release money to seller (after dynamic commission)
-    const commissionRate = await getSetting("commission_rate", 10);
-    const commission = order.totalPrice * (commissionRate / 100);
-    const payout = order.totalPrice - commission;
-
-    seller.balance += payout;
-    await seller.save();
-
-    await Transaction.create({
-      user: seller._id,
-      order: order._id,
-      amount: payout,
-      type: "release_to_seller",
-      status: "completed",
-    });
-
-    await Transaction.create({
-      user: renter._id,
-      order: order._id,
-      amount: commission,
-      type: "commission",
-      status: "completed",
-    });
-
-    order.status = "Completed";
-    order.trackingStatus = "Completed";
-    order.commissionAmount = commission;
-    order.earningsReleased = true;
-    dispute.status = "resolved_released";
   } else {
-    // Dismiss dispute (dismiss means release payout to seller)
-    const commissionRate = await getSetting("commission_rate", 10);
-    const commission = order.totalPrice * (commissionRate / 100);
-    const payout = order.totalPrice - commission;
+    // Release or Dismiss: Release earnings to seller and POC
+    if (order.earningsReleased) {
+      res.status(400);
+      throw new Error("Earnings for this order have already been released");
+    }
 
-    seller.balance += payout;
-    await seller.save();
+    const settings = await getAllPaymentSettings();
+    const deliveryFee = order.deliveryFee || settings.delivery_fee || 50;
+    const commissionRate = settings.platform_commission_rate || 10;
+    const pocShareRate = settings.poc_share_rate || 80;
 
+    const itemPrice = order.itemPrice || (order.totalPrice - deliveryFee);
+    const platformCommission = order.commissionAmount || roundCurrency(itemPrice * (commissionRate / 100));
+    const sellerEarnings = order.sellerEarnings || roundCurrency(itemPrice - platformCommission);
+    const pocEarnings = order.pocEarnings || roundCurrency(deliveryFee * (pocShareRate / 100));
+    const platformDeliveryShare = order.platformDeliveryShare || roundCurrency(deliveryFee - pocEarnings);
+
+    // 1. Credit seller balance and decrement pending balance
+    if (seller) {
+      seller.balance = roundCurrency((seller.balance || 0) + sellerEarnings);
+      seller.pendingBalance = Math.max(0, roundCurrency((seller.pendingBalance || 0) - sellerEarnings));
+      await seller.save();
+    }
+
+    // 2. Credit POC balance if assigned
+    if (order.poc) {
+      const pocUser = await User.findById(order.poc);
+      if (pocUser) {
+        pocUser.balance = roundCurrency((pocUser.balance || 0) + pocEarnings);
+        await pocUser.save();
+
+        await Transaction.create({
+          user: pocUser._id,
+          order: order._id,
+          amount: pocEarnings,
+          type: "delivery_income",
+          status: "completed",
+          paidAt: new Date(),
+        });
+      }
+    }
+
+    // 3. Update Escrow record
+    const escrow = await Escrow.findOne({ rentalRequest: order._id });
+    if (escrow) {
+      escrow.status = "released";
+      escrow.releasedAt = new Date();
+      await escrow.save();
+    }
+
+    // 4. Update payment transaction
+    const originalTx = await Transaction.findOne({ order: order._id, type: "payment" });
+    if (originalTx) {
+      originalTx.escrowStatus = "released";
+      originalTx.releasedAt = new Date();
+      await originalTx.save();
+    }
+
+    // 5. Create transaction logs
     await Transaction.create({
-      user: seller._id,
+      user: order.owner,
       order: order._id,
-      amount: payout,
+      amount: sellerEarnings,
       type: "release_to_seller",
       status: "completed",
+      paidAt: new Date(),
     });
 
     await Transaction.create({
-      user: renter._id,
+      user: req.user._id,
       order: order._id,
-      amount: commission,
+      amount: platformCommission,
       type: "commission",
       status: "completed",
+      paidAt: new Date(),
+    });
+
+    await Transaction.create({
+      user: req.user._id,
+      order: order._id,
+      amount: platformDeliveryShare,
+      type: "delivery_commission",
+      status: "completed",
+      paidAt: new Date(),
     });
 
     order.status = "Completed";
     order.trackingStatus = "Completed";
-    order.commissionAmount = commission;
+    order.commissionAmount = platformCommission;
+    order.sellerEarnings = sellerEarnings;
+    order.pocEarnings = pocEarnings;
+    order.platformDeliveryShare = platformDeliveryShare;
     order.earningsReleased = true;
-    dispute.status = "dismissed";
+    dispute.status = action === "release" ? "resolved_released" : "dismissed";
   }
 
   // Update order dispute status

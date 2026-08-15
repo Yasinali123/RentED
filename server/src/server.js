@@ -5,6 +5,7 @@ import app from "./app.js";
 import { connectDb } from "./config/db.js";
 import { verifyConnection } from "./config/emailConfig.js";
 import { initSocket } from "./socket/index.js";
+import { initEscrowAutoReleaseScheduler } from "./utils/escrowScheduler.js";
 
 const port = process.env.PORT || 5000;
 
@@ -22,6 +23,9 @@ const startServer = async () => {
   // Email verification is useful but not critical for the HTTP API to run.
   verifyConnection();
   
+  // Initialize Escrow Auto-Release Background Scheduler
+  initEscrowAutoReleaseScheduler();
+
   const server = http.createServer(app);
   initSocket(server);
 

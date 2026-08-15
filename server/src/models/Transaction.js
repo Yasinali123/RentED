@@ -12,6 +12,11 @@ const transactionSchema = new mongoose.Schema(
       ref: "RentalRequest",
       default: null,
     },
+    withdrawalRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "WithdrawalRequest",
+      default: null,
+    },
     amount: {
       type: Number,
       required: true,

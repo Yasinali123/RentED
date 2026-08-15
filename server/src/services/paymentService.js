@@ -47,8 +47,40 @@ export const createRefund = async (paymentId, amount = null) => {
   return await razorpay.payments.refund(options);
 };
 
+/**
+ * Rounds numbers to 2 decimal places for financial calculations.
+ * @param {number} amount
+ * @returns {number}
+ */
+export const roundCurrency = (amount) => {
+  const num = Number(amount) || 0;
+  return Math.round(num * 100) / 100;
+};
+
+/**
+ * Fetches official payment object from Razorpay API.
+ * @param {string} paymentId
+ * @returns {Promise<object>}
+ */
+export const fetchRazorpayPayment = async (paymentId) => {
+  return await razorpay.payments.fetch(paymentId);
+};
+
+/**
+ * Fetches official order object from Razorpay API.
+ * @param {string} orderId
+ * @returns {Promise<object>}
+ */
+export const fetchRazorpayOrder = async (orderId) => {
+  return await razorpay.orders.fetch(orderId);
+};
+
 export default {
   createRazorpayOrder,
   verifyPaymentSignature,
   createRefund,
+  roundCurrency,
+  fetchRazorpayPayment,
+  fetchRazorpayOrder,
 };
+

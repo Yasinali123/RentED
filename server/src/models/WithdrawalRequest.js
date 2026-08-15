@@ -12,6 +12,11 @@ const withdrawalRequestSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    transaction: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Transaction",
+      default: null,
+    },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],

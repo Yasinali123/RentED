@@ -137,7 +137,7 @@ function CheckoutPage() {
       const orderPayload = {
         itemId: item._id,
         message,
-        paymentMethod: form.paymentMethod === "cod" ? "cod" : "online",
+        paymentMethod: form.paymentMethod,
         paymentReference,
         deliveryAddress: form.deliveryAddress,
         couponCode: appliedCoupon ? appliedCoupon.code : "",

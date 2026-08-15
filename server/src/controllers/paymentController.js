@@ -8,7 +8,7 @@ import WithdrawalRequest from "../models/WithdrawalRequest.js";
 import Escrow from "../models/Escrow.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { getSetting, getAllPaymentSettings } from "../utils/settingsHelper.js";
-import { createRazorpayOrder, verifyPaymentSignature } from "../services/paymentService.js";
+import { createRazorpayOrder, verifyPaymentSignature, roundCurrency, fetchRazorpayPayment } from "../services/paymentService.js";
 import emailService from "../services/emailService.js";
 
 const getRentalDurationDays = (startDate, endDate) => {
@@ -25,19 +25,20 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
 
   // Handle wallet deposit order creation
   if (type === "wallet") {
-    if (!amount || amount <= 0) {
+    const depositAmt = roundCurrency(amount);
+    if (!depositAmt || depositAmt <= 0) {
       res.status(400);
       throw new Error("Invalid deposit amount");
     }
     try {
-      const order = await createRazorpayOrder(amount);
+      const order = await createRazorpayOrder(depositAmt);
       return res.status(201).json({
         success: true,
         keyId: process.env.RAZORPAY_KEY_ID,
         orderId: order.id,
         amount: order.amount,
         currency: order.currency,
-        totalPrice: amount,
+        totalPrice: depositAmt,
       });
     } catch (error) {
       res.status(500);
@@ -58,10 +59,11 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
   }
 
   const isPurchase = requestType === "purchase";
-  const basePrice = isPurchase
+  const rawBasePrice = isPurchase
     ? (item.salePrice ?? item.rentalPrice ?? item.price)
     : getRentalDurationDays(startDate, endDate) * (item.rentalPrice ?? item.salePrice ?? item.price);
 
+  const basePrice = roundCurrency(rawBasePrice);
   if (!Number.isFinite(basePrice) || basePrice < 0) {
     res.status(400);
     throw new Error("Invalid base price calculated");
@@ -80,14 +82,15 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
     }
   }
 
+  discountAmount = roundCurrency(discountAmount);
   const settings = await getAllPaymentSettings();
-  const deliveryFee = settings.delivery_fee || 50;
+  const deliveryFee = roundCurrency(settings.delivery_fee || 50);
   const commissionRate = settings.platform_commission_rate || 10;
 
-  const itemPrice = basePrice - discountAmount;
-  const platformCommission = itemPrice * (commissionRate / 100);
-  const sellerEarnings = itemPrice - platformCommission;
-  const totalPrice = itemPrice + deliveryFee;
+  const itemPrice = roundCurrency(basePrice - discountAmount);
+  const platformCommission = roundCurrency(itemPrice * (commissionRate / 100));
+  const sellerEarnings = roundCurrency(itemPrice - platformCommission);
+  const totalPrice = roundCurrency(itemPrice + deliveryFee);
 
   try {
     const order = await createRazorpayOrder(totalPrice);
@@ -133,18 +136,50 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     throw new Error("Payment signature verification failed");
   }
 
-  // Fetch method details
+  // Prevent duplicate verification
+  const existingTx = await Transaction.findOne({ paymentId: razorpay_payment_id });
+  if (existingTx && existingTx.status === "completed") {
+    if (type === "wallet") {
+      const user = await User.findById(req.user._id);
+      return res.json({
+        success: true,
+        message: "Deposit already processed",
+        balance: user.balance,
+        paymentReference: razorpay_payment_id,
+      });
+    }
+    return res.json({
+      success: true,
+      message: "Payment already verified",
+      paymentReference: razorpay_payment_id,
+      transactionId: existingTx._id,
+    });
+  }
+
+  // Fetch official payment details from Razorpay to prevent amount tampering
   let paymentMethodUsed = "online";
+  let fetchedPayment = null;
   try {
-    const paymentDetails = await razorpay.payments.fetch(razorpay_payment_id);
-    paymentMethodUsed = paymentDetails.method || "online";
+    fetchedPayment = await fetchRazorpayPayment(razorpay_payment_id);
+    paymentMethodUsed = fetchedPayment.method || "online";
   } catch (err) {
     console.error("Failed to fetch Razorpay payment details:", err.message);
   }
 
+  if (fetchedPayment && fetchedPayment.status !== "captured" && fetchedPayment.status !== "authorized") {
+    res.status(400);
+    throw new Error(`Razorpay payment is in invalid status (${fetchedPayment.status})`);
+  }
+
   // Process deposit
   if (type === "wallet") {
-    const depositAmount = Number(amount);
+    let depositAmount = Number(amount);
+    // Overwrite client-provided amount with actual captured Razorpay amount if fetched
+    if (fetchedPayment && fetchedPayment.amount) {
+      depositAmount = fetchedPayment.amount / 100;
+    }
+    depositAmount = roundCurrency(depositAmount);
+
     if (!depositAmount || depositAmount <= 0) {
       res.status(400);
       throw new Error("Invalid deposit amount");
@@ -156,7 +191,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
       throw new Error("User not found");
     }
 
-    user.balance = (user.balance || 0) + depositAmount;
+    user.balance = roundCurrency((user.balance || 0) + depositAmount);
     await user.save();
 
     await Transaction.create({
@@ -199,9 +234,10 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   }
 
   const isPurchase = requestType === "purchase";
-  const basePrice = isPurchase
+  const rawBasePrice = isPurchase
     ? (item.salePrice ?? item.rentalPrice ?? item.price)
     : getRentalDurationDays(startDate, endDate) * (item.rentalPrice ?? item.salePrice ?? item.price);
+  const basePrice = roundCurrency(rawBasePrice);
 
   let discountAmount = 0;
   if (couponCode) {
@@ -216,17 +252,22 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     }
   }
 
+  discountAmount = roundCurrency(discountAmount);
   const settings = await getAllPaymentSettings();
-  const deliveryFee = settings.delivery_fee || 50;
+  const deliveryFee = roundCurrency(settings.delivery_fee || 50);
   const commissionRate = settings.platform_commission_rate || 10;
   const pocShareRate = settings.poc_share_rate || 80;
 
-  const itemPrice = basePrice - discountAmount;
-  const platformCommission = itemPrice * (commissionRate / 100);
-  const sellerEarnings = itemPrice - platformCommission;
-  const pocEarnings = deliveryFee * (pocShareRate / 100);
-  const platformDeliveryShare = deliveryFee - pocEarnings;
-  const totalPrice = itemPrice + deliveryFee;
+  const itemPrice = roundCurrency(basePrice - discountAmount);
+  const platformCommission = roundCurrency(itemPrice * (commissionRate / 100));
+  const sellerEarnings = roundCurrency(itemPrice - platformCommission);
+  const pocEarnings = roundCurrency(deliveryFee * (pocShareRate / 100));
+  const platformDeliveryShare = roundCurrency(deliveryFee - pocEarnings);
+  
+  let totalPrice = roundCurrency(itemPrice + deliveryFee);
+  if (fetchedPayment && fetchedPayment.amount) {
+    totalPrice = roundCurrency(fetchedPayment.amount / 100);
+  }
 
   const transaction = await Transaction.create({
     user: req.user._id,
@@ -241,7 +282,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     currency: "INR",
     commission: platformCommission,
     sellerAmount: sellerEarnings,
-    platformAmount: platformCommission + platformDeliveryShare,
+    platformAmount: roundCurrency(platformCommission + platformDeliveryShare),
     escrowStatus: "held",
     paidAt: new Date(),
   });
@@ -327,7 +368,7 @@ export const requestWithdrawal = asyncHandler(async (req, res) => {
   const settings = await getAllPaymentSettings();
   const minWithdrawal = settings.min_withdrawal_amount || 500;
 
-  const withdrawAmount = Number(amount);
+  const withdrawAmount = roundCurrency(amount);
   if (!withdrawAmount || withdrawAmount <= 0) {
     res.status(400);
     throw new Error("Amount must be greater than zero");
@@ -362,12 +403,20 @@ export const requestWithdrawal = asyncHandler(async (req, res) => {
   }
 
   // Debit balance upfront
-  user.balance -= withdrawAmount;
+  user.balance = roundCurrency(user.balance - withdrawAmount);
   await user.save();
 
   const formattedBankDetails = typeof bankDetails === "object"
     ? `Bank: ${bankDetails.bankName || ""}, A/C: ${bankDetails.accountNumber || ""}, IFSC: ${bankDetails.ifscCode || ""}`
     : (bankDetails || upiId || "QR Code Payout");
+
+  const transaction = await Transaction.create({
+    user: user._id,
+    amount: withdrawAmount,
+    type: "withdrawal",
+    status: "pending",
+    escrowStatus: "none",
+  });
 
   const request = await WithdrawalRequest.create({
     user: user._id,
@@ -377,15 +426,11 @@ export const requestWithdrawal = asyncHandler(async (req, res) => {
     bankDetails: formattedBankDetails,
     upiId: upiId || user.upiId || "",
     qrCodeUrl: qrCodeUrl || user.qrCodeUrl || "",
+    transaction: transaction._id,
   });
 
-  await Transaction.create({
-    user: user._id,
-    amount: withdrawAmount,
-    type: "withdrawal",
-    status: "pending",
-    escrowStatus: "none",
-  });
+  transaction.withdrawalRequest = request._id;
+  await transaction.save();
 
   res.status(201).json({
     success: true,
@@ -434,17 +479,27 @@ export const processWithdrawal = asyncHandler(async (req, res) => {
 
   const user = await User.findById(request.user);
 
-  if (status === "approved") {
-    request.status = "approved";
-    request.processedAt = new Date();
-    await request.save();
-
-    const transaction = await Transaction.findOne({
+  let transaction = null;
+  if (request.transaction) {
+    transaction = await Transaction.findById(request.transaction);
+  }
+  if (!transaction) {
+    transaction = await Transaction.findOne({ withdrawalRequest: request._id });
+  }
+  if (!transaction) {
+    transaction = await Transaction.findOne({
       user: request.user,
       amount: request.amount,
       type: "withdrawal",
       status: "pending",
     });
+  }
+
+  if (status === "approved") {
+    request.status = "approved";
+    request.processedAt = new Date();
+    await request.save();
+
     if (transaction) {
       transaction.status = "completed";
       await transaction.save();
@@ -463,16 +518,10 @@ export const processWithdrawal = asyncHandler(async (req, res) => {
     await request.save();
 
     if (user) {
-      user.balance += request.amount;
+      user.balance = roundCurrency((user.balance || 0) + request.amount);
       await user.save();
     }
 
-    const transaction = await Transaction.findOne({
-      user: request.user,
-      amount: request.amount,
-      type: "withdrawal",
-      status: "pending",
-    });
     if (transaction) {
       transaction.status = "failed";
       await transaction.save();

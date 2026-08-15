@@ -43,7 +43,7 @@ const rentalRequestSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["online", "cod", "gpay", "paytm", "upi"],
+      enum: ["online", "cod", "wallet", "gpay", "paytm", "upi"],
       default: "online",
     },
     status: {
