@@ -185,6 +185,10 @@ itemSchema.index({ title: 1 });
 itemSchema.index({ category: 1 });
 itemSchema.index({ collegeName: 1 });
 itemSchema.index({ tags: 1 });
+itemSchema.index({ availabilityStatus: 1, isApproved: 1, category: 1 });
+itemSchema.index({ owner: 1, createdAt: -1 });
+itemSchema.index({ collegeName: 1, availabilityStatus: 1 });
+itemSchema.index({ createdAt: -1 });
 
 const Item = mongoose.model("Item", itemSchema);
 

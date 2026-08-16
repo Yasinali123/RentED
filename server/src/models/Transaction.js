@@ -90,6 +90,11 @@ const transactionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+transactionSchema.index({ user: 1, createdAt: -1 });
+transactionSchema.index({ order: 1 });
+transactionSchema.index({ type: 1, status: 1 });
+transactionSchema.index({ createdAt: -1 });
+
 const Transaction = mongoose.model("Transaction", transactionSchema);
 
 export default Transaction;

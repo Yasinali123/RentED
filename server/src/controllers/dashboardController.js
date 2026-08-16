@@ -28,7 +28,8 @@ export const getDashboard = asyncHandler(async (req, res) => {
   // Fetch notifications
   notifications = await Notification.find({ user: req.user._id })
     .sort({ createdAt: -1 })
-    .limit(10);
+    .limit(10)
+    .lean();
 
   const unreadNotificationsCount = await Notification.countDocuments({
     user: req.user._id,
@@ -42,8 +43,9 @@ export const getDashboard = asyncHandler(async (req, res) => {
         .populate("item")
         .populate("owner", "name email collegeName avatarUrl")
         .populate("poc", "name email")
-        .sort({ createdAt: -1 }),
-      User.findById(req.user._id).populate("wishlist"),
+        .sort({ createdAt: -1 })
+        .lean(),
+      User.findById(req.user._id).populate("wishlist").lean(),
       Item.find({
         owner: { $ne: req.user._id },
         availabilityStatus: "available",
@@ -52,10 +54,12 @@ export const getDashboard = asyncHandler(async (req, res) => {
       })
         .populate("owner", "name campus collegeName location avatarUrl verifiedCollegeId")
         .limit(8)
-        .sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .lean(),
       Transaction.find({ user: req.user._id })
         .sort({ createdAt: -1 })
-        .limit(10),
+        .limit(10)
+        .lean(),
     ]);
 
     rentedItems = outgoingRequests;
@@ -82,13 +86,14 @@ export const getDashboard = asyncHandler(async (req, res) => {
   // SELLER DASHBOARD DATA
   else if (role === "seller") {
     const [myItems, orders, withdrawals] = await Promise.all([
-      Item.find({ owner: req.user._id }).sort({ createdAt: -1 }),
+      Item.find({ owner: req.user._id }).sort({ createdAt: -1 }).lean(),
       RentalRequest.find({ owner: req.user._id })
         .populate("item")
         .populate("renter", "name email collegeName avatarUrl")
         .populate("poc", "name email")
-        .sort({ createdAt: -1 }),
-      WithdrawalRequest.find({ user: req.user._id }).sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .lean(),
+      WithdrawalRequest.find({ user: req.user._id }).sort({ createdAt: -1 }).lean(),
     ]);
 
     listedItems = myItems;
@@ -101,7 +106,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
         { order: { $in: orderIds } },
         { user: req.user._id, type: "withdrawal" }
       ]
-    }).populate("order").sort({ createdAt: -1 });
+    }).populate("order").sort({ createdAt: -1 }).lean();
 
     transactions = sellerTransactions;
 
@@ -171,12 +176,14 @@ export const getDashboard = asyncHandler(async (req, res) => {
         .populate("item")
         .populate("owner", "name email collegeName location")
         .populate("renter", "name email collegeName location")
-        .sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .lean(),
       RentalRequest.find({ poc: req.user._id })
         .populate("item")
         .populate("owner", "name email collegeName location")
         .populate("renter", "name email collegeName location")
-        .sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .lean(),
     ]);
 
     // Grouping tasks
@@ -210,30 +217,33 @@ export const getDashboard = asyncHandler(async (req, res) => {
   // ADMIN DASHBOARD DATA
   else if (role === "admin") {
     const [items, users, disputes, txs, colleges, allRequests, withdrawals] = await Promise.all([
-      Item.find({}).populate("owner", "name email collegeName"),
-      User.find({}),
+      Item.find({}).populate("owner", "name email collegeName").lean(),
+      User.find({}).select("-passwordHash").lean(),
       Dispute.find({})
         .populate({
           path: "order",
           populate: { path: "item renter owner" },
         })
         .populate("raisedBy", "name email role")
-        .sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .lean(),
       Transaction.find({})
         .populate("user", "name email role collegeName")
         .populate({
           path: "order",
           populate: { path: "item renter owner" },
         })
-        .sort({ createdAt: -1 }),
-      College.find({}),
+        .sort({ createdAt: -1 })
+        .lean(),
+      College.find({}).lean(),
       RentalRequest.find({})
         .populate("item")
         .populate("owner", "name email collegeName campus location ratingsAverage ratingsCount avatarUrl balance")
         .populate("renter", "name email collegeName campus location ratingsAverage ratingsCount avatarUrl balance")
         .populate("poc", "name email campus location")
-        .sort({ createdAt: -1 }),
-      WithdrawalRequest.find({}).populate("user", "name email collegeName balance").sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .lean(),
+      WithdrawalRequest.find({}).populate("user", "name email collegeName balance").sort({ createdAt: -1 }).lean(),
     ]);
 
     disputeList = disputes;

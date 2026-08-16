@@ -19,8 +19,8 @@ export const getSuggestions = asyncHandler(async (req, res) => {
 
   // If query is empty, return popular and trending search terms
   if (!q) {
-    const popularRecords = await SearchQuery.find({}).sort({ count: -1 }).limit(5);
-    const trendingRecords = await SearchQuery.find({}).sort({ updatedAt: -1 }).limit(5);
+    const popularRecords = await SearchQuery.find({}).sort({ count: -1 }).limit(5).lean();
+    const trendingRecords = await SearchQuery.find({}).sort({ updatedAt: -1 }).limit(5).lean();
 
     return res.json({
       suggestions: [],
@@ -36,7 +36,8 @@ export const getSuggestions = asyncHandler(async (req, res) => {
     isApproved: { $ne: false },
   })
     .limit(8)
-    .select("title category collegeName");
+    .select("title category collegeName")
+    .lean();
 
   // 2. Query matching categories
   const categories = await Item.distinct("category", {
@@ -58,7 +59,8 @@ export const getSuggestions = asyncHandler(async (req, res) => {
     role: { $in: ["seller", "student"] },
   })
     .limit(3)
-    .select("name");
+    .select("name")
+    .lean();
 
   // 5. Query matching tags
   const tags = await Item.distinct("tags", {

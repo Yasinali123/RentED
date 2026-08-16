@@ -192,6 +192,12 @@ const rentalRequestSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+rentalRequestSchema.index({ renter: 1, createdAt: -1 });
+rentalRequestSchema.index({ owner: 1, createdAt: -1 });
+rentalRequestSchema.index({ poc: 1, status: 1 });
+rentalRequestSchema.index({ item: 1, status: 1 });
+rentalRequestSchema.index({ status: 1 });
+
 const RentalRequest = mongoose.model("RentalRequest", rentalRequestSchema);
 
 export default RentalRequest;

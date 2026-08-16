@@ -29,6 +29,10 @@ const disputeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+disputeSchema.index({ order: 1 });
+disputeSchema.index({ raisedBy: 1 });
+disputeSchema.index({ status: 1 });
+
 const Dispute = mongoose.model("Dispute", disputeSchema);
 
 export default Dispute;

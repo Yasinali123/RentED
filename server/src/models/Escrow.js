@@ -80,6 +80,11 @@ const escrowSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+escrowSchema.index({ buyer: 1, createdAt: -1 });
+escrowSchema.index({ seller: 1, createdAt: -1 });
+escrowSchema.index({ poc: 1 });
+escrowSchema.index({ status: 1 });
+
 const Escrow = mongoose.model("Escrow", escrowSchema);
 
 export default Escrow;

@@ -139,9 +139,6 @@ function Footer() {
         {/* Bottom copyright bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between pt-8 gap-4 text-xs text-ink/45 dark:text-slate-400 font-medium">
           <p>© 2026 RentEd Technologies. All rights reserved.</p>
-          <p className="flex items-center gap-1">
-            Made with <span className="text-accent text-sm">❤️</span> for college students in India
-          </p>
           <div className="flex gap-4">
             <Link to="/" className="hover:text-accent transition">Privacy Policy</Link>
             <span>·</span>

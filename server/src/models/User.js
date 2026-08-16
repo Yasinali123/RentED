@@ -269,6 +269,9 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ geometry: "2dsphere" });
 userSchema.index({ name: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ collegeName: 1 });
+userSchema.index({ campus: 1 });
 
 const User = mongoose.model("User", userSchema);
 
