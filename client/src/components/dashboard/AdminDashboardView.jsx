@@ -2185,6 +2185,12 @@ function AdminDashboardView({ dashboard, onRefresh }) {
                       onChange={(e) => setSystemSettings({ ...systemSettings, platform_commission_rate: Number(e.target.value), commission_rate: Number(e.target.value) })}
                       required
                     />
+                    <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between">
+                      <span>🛍️ Seller Payout Share (Profit):</span>
+                      <span className="font-black text-sm text-emerald-700">
+                        {Math.max(0, 100 - (systemSettings.platform_commission_rate ?? systemSettings.commission_rate ?? 10))}% of item price
+                      </span>
+                    </div>
                   </div>
 
                   <div className="space-y-1">
