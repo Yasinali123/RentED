@@ -38,7 +38,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
 
   // STUDENT DASHBOARD DATA
   if (role === "student") {
-    const [outgoingRequests, wishlist, suggestions, txs] = await Promise.all([
+    const [outgoingRequests, wishlist, suggestions, txs, myItems, myIncomingOrders, myWithdrawals] = await Promise.all([
       RentalRequest.find({ renter: req.user._id })
         .populate("item")
         .populate("owner", "name email collegeName avatarUrl")
@@ -60,12 +60,23 @@ export const getDashboard = asyncHandler(async (req, res) => {
         .sort({ createdAt: -1 })
         .limit(10)
         .lean(),
+      Item.find({ owner: req.user._id }).sort({ createdAt: -1 }).lean(),
+      RentalRequest.find({ owner: req.user._id })
+        .populate("item")
+        .populate("renter", "name email collegeName avatarUrl")
+        .populate("poc", "name email")
+        .sort({ createdAt: -1 })
+        .lean(),
+      WithdrawalRequest.find({ user: req.user._id }).sort({ createdAt: -1 }).lean(),
     ]);
 
     rentedItems = outgoingRequests;
     wishlistItems = wishlist?.wishlist || [];
     nearbyItems = suggestions;
     transactions = txs;
+    listedItems = myItems;
+    incomingRequests = myIncomingOrders;
+    withdrawalsList = myWithdrawals;
 
     const activeRentals = rentedItems.filter((o) => o.status === "Rental Active").length;
     const completedOrders = rentedItems.filter((o) => o.status === "Completed").length;
@@ -73,10 +84,16 @@ export const getDashboard = asyncHandler(async (req, res) => {
       .filter((o) => ["Delivered", "Rental Active", "Completed"].includes(o.status))
       .reduce((sum, o) => sum + o.totalPrice, 0);
 
+    const totalRevenue = myIncomingOrders
+      .filter((o) => ["Delivered", "Rental Active", "Completed"].includes(o.status))
+      .reduce((sum, o) => sum + o.totalPrice, 0);
+
     stats = {
       activeRentals,
       completedOrders,
       totalSpent,
+      totalProducts: myItems.length,
+      totalRevenue,
       wishlistCount: wishlistItems.length,
       balance: req.user.balance || 0,
       unreadNotificationsCount,

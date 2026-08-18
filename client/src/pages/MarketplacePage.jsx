@@ -66,7 +66,7 @@ function MarketplacePage() {
         </div>
 
         <div className="space-y-6">
-          {user?.role === "seller" && (
+          {(user?.role === "seller" || user?.role === "student" || user?.role === "admin") && (
             <div className="panel space-y-4 p-5 sm:p-6">
               <h2 className="text-xl font-bold text-ink">Ready to post your item?</h2>
               <p className="text-xs sm:text-sm leading-relaxed text-ink/65">

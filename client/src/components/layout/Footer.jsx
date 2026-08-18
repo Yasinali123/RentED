@@ -95,7 +95,7 @@ function Footer() {
               {[
                 { label: "Student Dashboard", to: "/dashboard" },
                 { label: "Wallet Balance", to: "/dashboard" },
-                (!user || user?.role === "seller") ? { label: "List an Item to Rent/Sell", to: "/sell-rent" } : null,
+                (!user || ["seller", "student", "admin"].includes(user?.role)) ? { label: "List an Item to Rent/Sell", to: "/sell-rent" } : null,
                 { label: "Trust & Safety Guidelines", to: "/" },
                 { label: "Escrow Payment Info", to: "/" }
               ].filter(Boolean).map((link) => (

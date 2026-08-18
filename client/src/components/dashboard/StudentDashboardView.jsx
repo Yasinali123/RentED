@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Wallet, Heart, ShoppingBag, MapPin, School, Plus, Bookmark, List, RefreshCw, FileText } from "lucide-react";
+import { Wallet, Heart, ShoppingBag, MapPin, School, Plus, Bookmark, List, RefreshCw, FileText, Tag, Edit3, Trash2, QrCode, DollarSign, PackagePlus } from "lucide-react";
 
 import OrderTimeline from "./OrderTimeline";
 import ItemCard from "../items/ItemCard";
 import Button from "../ui/Button";
-import { rentalApi, authApi, disputeApi, reviewApi, paymentApi, invoiceApi, getErrorMessage } from "../../api/client";
+import { rentalApi, authApi, disputeApi, reviewApi, paymentApi, invoiceApi, itemApi, getErrorMessage } from "../../api/client";
 import UserSettingsView from "./UserSettingsView";
 
 function StudentDashboardView({ dashboard, onRefresh }) {
-  const { stats, rentedItems, wishlistItems, nearbyItems } = dashboard;
-  const [activeTab, setActiveTab] = useState("orders"); // "orders", "wishlist", "wallet"
+  const { stats, rentedItems = [], wishlistItems = [], nearbyItems = [], listedItems = [], incomingRequests = [] } = dashboard;
+  const [activeTab, setActiveTab] = useState("orders"); // "orders", "wishlist", "wallet", "sell-rent"
+  const [showQrCodeForOrder, setShowQrCodeForOrder] = useState(null);
   const [addAmount, setAddAmount] = useState("");
   const [walletFeedback, setWalletFeedback] = useState("");
   const [cancellingId, setCancellingId] = useState("");
@@ -206,6 +207,57 @@ function StudentDashboardView({ dashboard, onRefresh }) {
     }
   };
 
+  const handleDeleteListing = async (itemId) => {
+    if (!window.confirm("Are you sure you want to delete this listing? This action is permanent.")) return;
+    try {
+      await itemApi.delete(itemId);
+      alert("Listing deleted successfully.");
+      onRefresh();
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  const handleRepostItem = async (itemId) => {
+    try {
+      await itemApi.update(itemId, { availabilityStatus: "available" });
+      alert("Item reposted successfully! It is now active and visible in the marketplace.");
+      onRefresh();
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  const handleAcceptOrder = async (orderId) => {
+    try {
+      await rentalApi.accept(orderId);
+      onRefresh();
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  const handleRejectOrder = async (orderId) => {
+    if (!window.confirm("Are you sure you want to reject this order?")) return;
+    try {
+      await rentalApi.reject(orderId);
+      onRefresh();
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  const handleHandoverSignal = async (orderId) => {
+    setShowQrCodeForOrder(showQrCodeForOrder === orderId ? null : orderId);
+    if (showQrCodeForOrder !== orderId) {
+      try {
+        await rentalApi.handoverSignal(orderId);
+      } catch (err) {
+        console.error("Failed to notify POC:", err.message);
+      }
+    }
+  };
+
   const categories = [
     { name: "Books", path: "/marketplace?category=Books" },
     { name: "Topper Notes", path: "/marketplace?category=Topper+Notes" },
@@ -221,34 +273,44 @@ function StudentDashboardView({ dashboard, onRefresh }) {
   return (
     <div className="space-y-8">
       {/* Metrics Row */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="panel p-4 sm:p-6 bg-gradient-to-br from-indigo-50 to-white border-indigo-100 flex items-center justify-between gap-3">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="panel p-4 sm:p-5 bg-gradient-to-br from-indigo-50 to-white border-indigo-100 flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink/40 truncate">Escrow Wallet</p>
-            <p className="text-xl sm:text-3xl font-black text-indigo-700 mt-1 sm:mt-2 truncate">Rs. {stats.balance}</p>
+            <p className="text-xl sm:text-2xl font-black text-indigo-700 mt-1 truncate">Rs. {stats.balance}</p>
           </div>
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
-            <Wallet className="h-5 w-5 sm:h-6 sm:w-6" />
+          <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
+            <Wallet className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="panel p-4 sm:p-6 bg-gradient-to-br from-emerald-50 to-white border-emerald-100 flex items-center justify-between gap-3">
+        <div className="panel p-4 sm:p-5 bg-gradient-to-br from-emerald-50 to-white border-emerald-100 flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink/40 truncate">Active Rentals</p>
-            <p className="text-xl sm:text-3xl font-black text-emerald-700 mt-1 sm:mt-2 truncate">{stats.activeRentals}</p>
+            <p className="text-xl sm:text-2xl font-black text-emerald-700 mt-1 truncate">{stats.activeRentals}</p>
           </div>
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
-            <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6" />
+          <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+            <ShoppingBag className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="panel p-4 sm:p-6 bg-gradient-to-br from-orange-50 to-white border-orange-100 flex items-center justify-between gap-3 sm:col-span-2 lg:col-span-1">
+        <div className="panel p-4 sm:p-5 bg-gradient-to-br from-purple-50 to-white border-purple-100 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink/40 truncate">My Listings</p>
+            <p className="text-xl sm:text-2xl font-black text-purple-700 mt-1 truncate">{stats.totalProducts || listedItems.length}</p>
+          </div>
+          <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-700 shrink-0">
+            <Tag className="h-5 w-5" />
+          </div>
+        </div>
+
+        <div className="panel p-4 sm:p-5 bg-gradient-to-br from-orange-50 to-white border-orange-100 flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink/40 truncate">Total Escrow Spent</p>
-            <p className="text-xl sm:text-3xl font-black text-orange-700 mt-1 sm:mt-2 truncate">Rs. {stats.totalSpent}</p>
+            <p className="text-xl sm:text-2xl font-black text-orange-700 mt-1 truncate">Rs. {stats.totalSpent}</p>
           </div>
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-700 shrink-0">
-            <Heart className="h-5 w-5 sm:h-6 sm:w-6" />
+          <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-700 shrink-0">
+            <Heart className="h-5 w-5" />
           </div>
         </div>
       </div>
@@ -262,6 +324,14 @@ function StudentDashboardView({ dashboard, onRefresh }) {
           }`}
         >
           Your Orders & Bookings ({rentedItems.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("sell-rent")}
+          className={`pb-2.5 sm:pb-3 px-2.5 sm:px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "sell-rent" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
+          }`}
+        >
+          🏷️ Sell / Rent ({listedItems.length})
         </button>
         <button
           onClick={() => setActiveTab("wishlist")}
@@ -429,6 +499,191 @@ function StudentDashboardView({ dashboard, onRefresh }) {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {activeTab === "sell-rent" && (
+        <div className="space-y-6">
+          {/* Header Banner */}
+          <div className="panel p-6 bg-gradient-to-r from-accent/10 via-amber-500/5 to-purple-500/10 border border-accent/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <span className="chip text-[10px] bg-accent text-white font-extrabold uppercase px-2.5 py-0.5 rounded-full">Campus Marketplace</span>
+              <h2 className="text-xl sm:text-2xl font-black text-ink mt-2">Sell or Rent Out Your Items</h2>
+              <p className="text-xs text-ink/65 mt-1 max-w-xl">
+                Earn money by listing your extra textbooks, lab equipment, calculators, room listings, or hostel essentials.
+              </p>
+            </div>
+            <Link
+              to="/sell-rent"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-accent text-white font-extrabold text-xs shadow-md hover:scale-[1.02] transition-transform shrink-0"
+            >
+              <Plus className="h-4 w-4" /> Post New Listing
+            </Link>
+          </div>
+
+          {/* Incoming Orders Section (if any) */}
+          {incomingRequests.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-ink flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-accent" />
+                Incoming Buyer & Renter Orders ({incomingRequests.length})
+              </h3>
+              <div className="grid gap-4">
+                {incomingRequests.map((request) => (
+                  <div key={request._id} className="panel p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-ink/5 bg-white">
+                    <div className="flex items-start gap-4">
+                      <img
+                        src={request.item?.image || "https://placehold.co/150x150?text=Item"}
+                        alt={request.item?.title}
+                        className="h-14 w-14 rounded-xl object-cover shrink-0 border bg-mist"
+                      />
+                      <div>
+                        <h4 className="font-bold text-base text-ink">{request.item?.title}</h4>
+                        <p className="text-xs text-ink/65 mt-0.5">
+                          Buyer/Renter: <b>{request.renter?.name}</b> • Campus: {request.renter?.collegeName || request.item?.collegeName}
+                        </p>
+                        <p className="text-xs text-ink/50 mt-1">
+                          Type: <span className="capitalize font-semibold text-accent">{request.requestType}</span> • Status: <span className="font-semibold text-indigo-600">{request.status}</span>
+                        </p>
+                        {["POC Assigned", "Pickup Scheduled"].includes(request.status) && (
+                          <div className="mt-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-xl inline-flex items-center gap-1.5 animate-pulse">
+                            🔑 Handover OTP for POC: <span className="font-mono text-sm tracking-wider font-black">{request.pickupQrCode}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto justify-end">
+                      <div className="text-left md:text-right pr-4">
+                        <p className="text-xs text-ink/40 uppercase">Payout Share</p>
+                        <p className="text-lg font-black text-ink">Rs. {request.totalPrice - (request.totalPrice * 0.1)}</p>
+                      </div>
+
+                      {request.status === "Payment Successful" && (
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleRejectOrder(request._id)}
+                            variant="ghost"
+                            className="text-red-600 hover:bg-red-50 py-1.5 px-3 rounded-full text-xs font-bold"
+                          >
+                            Reject
+                          </Button>
+                          <Button
+                            onClick={() => handleAcceptOrder(request._id)}
+                            variant="primary"
+                            className="py-1.5 px-4 rounded-full text-xs font-bold"
+                          >
+                            Accept Order
+                          </Button>
+                        </div>
+                      )}
+
+                      {["Seller Accepted", "POC Assigned", "Pickup Scheduled"].includes(request.status) && (
+                        <Button
+                          onClick={() => handleHandoverSignal(request._id)}
+                          variant="secondary"
+                          className="flex items-center gap-1 py-1.5 px-4 rounded-full text-xs font-bold"
+                        >
+                          <QrCode className="h-4 w-4" />
+                          Handover OTP
+                        </Button>
+                      )}
+                    </div>
+
+                    {showQrCodeForOrder === request._id && (
+                      <div className="w-full border-t border-ink/5 pt-4 mt-2">
+                        <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50/30 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                          <div>
+                            <p className="font-bold text-amber-900">Provide OTP to Campus Courier</p>
+                            <p className="text-xs text-amber-800/80 mt-1">Show this OTP to the campus POC to verify item handover.</p>
+                          </div>
+                          <div className="bg-white border border-amber-200 py-2 px-6 rounded-2xl text-center">
+                            <p className="text-[10px] uppercase tracking-wider text-ink/40">Handover OTP</p>
+                            <p className="text-xl font-black text-amber-800 mt-0.5 tracking-widest">{request.pickupQrCode}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Active Listings Grid */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-ink flex items-center gap-2">
+                <Tag className="h-5 w-5 text-accent" />
+                My Active Listings ({listedItems.length})
+              </h3>
+              <Link to="/sell-rent" className="text-xs font-bold text-accent hover:underline flex items-center gap-1">
+                <Plus className="h-4 w-4" /> Add Another Item
+              </Link>
+            </div>
+
+            {listedItems.length === 0 ? (
+              <div className="panel p-10 text-center text-ink/50 space-y-3">
+                <PackagePlus className="h-12 w-12 mx-auto text-ink/20" />
+                <p className="font-bold text-base text-ink">You haven't listed any items for sell or rent yet</p>
+                <p className="text-xs text-ink/50 max-w-md mx-auto">
+                  Have extra books, notes, hostel items, or gadgets? List them on RentEd and start earning from fellow students.
+                </p>
+                <Link
+                  to="/sell-rent"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-accent text-white font-bold text-xs shadow-md mt-2"
+                >
+                  <Plus className="h-4 w-4" /> Post Your First Item
+                </Link>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {listedItems.map((item) => (
+                  <div key={item._id} className="panel p-5 flex flex-col justify-between space-y-4 bg-white border border-ink/5">
+                    <div className="space-y-3">
+                      <img
+                        src={item.image || "https://placehold.co/320x240?text=Listing"}
+                        alt={item.title}
+                        className="h-36 w-full object-cover rounded-xl bg-mist"
+                      />
+                      <div>
+                        <span className="chip text-[10px] py-0.5 px-2">{item.category}</span>
+                        <h4 className="font-bold text-base mt-2 truncate">{item.title}</h4>
+                        <p className="text-xs text-ink/50 truncate mt-0.5">Rent: Rs. {item.rentalPrice}/day | Sale: Rs. {item.salePrice}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-ink/5 pt-3">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-ink/40">Status</p>
+                        <span className={`text-xs font-bold capitalize ${item.availabilityStatus === "available" ? "text-emerald-600" : "text-amber-600"}`}>
+                          {item.availabilityStatus}
+                        </span>
+                      </div>
+
+                      <div className="flex gap-1">
+                        {item.availabilityStatus !== "available" && (
+                          <button
+                            onClick={() => handleRepostItem(item._id)}
+                            className="px-2.5 py-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full hover:bg-indigo-100"
+                          >
+                            Repost
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteListing(item._id)}
+                          className="p-2 border border-ink/10 rounded-full hover:bg-red-50 text-red-500"
+                          title="Delete Item"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

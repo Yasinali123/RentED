@@ -67,7 +67,7 @@ function Navbar() {
   const dynamicNavItems = [
     { to: "/", label: "🏠 Home" },
     { to: "/marketplace", label: "🛍️ Marketplace" },
-    user?.role === "seller" ? { to: "/sell-rent", label: "➕ Sell / Rent" } : null,
+    (!user || ["seller", "student", "admin"].includes(user?.role)) ? { to: "/sell-rent", label: "➕ Sell / Rent" } : null,
     user ? { to: "/dashboard", label: "📊 Dashboard" } : null,
   ].filter(Boolean);
 
