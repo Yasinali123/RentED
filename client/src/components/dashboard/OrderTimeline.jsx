@@ -91,7 +91,7 @@ function OrderTimeline({ request }) {
       </div>
 
       {/* QR Codes for Pickups and Deliveries */}
-      {request.status === "Seller Accepted" && (
+      {["Seller Accepted", "POC Assigned", "Pickup Scheduled"].includes(request.status) && request.pickupQrCode && (
         <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/20 p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-sm">
             <p className="font-bold text-amber-900">Pickup Code Available</p>
@@ -104,7 +104,7 @@ function OrderTimeline({ request }) {
         </div>
       )}
 
-      {request.status === "Out For Delivery" && (
+      {["Picked Up", "Out For Delivery", "Delivered"].includes(request.status) && request.deliveryQrCode && (
         <div className="rounded-xl border border-dashed border-indigo-200 bg-indigo-50/20 p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-sm">
             <p className="font-bold text-indigo-900">Delivery Code Available</p>

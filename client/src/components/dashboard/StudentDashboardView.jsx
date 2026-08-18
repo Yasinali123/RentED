@@ -416,6 +416,12 @@ function StudentDashboardView({ dashboard, onRefresh }) {
                           TxID: {request.paymentReference}
                         </p>
                       )}
+                      {["Picked Up", "Out For Delivery", "Delivered"].includes(request.status) && request.deliveryQrCode && (
+                        <div className="mt-2 text-xs font-bold text-indigo-900 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl flex flex-wrap items-center justify-between gap-2 animate-pulse">
+                          <span>🔑 Delivery OTP for Campus Courier:</span>
+                          <span className="font-mono text-sm tracking-widest font-black text-indigo-700 bg-white px-2.5 py-0.5 rounded border border-indigo-200">{request.deliveryQrCode}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="text-left sm:text-right sm:self-center shrink-0">
