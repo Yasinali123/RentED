@@ -205,6 +205,22 @@ export const invoiceApi = {
   getByOrder: async (orderId) => (await api.get(`/invoices/order/${orderId}`)).data,
   getById: async (id) => (await api.get(`/invoices/${id}`)).data,
   download: async (id) => (await api.get(`/invoices/${id}/download`)).data,
+  downloadPdf: async (invoiceId, invoiceNumber = "invoice") => {
+    const response = await api.get(`/invoices/${invoiceId}/pdf`, {
+      responseType: "blob",
+    });
+    const blob = new Blob([response.data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    if (!win) {
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${invoiceNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+  },
   resend: async (id) => (await api.post(`/invoices/${id}/resend`)).data,
 };
 

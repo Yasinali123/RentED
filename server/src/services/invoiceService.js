@@ -304,19 +304,35 @@ const generateInvoicePDF = async (invoiceData) => {
 /**
  * Upload PDF buffer to Cloudinary.
  */
-const uploadInvoiceToCloudinary = async (pdfBuffer, invoiceNumber) => {
+export const uploadInvoiceToCloudinary = async (pdfBuffer, invoiceNumber) => {
   return new Promise((resolve, reject) => {
+    // Try uploading as "image" resource type (Cloudinary handles PDFs under image resource type with application/pdf Content-Type)
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        resource_type: "raw",
+        resource_type: "image",
         folder: "rented/invoices",
         public_id: invoiceNumber,
         format: "pdf",
       },
       (error, result) => {
         if (error) {
-          console.error("[Invoice] Cloudinary upload failed:", error.message);
-          return reject(error);
+          console.warn("[Invoice] Cloudinary image upload failed, falling back to raw with .pdf extension:", error.message);
+          // Fallback to raw upload with explicit .pdf extension in public_id
+          const rawStream = cloudinary.uploader.upload_stream(
+            {
+              resource_type: "raw",
+              folder: "rented/invoices",
+              public_id: `${invoiceNumber}.pdf`,
+            },
+            (rawErr, rawResult) => {
+              if (rawErr) {
+                console.error("[Invoice] Cloudinary raw upload also failed:", rawErr.message);
+                return reject(rawErr);
+              }
+              resolve({ url: rawResult.secure_url, publicId: rawResult.public_id });
+            }
+          );
+          return rawStream.end(pdfBuffer);
         }
         resolve({ url: result.secure_url, publicId: result.public_id });
       }
@@ -441,8 +457,14 @@ export const createAndStoreInvoice = async (order) => {
   }
 };
 
+export {
+  generateInvoicePDF,
+  getRentalDays,
+};
+
 export default {
   createAndStoreInvoice,
   generateInvoicePDF,
   uploadInvoiceToCloudinary,
+  getRentalDays,
 };

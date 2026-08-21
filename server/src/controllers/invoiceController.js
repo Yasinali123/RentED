@@ -1,6 +1,6 @@
 import Invoice from "../models/Invoice.js";
 import asyncHandler from "../utils/asyncHandler.js";
-import { createAndStoreInvoice } from "../services/invoiceService.js";
+import { createAndStoreInvoice, generateInvoicePDF, uploadInvoiceToCloudinary, getRentalDays } from "../services/invoiceService.js";
 import { sendEmail } from "../services/emailService.js";
 import invoiceEmailTemplate from "../templates/invoiceEmailTemplate.js";
 import RentalRequest from "../models/RentalRequest.js";
@@ -106,6 +106,98 @@ export const downloadInvoice = asyncHandler(async (req, res) => {
   }
 
   res.json({ pdfUrl: invoice.pdfUrl });
+});
+
+/**
+ * GET /api/invoices/:id/pdf — Stream PDF directly with application/pdf header.
+ */
+export const streamInvoicePDF = asyncHandler(async (req, res) => {
+  const invoice = await Invoice.findById(req.params.id)
+    .populate("item", "title category")
+    .populate("buyer", "name email collegeName")
+    .populate("seller", "name email");
+
+  if (!invoice) {
+    res.status(404);
+    throw new Error("Invoice not found");
+  }
+
+  const userId = req.user._id.toString();
+  const isBuyer = invoice.buyer?._id?.toString() === userId || invoice.buyer?.toString() === userId;
+  const isSeller = invoice.seller?._id?.toString() === userId || invoice.seller?.toString() === userId;
+  const isAdmin = req.user.role === "admin";
+
+  if (!isBuyer && !isSeller && !isAdmin) {
+    res.status(403);
+    throw new Error("Access denied");
+  }
+
+  // Fetch full associated order to get complete details
+  const order = await RentalRequest.findById(invoice.order)
+    .populate("item")
+    .populate("owner", "name email collegeName")
+    .populate("renter", "name email collegeName");
+
+  const isRental = invoice.invoiceType === "rental";
+  const rentalDays = invoice.rentalDuration?.days || (order ? (isRental ? getRentalDays(order.startDate, order.endDate) : 0) : 0);
+  const commission = invoice.platformCommission || (order?.commissionAmount || Math.round((order?.totalPrice || 0) * 0.1));
+  const dateStr = new Date(invoice.createdAt || Date.now()).toLocaleDateString("en-IN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+  const invoiceData = {
+    invoiceNumber: invoice.invoiceNumber,
+    date: dateStr,
+    buyerName: invoice.buyer?.name || order?.renter?.name || "Buyer",
+    buyerEmail: invoice.buyer?.email || order?.renter?.email || "",
+    buyerCollege: invoice.buyer?.collegeName || order?.renter?.collegeName || "Campus Member",
+    sellerName: invoice.seller?.name || order?.owner?.name || "Seller",
+    sellerEmail: invoice.seller?.email || order?.owner?.email || "",
+    itemTitle: invoice.item?.title || order?.item?.title || "Product",
+    itemCategory: invoice.item?.category || order?.item?.category || "General",
+    invoiceType: invoice.invoiceType,
+    quantity: invoice.quantity || 1,
+    rentalDays,
+    startDate: invoice.rentalDuration?.startDate
+      ? new Date(invoice.rentalDuration.startDate).toLocaleDateString("en-IN")
+      : order?.startDate
+      ? new Date(order.startDate).toLocaleDateString("en-IN")
+      : "",
+    endDate: invoice.rentalDuration?.endDate
+      ? new Date(invoice.rentalDuration.endDate).toLocaleDateString("en-IN")
+      : order?.endDate
+      ? new Date(order.endDate).toLocaleDateString("en-IN")
+      : "",
+    price: invoice.price || order?.totalPrice || 0,
+    deliveryCharge: invoice.deliveryCharge || 0,
+    platformCommission: commission,
+    totalAmount: invoice.totalAmount || order?.totalPrice || 0,
+    paymentMethod: invoice.paymentMethod || "online",
+    paymentId: invoice.paymentId || "",
+    orderId: (invoice.order?._id || invoice.order || "").toString(),
+  };
+
+  const pdfBuffer = await generateInvoicePDF(invoiceData);
+
+  // If pdfUrl in database is an old broken raw link, silently re-upload & fix DB record
+  if (invoice.pdfUrl && (invoice.pdfUrl.includes("/raw/upload/") || invoice.pdfUrl.includes("INV-"))) {
+    try {
+      const { url, publicId } = await uploadInvoiceToCloudinary(pdfBuffer, invoice.invoiceNumber);
+      if (url && url !== invoice.pdfUrl) {
+        invoice.pdfUrl = url;
+        invoice.pdfPublicId = publicId;
+        await invoice.save();
+      }
+    } catch (reErr) {
+      console.warn("[Invoice] Background Cloudinary sync skipped:", reErr.message);
+    }
+  }
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="${invoice.invoiceNumber}.pdf"`);
+  res.send(pdfBuffer);
 });
 
 /**

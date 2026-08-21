@@ -6,6 +6,7 @@ import {
   getAllInvoices,
   getInvoiceById,
   downloadInvoice,
+  streamInvoicePDF,
   resendInvoice,
   getInvoiceByOrder,
 } from "../controllers/invoiceController.js";
@@ -24,10 +25,13 @@ router.get("/all", authenticate, authorize("admin"), getAllInvoices);
 // Get invoice by order ID (also triggers on-demand generation)
 router.get("/order/:orderId", authenticate, getInvoiceByOrder);
 
+// Stream PDF directly with application/pdf header
+router.get("/:id/pdf", authenticate, streamInvoicePDF);
+
 // Single invoice detail
 router.get("/:id", authenticate, getInvoiceById);
 
-// Download PDF
+// Download PDF info
 router.get("/:id/download", authenticate, downloadInvoice);
 
 // Resend invoice email

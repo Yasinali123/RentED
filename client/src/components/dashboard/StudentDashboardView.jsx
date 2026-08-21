@@ -45,7 +45,9 @@ function StudentDashboardView({ dashboard, onRefresh }) {
   const handleDownloadInvoice = async (order) => {
     try {
       const invoice = await invoiceApi.getByOrder(order._id);
-      if (invoice?.pdfUrl) {
+      if (invoice?._id) {
+        await invoiceApi.downloadPdf(invoice._id, invoice.invoiceNumber);
+      } else if (invoice?.pdfUrl) {
         window.open(invoice.pdfUrl, "_blank");
       } else {
         alert("Invoice PDF is not available yet. Please try again in a moment.");
@@ -803,16 +805,12 @@ function StudentDashboardView({ dashboard, onRefresh }) {
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex gap-2 justify-end">
-                          {inv.pdfUrl && (
-                            <a
-                              href={inv.pdfUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-full hover:bg-indigo-50 transition-colors"
-                            >
-                              📄 Download
-                            </a>
-                          )}
+                          <button
+                            onClick={() => invoiceApi.downloadPdf(inv._id, inv.invoiceNumber)}
+                            className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-full hover:bg-indigo-50 transition-colors"
+                          >
+                            📄 Download
+                          </button>
                           <button
                             onClick={async () => {
                               try {

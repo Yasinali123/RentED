@@ -873,16 +873,12 @@ function SellerDashboardView({ dashboard, onRefresh }) {
                       <td className="p-3 text-right text-xs text-ink/60">Rs. {inv.platformCommission}</td>
                       <td className="p-3 text-xs text-ink/60">{new Date(inv.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
                       <td className="p-3 text-right">
-                        {inv.pdfUrl && (
-                          <a
-                            href={inv.pdfUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-full hover:bg-indigo-50 transition-colors"
-                          >
-                            📄 Download
-                          </a>
-                        )}
+                        <button
+                          onClick={() => invoiceApi.downloadPdf(inv._id, inv.invoiceNumber)}
+                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-full hover:bg-indigo-50 transition-colors"
+                        >
+                          📄 Download
+                        </button>
                       </td>
                     </tr>
                   ))}

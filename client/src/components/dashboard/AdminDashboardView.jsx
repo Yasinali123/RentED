@@ -2369,16 +2369,12 @@ function AdminDashboardView({ dashboard, onRefresh }) {
                           </td>
                           <td className="py-3 text-right">
                             <div className="flex justify-end gap-1.5">
-                              {inv.pdfUrl && (
-                                <a
-                                  href={inv.pdfUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-full hover:bg-indigo-50 transition-colors"
-                                >
-                                  📄 PDF
-                                </a>
-                              )}
+                              <button
+                                onClick={() => invoiceApi.downloadPdf(inv._id, inv.invoiceNumber)}
+                                className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-full hover:bg-indigo-50 transition-colors"
+                              >
+                                📄 PDF
+                              </button>
                               <button
                                 onClick={async () => {
                                   try {
