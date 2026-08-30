@@ -12,6 +12,7 @@ const initialState = {
   title: "",
   description: "",
   category: "Books",
+  listingType: "both",
   rentalPrice: "",
   salePrice: "",
   condition: "Good",
@@ -143,8 +144,9 @@ function SellRentPage() {
       formData.append("title", form.title);
       formData.append("description", form.description);
       formData.append("category", form.category);
-      formData.append("rentalPrice", String(Number(form.rentalPrice)));
-      formData.append("salePrice", String(Number(form.salePrice)));
+      formData.append("listingType", form.listingType || "both");
+      formData.append("rentalPrice", form.listingType === "sale" ? "" : (form.rentalPrice === "" ? "" : String(Number(form.rentalPrice))));
+      formData.append("salePrice", form.listingType === "rent" ? "" : (form.salePrice === "" ? "" : String(Number(form.salePrice))));
       formData.append("condition", form.condition);
       formData.append("brand", form.brand);
       formData.append("location", form.location);
@@ -318,24 +320,49 @@ function SellRentPage() {
               <option value="Good">Good</option>
               <option value="Fair">Fair</option>
             </select>
-            <input
-              className="input"
-              type="number"
-              min="0"
-              placeholder={isRoomCategory ? "Room rent amount" : "Rental price per day"}
-              value={form.rentalPrice}
-              required
-              onChange={(event) => handleChange("rentalPrice", event.target.value)}
-            />
-            <input
-              className="input"
-              type="number"
-              min="0"
-              placeholder={isRoomCategory ? "Room partner share" : "Sale price"}
-              value={form.salePrice}
-              required
-              onChange={(event) => handleChange("salePrice", event.target.value)}
-            />
+
+            <select
+              className="select"
+              value={form.listingType || "both"}
+              onChange={(event) => {
+                const type = event.target.value;
+                setForm((prev) => ({
+                  ...prev,
+                  listingType: type,
+                  rentalPrice: type === "sale" ? "" : prev.rentalPrice,
+                  salePrice: type === "rent" ? "" : prev.salePrice,
+                }));
+              }}
+            >
+              <option value="both">Offer: Rent & Buy (Both)</option>
+              <option value="rent">Offer: Rent Only</option>
+              <option value="sale">Offer: Sell Only</option>
+            </select>
+
+            {(form.listingType === "rent" || form.listingType === "both" || !form.listingType) && (
+              <input
+                className="input"
+                type="number"
+                min="0"
+                placeholder={isRoomCategory ? "Room rent amount (Rs/month)" : "Rental price per day (Rs/day)"}
+                value={form.rentalPrice}
+                required={form.listingType === "rent" || form.listingType === "both" || !form.listingType}
+                onChange={(event) => handleChange("rentalPrice", event.target.value)}
+              />
+            )}
+
+            {(form.listingType === "sale" || form.listingType === "both" || !form.listingType) && (
+              <input
+                className="input"
+                type="number"
+                min="0"
+                placeholder={isRoomCategory ? "Room partner share (Rs)" : "Sale price (Rs)"}
+                value={form.salePrice}
+                required={form.listingType === "sale" || form.listingType === "both" || !form.listingType}
+                onChange={(event) => handleChange("salePrice", event.target.value)}
+              />
+            )}
+
             <input
               className="input"
               placeholder={isRoomCategory ? "Property / building name" : "Brand / publisher / model"}
@@ -345,7 +372,11 @@ function SellRentPage() {
 
             {/* Dynamic Live Earnings Preview Card */}
             {(() => {
-              const priceVal = Number(form.salePrice || form.rentalPrice || 0);
+              const priceVal = form.listingType === "rent"
+                ? Number(form.rentalPrice || 0)
+                : form.listingType === "sale"
+                ? Number(form.salePrice || 0)
+                : Number(form.salePrice || form.rentalPrice || 0);
               const isValidPrice = !isNaN(priceVal) && priceVal > 0;
               const platformFee = isValidPrice ? Math.round(priceVal * (platformRate / 100) * 100) / 100 : 0;
               const pocFee = isValidPrice ? Math.round(priceVal * (pocRate / 100) * 100) / 100 : 0;

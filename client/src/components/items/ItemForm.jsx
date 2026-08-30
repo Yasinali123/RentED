@@ -104,9 +104,9 @@ function ItemForm({ onSubmit, itemToEdit = null, onCancel = null }) {
       const formData = new FormData();
       formData.append("title", form.title);
       formData.append("description", form.description);
-      formData.append("listingType", form.listingType);
-      formData.append("rentalPrice", form.rentalPrice === "" ? "" : String(Number(form.rentalPrice)));
-      formData.append("salePrice", form.salePrice === "" ? "" : String(Number(form.salePrice)));
+      formData.append("listingType", form.listingType || "both");
+      formData.append("rentalPrice", form.listingType === "sale" ? "" : (form.rentalPrice === "" ? "" : String(Number(form.rentalPrice))));
+      formData.append("salePrice", form.listingType === "rent" ? "" : (form.salePrice === "" ? "" : String(Number(form.salePrice))));
       formData.append("category", form.category);
       formData.append("location", form.location);
       formData.append("campus", form.campus);
@@ -229,12 +229,20 @@ function ItemForm({ onSubmit, itemToEdit = null, onCancel = null }) {
             <span className="text-xs font-semibold text-ink/50 uppercase">Listing Offer</span>
             <select
               className="select"
-              value={form.listingType}
-              onChange={(e) => setForm({ ...form, listingType: e.target.value })}
+              value={form.listingType || "both"}
+              onChange={(e) => {
+                const type = e.target.value;
+                setForm((prev) => ({
+                  ...prev,
+                  listingType: type,
+                  rentalPrice: type === "sale" ? "" : prev.rentalPrice,
+                  salePrice: type === "rent" ? "" : prev.salePrice,
+                }));
+              }}
             >
-              <option value="both">Rent & Buy</option>
+              <option value="both">Rent & Buy (Both)</option>
               <option value="rent">Rent Only</option>
-              <option value="sale">Buy Only</option>
+              <option value="sale">Sell Only</option>
             </select>
           </label>
 
