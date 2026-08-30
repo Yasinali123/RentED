@@ -536,12 +536,12 @@ function UserSettingsView({ onRefresh }) {
               <p className="text-xs text-ink/40">Loading active sessions...</p>
             ) : (
               <div className="space-y-4">
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2.5">
                   <Button
                     type="button"
                     variant="ghost"
                     onClick={handleLogoutOther}
-                    className="text-xs py-1.5 px-4 font-bold border border-ink/15 hover:bg-canvas/50"
+                    className="w-full sm:w-auto text-xs py-2 px-4 font-bold border border-ink/15 hover:bg-canvas/50 justify-center"
                   >
                     Logout Other Devices
                   </Button>
@@ -549,7 +549,7 @@ function UserSettingsView({ onRefresh }) {
                     type="button"
                     variant="danger"
                     onClick={handleLogoutAll}
-                    className="text-xs py-1.5 px-4 font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100"
+                    className="w-full sm:w-auto text-xs py-2 px-4 font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 justify-center"
                   >
                     Logout All Devices
                   </Button>
@@ -558,13 +558,13 @@ function UserSettingsView({ onRefresh }) {
                 <div className="divide-y divide-ink/5 border border-ink/10 rounded-2xl overflow-hidden bg-canvas/20">
                   {sessions.map((s) => (
                     <div key={s._id} className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-bold text-xs text-ink">
                             {s.browser} on {s.os} ({s.device})
                           </span>
                           {s.isCurrent && (
-                            <span className="bg-green-100 border border-green-300 text-green-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+                            <span className="bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
                               Current Device
                             </span>
                           )}
@@ -572,7 +572,7 @@ function UserSettingsView({ onRefresh }) {
                         <p className="text-[10px] text-ink/50 mt-1 leading-normal">
                           IP Address: <span className="font-mono text-ink/75">{s.ipAddress || "Unknown IP"}</span> • Logged in: {new Date(s.loginTime).toLocaleString()}
                         </p>
-                        <p className="text-[10px] text-ink/35 truncate max-w-[280px] sm:max-w-md mt-0.5">
+                        <p className="text-[10px] text-ink/35 truncate max-w-full sm:max-w-md mt-0.5">
                           {s.userAgent}
                         </p>
                       </div>
@@ -580,7 +580,7 @@ function UserSettingsView({ onRefresh }) {
                         type="button"
                         variant="ghost"
                         onClick={() => handleRevokeSession(s._id)}
-                        className={`text-xs py-1 px-3 border border-red-100 text-red-600 hover:bg-red-50`}
+                        className="w-full sm:w-auto text-xs py-1.5 px-4 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 font-bold rounded-xl justify-center shrink-0"
                       >
                         {s.isCurrent ? "Logout Current" : "Revoke"}
                       </Button>
@@ -1892,11 +1892,11 @@ function UserSettingsView({ onRefresh }) {
         )}
 
         {/* Footing Account Actions (Logout, Delete, etc.) */}
-        <div className="border-t border-ink/5 pt-6 mt-6 flex flex-wrap gap-3 items-center justify-between">
-          <div className="text-[11px] text-ink/40">
-            Account created: {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Just Now"}
+        <div className="border-t border-ink/10 pt-6 mt-8 flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="text-[11px] text-ink/50 font-medium text-center sm:text-left">
+            Account created: {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "Just Now"}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 w-full sm:w-auto">
             <Button
               onClick={() => {
                 if (window.confirm("Are you sure you want to log out?")) {
@@ -1904,7 +1904,7 @@ function UserSettingsView({ onRefresh }) {
                 }
               }}
               variant="ghost"
-              className="text-xs font-bold text-ink/65 hover:bg-canvas hover:text-ink px-4 py-1.5 border border-ink/10 rounded-full flex items-center gap-1.5"
+              className="w-full sm:w-auto justify-center text-xs font-bold text-ink/75 hover:bg-canvas hover:text-ink px-4 py-2 border border-ink/15 rounded-xl flex items-center gap-1.5"
             >
               <LogOut className="h-4 w-4" /> Logout
             </Button>
@@ -1916,7 +1916,7 @@ function UserSettingsView({ onRefresh }) {
                 }
               }}
               variant="ghost"
-              className="text-xs font-bold text-amber-700 hover:bg-amber-50 px-4 py-1.5 border border-amber-200 rounded-full"
+              className="w-full sm:w-auto justify-center text-xs font-bold text-amber-700 hover:bg-amber-50 px-4 py-2 border border-amber-200 rounded-xl"
             >
               Deactivate Account
             </Button>
@@ -1928,7 +1928,7 @@ function UserSettingsView({ onRefresh }) {
                 }
               }}
               variant="ghost"
-              className="text-xs font-bold text-red-600 hover:bg-red-50 px-4 py-1.5 border border-red-200 rounded-full flex items-center gap-1.5"
+              className="w-full sm:w-auto justify-center text-xs font-bold text-red-600 hover:bg-red-50 px-4 py-2 border border-red-200 rounded-xl flex items-center gap-1.5"
             >
               <Trash2 className="h-4 w-4" /> Delete Account
             </Button>
