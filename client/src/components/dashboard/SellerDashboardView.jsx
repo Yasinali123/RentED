@@ -369,8 +369,8 @@ function SellerDashboardView({ dashboard, onRefresh }) {
 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto justify-end">
                   <div className="text-left md:text-right pr-4">
-                    <p className="text-xs text-ink/40 uppercase">Payout Share</p>
-                    <p className="text-lg font-black text-ink">Rs. {request.totalPrice - (request.totalPrice * 0.1)}</p>
+                    <p className="text-xs text-ink/40 uppercase font-bold">Your Net Payout</p>
+                    <p className="text-lg font-black text-emerald-700">Rs. {request.sellerPayout ?? request.sellerEarnings ?? (request.totalPrice * 0.85)}</p>
                   </div>
 
                   {/* Accept / Reject actions */}

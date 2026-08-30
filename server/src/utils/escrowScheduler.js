@@ -36,12 +36,9 @@ export const checkAndAutoReleaseEscrow = async () => {
     for (const request of eligibleOrders) {
       const isRental = request.requestType === "rental";
 
-      const deliveryFee = request.deliveryFee || deliveryFeeDefault;
-      const itemPrice = request.itemPrice || (request.totalPrice - deliveryFee);
-      const platformCommission = request.commissionAmount || roundCurrency(itemPrice * (commissionRate / 100));
-      const sellerEarnings = request.sellerEarnings || roundCurrency(itemPrice - platformCommission);
-      const pocEarnings = request.pocEarnings || roundCurrency(deliveryFee * (pocShareRate / 100));
-      const platformDeliveryShare = request.platformDeliveryShare || roundCurrency(deliveryFee - pocEarnings);
+      const sellerEarnings = roundCurrency(request.sellerPayout ?? request.sellerEarnings ?? 0);
+      const pocEarnings = roundCurrency(request.pocPayout ?? request.pocEarnings ?? 0);
+      const platformCommission = roundCurrency(request.platformFee ?? request.commissionAmount ?? 0);
 
       // Release earnings to seller
       const seller = await User.findById(request.owner);
@@ -51,8 +48,8 @@ export const checkAndAutoReleaseEscrow = async () => {
         await seller.save();
       }
 
-      // Release delivery fee share to POC if assigned
-      if (request.poc) {
+      // Release delivery payout to POC if assigned
+      if (request.poc && pocEarnings > 0) {
         const pocUser = await User.findById(request.poc);
         if (pocUser) {
           pocUser.balance = roundCurrency((pocUser.balance || 0) + pocEarnings);
@@ -104,15 +101,6 @@ export const checkAndAutoReleaseEscrow = async () => {
         order: request._id,
         amount: platformCommission,
         type: "commission",
-        status: "completed",
-        paidAt: new Date(),
-      });
-
-      await Transaction.create({
-        user: request.renter,
-        order: request._id,
-        amount: platformDeliveryShare,
-        type: "delivery_commission",
         status: "completed",
         paidAt: new Date(),
       });

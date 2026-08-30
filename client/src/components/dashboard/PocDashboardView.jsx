@@ -849,25 +849,35 @@ function PocDashboardView({ dashboard, onRefresh }) {
         {activeTab === "earnings" && (
           <div className="panel p-6 bg-white space-y-6">
             <div>
-              <h2 className="text-lg font-black text-ink">POC Dispatch Payouts</h2>
-              <p className="text-xs text-ink/40">Review delivery fee earnings, payouts, and bonuses.</p>
+              <h2 className="text-lg font-black text-ink">POC Dispatch Payouts & Wallet</h2>
+              <p className="text-xs text-ink/40">Review 5% transaction share earnings, available balance, and completed delivery history.</p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3 max-w-xl">
-              <div className="panel p-4 bg-canvas/30 border border-ink/5">
-                <span className="text-[10px] font-black uppercase text-ink/40">Today's Earnings</span>
-                <p className="text-xl font-black text-ink mt-1">Rs. {totalEarnings}</p>
+            <div className="grid gap-4 sm:grid-cols-3 max-w-2xl">
+              <div className="panel p-5 bg-gradient-to-br from-emerald-50/50 to-white border border-emerald-100">
+                <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">Available Balance</span>
+                <p className="text-2xl font-black text-emerald-950 mt-1">Rs. {user?.balance || 0}</p>
+                <p className="text-[9px] text-emerald-700/80 mt-1">Ready to request for payout withdrawal.</p>
               </div>
 
-              <div className="panel p-4 bg-canvas/30 border border-ink/5">
-                <span className="text-[10px] font-black uppercase text-ink/40">Completed Tasks</span>
-                <p className="text-xl font-black text-ink mt-1">{completedTaskCount} Runs</p>
+              <div className="panel p-5 bg-gradient-to-br from-amber-50/50 to-white border border-amber-100">
+                <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider">Pending Payouts</span>
+                <p className="text-2xl font-black text-amber-950 mt-1">Rs. {user?.pendingBalance || 0}</p>
+                <p className="text-[9px] text-amber-700/80 mt-1">Awaiting order settlement release.</p>
               </div>
 
-              <div className="panel p-4 bg-canvas/30 border border-ink/5">
-                <span className="text-[10px] font-black uppercase text-ink/40">Bonus Payouts</span>
-                <p className="text-xl font-black text-emerald-700 mt-1">Rs. {completedTaskCount * bonusPerTask}</p>
+              <div className="panel p-5 bg-gradient-to-br from-indigo-50/50 to-white border border-indigo-100">
+                <span className="text-[10px] font-black uppercase text-indigo-800 tracking-wider">Completed Deliveries</span>
+                <p className="text-2xl font-black text-indigo-950 mt-1">{completedTaskCount} Runs</p>
+                <p className="text-[9px] text-indigo-700/80 mt-1">5% transaction payout earned per run.</p>
               </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-canvas/40 border border-ink/5 max-w-2xl space-y-2 text-xs">
+              <h4 className="font-bold text-ink flex items-center gap-1.5">💡 POC Compensation Model</h4>
+              <p className="text-ink/65 leading-relaxed">
+                As a Campus Point of Contact (POC), you earn a <b>5% commission share</b> calculated from the item price for every successful pickup and delivery run you complete.
+              </p>
             </div>
           </div>
         )}

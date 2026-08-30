@@ -8,6 +8,7 @@ import Escrow from "../models/Escrow.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { notifyUser, notifyAdmins } from "../utils/notificationHelper.js";
 import { getSetting, getAllPaymentSettings } from "../utils/settingsHelper.js";
+import { calculatePayouts } from "../utils/payoutCalculator.js";
 import emailService from "../services/emailService.js";
 import { baseLayout } from "../templates/baseLayout.js";
 import { createRefund, roundCurrency, fetchRazorpayPayment } from "../services/paymentService.js";
@@ -132,16 +133,16 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
 
   discountAmount = roundCurrency(discountAmount);
   const settings = await getAllPaymentSettings();
-  const deliveryFee = roundCurrency(settings.delivery_fee || 50);
-  const commissionRate = settings.platform_commission_rate || 10;
-  const pocShareRate = settings.poc_share_rate || 80;
-
   const itemPrice = roundCurrency(basePrice - discountAmount);
-  const platformCommission = roundCurrency(itemPrice * (commissionRate / 100));
-  const sellerEarnings = roundCurrency(itemPrice - platformCommission);
-  const pocEarnings = roundCurrency(deliveryFee * (pocShareRate / 100));
-  const platformDeliveryShare = roundCurrency(deliveryFee - pocEarnings);
-  const totalPrice = roundCurrency(itemPrice + deliveryFee);
+
+  const payouts = calculatePayouts({
+    itemPrice,
+    platformCommissionRate: settings.platform_commission_rate,
+    pocCommissionRate: settings.poc_commission_rate,
+  });
+
+  const deliveryFee = 0;
+  const totalPrice = payouts.buyerTotal;
 
   const renter = await User.findById(req.user._id);
 
@@ -219,12 +220,18 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     paymentMethod: finalPaymentMethod,
     status: initialStatus,
     itemPrice,
-    deliveryFee,
+    deliveryFee: 0,
     totalPrice,
-    commissionAmount: platformCommission,
-    sellerEarnings,
-    pocEarnings,
-    platformDeliveryShare,
+    platformCommissionRate: payouts.platformCommissionRate,
+    pocCommissionRate: payouts.pocCommissionRate,
+    sellerCommissionRate: payouts.sellerCommissionRate,
+    platformFee: payouts.platformFee,
+    pocPayout: payouts.pocPayout,
+    sellerPayout: payouts.sellerPayout,
+    commissionAmount: payouts.platformFee,
+    sellerEarnings: payouts.sellerPayout,
+    pocEarnings: payouts.pocPayout,
+    platformDeliveryShare: 0,
     paymentReference: finalPaymentRef,
     deliveryAddress: deliveryAddress || renter.location,
     pickupQrCode,
@@ -241,12 +248,18 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
       buyer: renter._id,
       seller: item.owner,
       itemPrice,
-      deliveryFee,
+      deliveryFee: 0,
       totalAmount: totalPrice,
-      platformCommission,
-      sellerEarnings,
-      pocEarnings,
-      platformDeliveryShare,
+      platformCommissionRate: payouts.platformCommissionRate,
+      pocCommissionRate: payouts.pocCommissionRate,
+      sellerCommissionRate: payouts.sellerCommissionRate,
+      platformFee: payouts.platformFee,
+      pocPayout: payouts.pocPayout,
+      sellerPayout: payouts.sellerPayout,
+      platformCommission: payouts.platformFee,
+      sellerEarnings: payouts.sellerPayout,
+      pocEarnings: payouts.pocPayout,
+      platformDeliveryShare: 0,
       status: "locked",
     });
     request.escrow = escrow._id;
@@ -255,7 +268,7 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     // Lock funds in Seller pending balance
     const seller = await User.findById(item.owner);
     if (seller) {
-      seller.pendingBalance = roundCurrency((seller.pendingBalance || 0) + sellerEarnings);
+      seller.pendingBalance = roundCurrency((seller.pendingBalance || 0) + payouts.sellerPayout);
       await seller.save();
     }
   }
@@ -679,30 +692,23 @@ export const confirmReceipt = asyncHandler(async (req, res) => {
 
   const isRental = request.requestType === "rental";
 
-  const settings = await getAllPaymentSettings();
-  const deliveryFee = request.deliveryFee || settings.delivery_fee || 50;
-  const commissionRate = settings.platform_commission_rate || 10;
-  const pocShareRate = settings.poc_share_rate || 80;
-
-  const itemPrice = request.itemPrice || (request.totalPrice - deliveryFee);
-  const platformCommission = request.commissionAmount || (itemPrice * (commissionRate / 100));
-  const sellerEarnings = request.sellerEarnings || (itemPrice - platformCommission);
-  const pocEarnings = request.pocEarnings || (deliveryFee * (pocShareRate / 100));
-  const platformDeliveryShare = request.platformDeliveryShare || (deliveryFee - pocEarnings);
+  const sellerEarnings = roundCurrency(request.sellerPayout ?? request.sellerEarnings ?? 0);
+  const pocEarnings = roundCurrency(request.pocPayout ?? request.pocEarnings ?? 0);
+  const platformCommission = roundCurrency(request.platformFee ?? request.commissionAmount ?? 0);
 
   // Release earnings to seller
   const seller = await User.findById(request.owner);
   if (seller) {
-    seller.balance = (seller.balance || 0) + sellerEarnings;
-    seller.pendingBalance = Math.max(0, (seller.pendingBalance || 0) - sellerEarnings);
+    seller.balance = roundCurrency((seller.balance || 0) + sellerEarnings);
+    seller.pendingBalance = Math.max(0, roundCurrency((seller.pendingBalance || 0) - sellerEarnings));
     await seller.save();
   }
 
-  // Release delivery fee share to POC if assigned
-  if (request.poc) {
+  // Release delivery fee share / payout to POC if assigned
+  if (request.poc && pocEarnings > 0) {
     const pocUser = await User.findById(request.poc);
     if (pocUser) {
-      pocUser.balance = (pocUser.balance || 0) + pocEarnings;
+      pocUser.balance = roundCurrency((pocUser.balance || 0) + pocEarnings);
       await pocUser.save();
 
       // Transaction log for POC
@@ -737,7 +743,7 @@ export const confirmReceipt = asyncHandler(async (req, res) => {
     console.error("Failed to update original transaction escrow status:", err.message);
   }
 
-  // Log transactions for Seller, Item Commission, and Delivery Commission
+  // Log transactions for Seller and Platform Commission
   await Transaction.create({
     user: request.owner,
     order: request._id,
@@ -752,15 +758,6 @@ export const confirmReceipt = asyncHandler(async (req, res) => {
     order: request._id,
     amount: platformCommission,
     type: "commission",
-    status: "completed",
-    paidAt: new Date(),
-  });
-
-  await Transaction.create({
-    user: req.user._id,
-    order: request._id,
-    amount: platformDeliveryShare,
-    type: "delivery_commission",
     status: "completed",
     paidAt: new Date(),
   });
@@ -1269,29 +1266,22 @@ export const verifyCodCash = asyncHandler(async (req, res) => {
     throw new Error("COD cash for this order has already been verified");
   }
 
-  const settings = await getAllPaymentSettings();
-  const deliveryFee = request.deliveryFee || settings.delivery_fee || 50;
-  const commissionRate = settings.platform_commission_rate || 10;
-  const pocShareRate = settings.poc_share_rate || 80;
-
-  const itemPrice = request.itemPrice || (request.totalPrice - deliveryFee);
-  const platformCommission = request.commissionAmount || (itemPrice * (commissionRate / 100));
-  const sellerEarnings = request.sellerEarnings || (itemPrice - platformCommission);
-  const pocEarnings = request.pocEarnings || (deliveryFee * (pocShareRate / 100));
-  const platformDeliveryShare = request.platformDeliveryShare || (deliveryFee - pocEarnings);
+  const sellerEarnings = roundCurrency(request.sellerPayout ?? request.sellerEarnings ?? 0);
+  const pocEarnings = roundCurrency(request.pocPayout ?? request.pocEarnings ?? 0);
+  const platformCommission = roundCurrency(request.platformFee ?? request.commissionAmount ?? 0);
 
   // Credit Seller Wallet
   const seller = await User.findById(request.owner);
   if (seller) {
-    seller.balance = (seller.balance || 0) + sellerEarnings;
+    seller.balance = roundCurrency((seller.balance || 0) + sellerEarnings);
     await seller.save();
   }
 
-  // Credit POC Wallet
-  if (request.poc) {
+  // Credit POC Wallet with 5% transaction payout
+  if (request.poc && pocEarnings > 0) {
     const pocUser = await User.findById(request.poc);
     if (pocUser) {
-      pocUser.balance = (pocUser.balance || 0) + pocEarnings;
+      pocUser.balance = roundCurrency((pocUser.balance || 0) + pocEarnings);
       await pocUser.save();
 
       await Transaction.create({
@@ -1320,15 +1310,6 @@ export const verifyCodCash = asyncHandler(async (req, res) => {
     order: request._id,
     amount: platformCommission,
     type: "commission",
-    status: "completed",
-    paidAt: new Date(),
-  });
-
-  await Transaction.create({
-    user: req.user._id,
-    order: request._id,
-    amount: platformDeliveryShare,
-    type: "delivery_commission",
     status: "completed",
     paidAt: new Date(),
   });

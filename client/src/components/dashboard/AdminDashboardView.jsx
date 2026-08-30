@@ -2165,7 +2165,7 @@ function AdminDashboardView({ dashboard, onRefresh }) {
           <div className="panel p-6 bg-white space-y-6">
             <div>
               <h2 className="text-lg font-black text-ink">System Financial & Payment Settings</h2>
-              <p className="text-xs text-ink/40">Configure platform commission %, delivery fee distribution, withdrawal thresholds, COD status, and Escrow release timer.</p>
+              <p className="text-xs text-ink/40">Configure platform commission %, POC/Mediator commission %, withdrawal thresholds, COD status, and Escrow release timer.</p>
             </div>
 
             {loadingSettings ? (
@@ -2173,71 +2173,90 @@ function AdminDashboardView({ dashboard, onRefresh }) {
             ) : (
               <form onSubmit={handleSaveSettings} className="space-y-6 max-w-lg">
                 <div className="space-y-4">
+                  {/* 1. Platform Commission Rate */}
                   <div className="space-y-1">
                     <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">1. Platform Commission Fee (%)</label>
-                    <p className="text-[10px] text-ink/45">Percentage deducted from item sales/rentals. (e.g. 10% on Rs. 500 item = Rs. 50 platform fee, Rs. 450 to Seller).</p>
+                    <p className="text-[10px] text-ink/45">Percentage retained by platform revenue on every transaction (Default: 10%).</p>
                     <input
                       type="number"
                       className="input"
                       min="0"
-                      max="100"
-                      value={systemSettings.platform_commission_rate ?? systemSettings.commission_rate ?? 10}
-                      onChange={(e) => setSystemSettings({ ...systemSettings, platform_commission_rate: Number(e.target.value), commission_rate: Number(e.target.value) })}
+                      max="99"
+                      value={systemSettings.platform_commission_rate ?? 10}
+                      onChange={(e) => setSystemSettings({ ...systemSettings, platform_commission_rate: Number(e.target.value) })}
                       required
                     />
-                    <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between">
-                      <span>🛍️ Seller Payout Share (Profit):</span>
-                      <span className="font-black text-sm text-emerald-700">
-                        {Math.max(0, 100 - (systemSettings.platform_commission_rate ?? systemSettings.commission_rate ?? 10))}% of item price
-                      </span>
-                    </div>
                   </div>
 
+                  {/* 2. POC Commission Rate */}
                   <div className="space-y-1">
-                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">2. Campus Delivery Fee (Rs.)</label>
-                    <p className="text-[10px] text-ink/45">Fixed delivery fee charged to buyer at checkout. (e.g. Rs. 50).</p>
+                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">2. POC / Mediator Commission Fee (%)</label>
+                    <p className="text-[10px] text-ink/45">Percentage paid to campus delivery partner for handling and delivery (Default: 5%).</p>
                     <input
                       type="number"
                       className="input"
                       min="0"
-                      value={systemSettings.delivery_fee ?? 50}
-                      onChange={(e) => setSystemSettings({ ...systemSettings, delivery_fee: Number(e.target.value) })}
+                      max="99"
+                      value={systemSettings.poc_commission_rate ?? 5}
+                      onChange={(e) => setSystemSettings({ ...systemSettings, poc_commission_rate: Number(e.target.value) })}
                       required
                     />
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">3. POC Share % of Delivery Fee</label>
-                      <p className="text-[10px] text-ink/45">POC share percentage of delivery fee. (e.g. 80% of Rs. 50 = Rs. 40 to POC).</p>
-                      <input
-                        type="number"
-                        className="input"
-                        min="0"
-                        max="100"
-                        value={systemSettings.poc_share_rate ?? 80}
-                        onChange={(e) => setSystemSettings({ ...systemSettings, poc_share_rate: Number(e.target.value) })}
-                        required
-                      />
+                  {/* 3. Auto-calculated Seller Share */}
+                  <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between">
+                    <div>
+                      <span className="block text-xs font-black text-emerald-900">3. Seller Payout Share (AUTO-CALCULATED)</span>
+                      <span className="text-[10px] text-emerald-700/80 font-normal">100% - Platform Commission - POC Commission</span>
                     </div>
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">4. Platform Delivery Share %</label>
-                      <p className="text-[10px] text-ink/45">Platform share percentage of delivery fee. (e.g. 20% of Rs. 50 = Rs. 10 to Platform Revenue).</p>
-                      <input
-                        type="number"
-                        className="input"
-                        min="0"
-                        max="100"
-                        value={systemSettings.platform_delivery_share_rate ?? 20}
-                        onChange={(e) => setSystemSettings({ ...systemSettings, platform_delivery_share_rate: Number(e.target.value) })}
-                        required
-                      />
-                    </div>
+                    <span className="font-black text-base text-emerald-700 bg-white px-3 py-1 rounded-xl border border-emerald-200 shadow-sm">
+                      {Math.max(0, 100 - Number(systemSettings.platform_commission_rate ?? 10) - Number(systemSettings.poc_commission_rate ?? 5))}%
+                    </span>
                   </div>
 
+                  {/* Dynamic Admin Financial Preview Card for ₹1,000 transaction */}
+                  {(() => {
+                    const pRate = Number(systemSettings.platform_commission_rate ?? 10);
+                    const pocR = Number(systemSettings.poc_commission_rate ?? 5);
+                    const sRate = Math.max(0, 100 - pRate - pocR);
+
+                    const sampleAmount = 1000;
+                    const pFee = (sampleAmount * pRate) / 100;
+                    const pocPay = (sampleAmount * pocR) / 100;
+                    const sPay = sampleAmount - pFee - pocPay;
+
+                    return (
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white space-y-3 shadow-lg">
+                        <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                          <span className="text-xs font-black uppercase tracking-wider text-amber-400">📊 Admin Financial Live Preview</span>
+                          <span className="text-[10px] text-slate-300 font-mono">For ₹1,000 Transaction</span>
+                        </div>
+                        <div className="space-y-1.5 text-xs font-mono">
+                          <div className="flex justify-between text-slate-200">
+                            <span>Seller receives ({sRate}%):</span>
+                            <span className="font-bold text-emerald-400">₹{sPay.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-200">
+                            <span>POC receives ({pocR}%):</span>
+                            <span className="font-bold text-amber-300">₹{pocPay.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-200">
+                            <span>Platform receives ({pRate}%):</span>
+                            <span className="font-bold text-indigo-300">₹{pFee.toFixed(2)}</span>
+                          </div>
+                          <hr className="border-white/10 my-1" />
+                          <div className="flex justify-between text-white font-bold text-sm">
+                            <span>Total (Reconciled):</span>
+                            <span className="text-emerald-400">₹{sampleAmount.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 4. Minimum Payout Withdrawal Limit */}
                   <div className="space-y-1">
-                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">5. Minimum Payout Withdrawal Limit (Rs.)</label>
+                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">4. Minimum Payout Withdrawal Limit (Rs.)</label>
                     <p className="text-[10px] text-ink/45">Minimum wallet balance required for sellers or POCs to request payout withdrawal. (e.g. Rs. 500).</p>
                     <input
                       type="number"
@@ -2249,8 +2268,9 @@ function AdminDashboardView({ dashboard, onRefresh }) {
                     />
                   </div>
 
+                  {/* 5. Cash on Delivery (COD) Enabled */}
                   <div className="space-y-1">
-                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">6. Cash on Delivery (COD) Enabled</label>
+                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">5. Cash on Delivery (COD) Enabled</label>
                     <p className="text-[10px] text-ink/45">Enable or disable Cash on Delivery checkout for students.</p>
                     <select
                       className="w-full bg-white border border-ink/10 rounded-xl px-3 py-2 text-xs font-bold"
@@ -2262,8 +2282,9 @@ function AdminDashboardView({ dashboard, onRefresh }) {
                     </select>
                   </div>
 
+                  {/* 6. Escrow Auto Release Timer */}
                   <div className="space-y-1">
-                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">7. Escrow Auto Release Timer (Hours)</label>
+                    <label className="text-xs font-black uppercase tracking-wider text-ink/75 block">6. Escrow Auto Release Timer (Hours)</label>
                     <p className="text-[10px] text-ink/45">Automatically confirm delivery & release funds if buyer raises no dispute within this window. (e.g. 24 Hours).</p>
                     <input
                       type="number"

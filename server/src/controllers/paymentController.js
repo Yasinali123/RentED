@@ -8,6 +8,7 @@ import WithdrawalRequest from "../models/WithdrawalRequest.js";
 import Escrow from "../models/Escrow.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { getSetting, getAllPaymentSettings } from "../utils/settingsHelper.js";
+import { calculatePayouts } from "../utils/payoutCalculator.js";
 import { createRazorpayOrder, verifyPaymentSignature, roundCurrency, fetchRazorpayPayment } from "../services/paymentService.js";
 import emailService from "../services/emailService.js";
 
@@ -84,13 +85,16 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
 
   discountAmount = roundCurrency(discountAmount);
   const settings = await getAllPaymentSettings();
-  const deliveryFee = roundCurrency(settings.delivery_fee || 50);
-  const commissionRate = settings.platform_commission_rate || 10;
-
   const itemPrice = roundCurrency(basePrice - discountAmount);
-  const platformCommission = roundCurrency(itemPrice * (commissionRate / 100));
-  const sellerEarnings = roundCurrency(itemPrice - platformCommission);
-  const totalPrice = roundCurrency(itemPrice + deliveryFee);
+
+  const payouts = calculatePayouts({
+    itemPrice,
+    platformCommissionRate: settings.platform_commission_rate,
+    pocCommissionRate: settings.poc_commission_rate,
+  });
+
+  const deliveryFee = 0;
+  const totalPrice = payouts.buyerTotal;
 
   try {
     const order = await createRazorpayOrder(totalPrice);
@@ -102,9 +106,10 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
       amount: order.amount,
       currency: order.currency,
       itemPrice,
-      deliveryFee,
-      platformCommission,
-      sellerEarnings,
+      deliveryFee: 0,
+      platformCommission: payouts.platformFee,
+      sellerEarnings: payouts.sellerPayout,
+      pocEarnings: payouts.pocPayout,
       totalPrice,
     });
   } catch (error) {
@@ -254,17 +259,16 @@ export const verifyPayment = asyncHandler(async (req, res) => {
 
   discountAmount = roundCurrency(discountAmount);
   const settings = await getAllPaymentSettings();
-  const deliveryFee = roundCurrency(settings.delivery_fee || 50);
-  const commissionRate = settings.platform_commission_rate || 10;
-  const pocShareRate = settings.poc_share_rate || 80;
-
   const itemPrice = roundCurrency(basePrice - discountAmount);
-  const platformCommission = roundCurrency(itemPrice * (commissionRate / 100));
-  const sellerEarnings = roundCurrency(itemPrice - platformCommission);
-  const pocEarnings = roundCurrency(deliveryFee * (pocShareRate / 100));
-  const platformDeliveryShare = roundCurrency(deliveryFee - pocEarnings);
-  
-  let totalPrice = roundCurrency(itemPrice + deliveryFee);
+
+  const payouts = calculatePayouts({
+    itemPrice,
+    platformCommissionRate: settings.platform_commission_rate,
+    pocCommissionRate: settings.poc_commission_rate,
+  });
+
+  const deliveryFee = 0;
+  let totalPrice = payouts.buyerTotal;
   if (fetchedPayment && fetchedPayment.amount) {
     totalPrice = roundCurrency(fetchedPayment.amount / 100);
   }
@@ -280,9 +284,15 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     method: paymentMethodUsed,
     gateway: "razorpay",
     currency: "INR",
-    commission: platformCommission,
-    sellerAmount: sellerEarnings,
-    platformAmount: roundCurrency(platformCommission + platformDeliveryShare),
+    commission: payouts.platformFee,
+    sellerAmount: payouts.sellerPayout,
+    platformAmount: payouts.platformFee,
+    platformFee: payouts.platformFee,
+    pocPayout: payouts.pocPayout,
+    sellerPayout: payouts.sellerPayout,
+    platformCommissionRate: payouts.platformCommissionRate,
+    pocCommissionRate: payouts.pocCommissionRate,
+    sellerCommissionRate: payouts.sellerCommissionRate,
     escrowStatus: "held",
     paidAt: new Date(),
   });
@@ -293,11 +303,11 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     paymentReference: razorpay_payment_id,
     transactionId: transaction._id,
     itemPrice,
-    deliveryFee,
-    platformCommission,
-    sellerEarnings,
-    pocEarnings,
-    platformDeliveryShare,
+    deliveryFee: 0,
+    platformCommission: payouts.platformFee,
+    sellerEarnings: payouts.sellerPayout,
+    pocEarnings: payouts.pocPayout,
+    platformDeliveryShare: 0,
     totalPrice,
   });
 });

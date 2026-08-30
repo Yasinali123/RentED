@@ -8,6 +8,7 @@ import College from "../models/College.js";
 import WithdrawalRequest from "../models/WithdrawalRequest.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { getSetting, setSetting } from "../utils/settingsHelper.js";
+import { validateCommissionRates } from "../utils/payoutCalculator.js";
 
 export const getDashboard = asyncHandler(async (req, res) => {
   const role = req.user.role || "student";
@@ -480,19 +481,23 @@ export const getDashboard = asyncHandler(async (req, res) => {
 });
 
 export const getSystemSettings = asyncHandler(async (req, res) => {
-  const commissionRate = await getSetting("platform_commission_rate", await getSetting("commission_rate", 10));
-  const deliveryFee = await getSetting("delivery_fee", 50);
-  const pocShareRate = await getSetting("poc_share_rate", 80);
-  const platformDeliveryShareRate = await getSetting("platform_delivery_share_rate", 20);
+  const platformRate = await getSetting("platform_commission_rate", await getSetting("commission_rate", 10));
+  const pocRate = await getSetting("poc_commission_rate", 5);
   const minWithdrawalAmount = await getSetting("min_withdrawal_amount", 500);
   const codEnabled = await getSetting("cod_enabled", true);
   const escrowAutoReleaseHours = await getSetting("escrow_auto_release_hours", 24);
 
+  const pRate = Number(platformRate);
+  const pCcRate = Number(pocRate);
+  const sellerRate = Math.max(0, 100 - pRate - pCcRate);
+
   res.json({
-    platform_commission_rate: Number(commissionRate),
-    delivery_fee: Number(deliveryFee),
-    poc_share_rate: Number(pocShareRate),
-    platform_delivery_share_rate: Number(platformDeliveryShareRate),
+    platform_commission_rate: pRate,
+    poc_commission_rate: pCcRate,
+    seller_commission_rate: sellerRate,
+    delivery_fee: 0,
+    poc_share_rate: await getSetting("poc_share_rate", 80),
+    platform_delivery_share_rate: await getSetting("platform_delivery_share_rate", 20),
     min_withdrawal_amount: Number(minWithdrawalAmount),
     cod_enabled: Boolean(codEnabled),
     escrow_auto_release_hours: Number(escrowAutoReleaseHours),
@@ -507,6 +512,7 @@ export const updateSystemSettings = asyncHandler(async (req, res) => {
 
   const {
     platform_commission_rate,
+    poc_commission_rate,
     delivery_fee,
     poc_share_rate,
     platform_delivery_share_rate,
@@ -515,14 +521,23 @@ export const updateSystemSettings = asyncHandler(async (req, res) => {
     escrow_auto_release_hours,
   } = req.body;
 
-  if (platform_commission_rate !== undefined) {
-    const rate = Number(platform_commission_rate);
-    if (isNaN(rate) || rate < 0 || rate > 100) {
+  const currentPlatform = await getSetting("platform_commission_rate", 10);
+  const currentPoc = await getSetting("poc_commission_rate", 5);
+
+  const newPlatform = platform_commission_rate !== undefined ? Number(platform_commission_rate) : Number(currentPlatform);
+  const newPoc = poc_commission_rate !== undefined ? Number(poc_commission_rate) : Number(currentPoc);
+
+  if (platform_commission_rate !== undefined || poc_commission_rate !== undefined) {
+    try {
+      validateCommissionRates(newPlatform, newPoc);
+    } catch (valErr) {
       res.status(400);
-      throw new Error("Platform commission rate must be between 0 and 100%");
+      throw new Error(valErr.message);
     }
-    await setSetting("platform_commission_rate", rate);
-    await setSetting("commission_rate", rate);
+
+    await setSetting("platform_commission_rate", newPlatform);
+    await setSetting("commission_rate", newPlatform);
+    await setSetting("poc_commission_rate", newPoc);
   }
 
   if (delivery_fee !== undefined) {
@@ -535,21 +550,11 @@ export const updateSystemSettings = asyncHandler(async (req, res) => {
   }
 
   if (poc_share_rate !== undefined) {
-    const rate = Number(poc_share_rate);
-    if (isNaN(rate) || rate < 0 || rate > 100) {
-      res.status(400);
-      throw new Error("POC share rate must be between 0 and 100%");
-    }
-    await setSetting("poc_share_rate", rate);
+    await setSetting("poc_share_rate", Number(poc_share_rate));
   }
 
   if (platform_delivery_share_rate !== undefined) {
-    const rate = Number(platform_delivery_share_rate);
-    if (isNaN(rate) || rate < 0 || rate > 100) {
-      res.status(400);
-      throw new Error("Platform delivery share rate must be between 0 and 100%");
-    }
-    await setSetting("platform_delivery_share_rate", rate);
+    await setSetting("platform_delivery_share_rate", Number(platform_delivery_share_rate));
   }
 
   if (min_withdrawal_amount !== undefined) {
@@ -574,12 +579,18 @@ export const updateSystemSettings = asyncHandler(async (req, res) => {
     await setSetting("escrow_auto_release_hours", hours);
   }
 
+  const updatedPlatform = Number(await getSetting("platform_commission_rate", 10));
+  const updatedPoc = Number(await getSetting("poc_commission_rate", 5));
+  const updatedSeller = Math.max(0, 100 - updatedPlatform - updatedPoc);
+
   res.json({
     success: true,
     message: "System settings updated successfully",
     settings: {
-      platform_commission_rate: await getSetting("platform_commission_rate", 10),
-      delivery_fee: await getSetting("delivery_fee", 50),
+      platform_commission_rate: updatedPlatform,
+      poc_commission_rate: updatedPoc,
+      seller_commission_rate: updatedSeller,
+      delivery_fee: 0,
       poc_share_rate: await getSetting("poc_share_rate", 80),
       platform_delivery_share_rate: await getSetting("platform_delivery_share_rate", 20),
       min_withdrawal_amount: await getSetting("min_withdrawal_amount", 500),

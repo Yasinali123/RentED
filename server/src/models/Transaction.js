@@ -67,6 +67,30 @@ const transactionSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    platformFee: {
+      type: Number,
+      default: 0,
+    },
+    pocPayout: {
+      type: Number,
+      default: 0,
+    },
+    sellerPayout: {
+      type: Number,
+      default: 0,
+    },
+    platformCommissionRate: {
+      type: Number,
+      default: 10,
+    },
+    pocCommissionRate: {
+      type: Number,
+      default: 5,
+    },
+    sellerCommissionRate: {
+      type: Number,
+      default: 85,
+    },
     escrowStatus: {
       type: String,
       enum: ["held", "released", "refunded", "none"],

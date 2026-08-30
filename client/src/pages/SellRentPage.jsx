@@ -36,21 +36,29 @@ function SellRentPage() {
   const [submitStatus, setSubmitStatus] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]); // [{ file, previewUrl }]
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [commissionRate, setCommissionRate] = useState(10);
+  const [platformRate, setPlatformRate] = useState(10);
+  const [pocRate, setPocRate] = useState(5);
   const isRoomCategory = form.category === "Rooms" || form.category === "Room / PG Listings";
 
   useEffect(() => {
-    const fetchCommissionRate = async () => {
+    const fetchCommissionRates = async () => {
       try {
         const settings = await settingsApi.get();
-        if (settings && typeof settings.commission_rate === "number") {
-          setCommissionRate(settings.commission_rate);
+        if (settings) {
+          if (typeof settings.platform_commission_rate === "number") {
+            setPlatformRate(settings.platform_commission_rate);
+          } else if (typeof settings.commission_rate === "number") {
+            setPlatformRate(settings.commission_rate);
+          }
+          if (typeof settings.poc_commission_rate === "number") {
+            setPocRate(settings.poc_commission_rate);
+          }
         }
       } catch (error) {
-        console.error("Failed to load platform commission rate:", error);
+        console.error("Failed to load platform commission rates:", error);
       }
     };
-    fetchCommissionRate();
+    fetchCommissionRates();
   }, []);
 
   // Cleanup object URLs to avoid memory leaks
@@ -249,17 +257,17 @@ function SellRentPage() {
               <ul className="space-y-3">
                 <li className="flex items-start gap-2.5">
                   <span className="text-lg shrink-0 select-none" role="img" aria-label="check">✅</span>
-                  <span className="text-sm font-semibold text-ink/85 leading-normal">Free to list your items.</span>
+                  <span className="text-sm font-semibold text-ink/85 leading-normal">Free to list your items. Campus delivery is FREE for buyers.</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="text-lg shrink-0 select-none" role="img" aria-label="check">✅</span>
                   <span className="text-sm font-semibold text-ink/85 leading-normal">
-                    {commissionRate}% platform commission is deducted only after a successful sale or rental.
+                    {platformRate}% Platform Fee & {pocRate}% POC Commission deducted only after successful delivery.
                   </span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="text-lg shrink-0 select-none" role="img" aria-label="check">✅</span>
-                  <span className="text-sm font-semibold text-ink/85 leading-normal">No commission is charged if your item is not sold or rented.</span>
+                  <span className="text-sm font-semibold text-ink/85 leading-normal">You receive {Math.max(0, 100 - platformRate - pocRate)}% payout upon settlement. No charge if unsold.</span>
                 </li>
               </ul>
             </div>
@@ -334,6 +342,62 @@ function SellRentPage() {
               value={form.brand}
               onChange={(event) => handleChange("brand", event.target.value)}
             />
+
+            {/* Dynamic Live Earnings Preview Card */}
+            {(() => {
+              const priceVal = Number(form.salePrice || form.rentalPrice || 0);
+              const isValidPrice = !isNaN(priceVal) && priceVal > 0;
+              const platformFee = isValidPrice ? Math.round(priceVal * (platformRate / 100) * 100) / 100 : 0;
+              const pocFee = isValidPrice ? Math.round(priceVal * (pocRate / 100) * 100) / 100 : 0;
+              const sellerReceive = isValidPrice ? Math.round((priceVal - platformFee - pocFee) * 100) / 100 : 0;
+
+              return (
+                <div className="sm:col-span-2 rounded-3xl border border-accent/20 bg-accent/5 p-5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-accent/10 pb-3">
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-accent">Live Estimated Earnings Preview</h3>
+                      <p className="text-[10px] text-ink/55 font-medium">Calculated dynamically based on your listing price</p>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/90 px-3 py-1 rounded-full w-fit">
+                      🎁 Free campus delivery for buyer
+                    </span>
+                  </div>
+
+                  {!isValidPrice ? (
+                    <div className="py-2 text-center">
+                      <p className="text-xs font-bold text-ink/50">Enter a valid price to see your estimated earnings.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-semibold text-ink/75">
+                        <span>Listing price</span>
+                        <span className="font-mono font-bold text-ink">₹{priceVal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs font-semibold text-red-600">
+                        <span>Platform fee ({platformRate}%)</span>
+                        <span className="font-mono font-bold">-₹{platformFee.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs font-semibold text-amber-600">
+                        <span>POC fee ({pocRate}%)</span>
+                        <span className="font-mono font-bold">-₹{pocFee.toFixed(2)}</span>
+                      </div>
+                      <hr className="border-accent/15" />
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-xs font-black uppercase tracking-wider text-ink">YOU RECEIVE</span>
+                        <span className="text-2xl font-black font-mono text-emerald-600">₹{sellerReceive.toFixed(2)}</span>
+                      </div>
+                      <p className="text-[10px] font-medium text-ink/55 text-right">
+                        Estimated payout after successful transaction.
+                      </p>
+                    </div>
+                  )}
+
+                  <p className="text-[10px] leading-relaxed text-ink/55 border-t border-accent/10 pt-2.5">
+                    Delivery is free for the buyer. A {pocRate}% POC/Mediator commission and {platformRate}% platform fee are deducted from the transaction amount. Final payout is released after successful order completion and settlement.
+                  </p>
+                </div>
+              );
+            })()}
             <div className="sm:col-span-2 space-y-2">
               <label className="text-xs font-black uppercase tracking-wider text-ink/55">Hyperlocal Pickup Location (Map Picker)</label>
               <LocationPicker
