@@ -8,9 +8,16 @@ import Button from "../ui/Button";
 import { rentalApi, authApi, disputeApi, reviewApi, paymentApi, invoiceApi, itemApi, getErrorMessage } from "../../api/client";
 import UserSettingsView from "./UserSettingsView";
 
-function StudentDashboardView({ dashboard, onRefresh }) {
+function StudentDashboardView({ dashboard, onRefresh, initialTab }) {
   const { stats, rentedItems = [], wishlistItems = [], nearbyItems = [], listedItems = [], incomingRequests = [] } = dashboard;
-  const [activeTab, setActiveTab] = useState("orders"); // "orders", "wishlist", "wallet", "sell-rent"
+  const [activeTab, setActiveTab] = useState(initialTab || "orders"); // "orders", "wishlist", "wallet", "sell-rent"
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
   const [showQrCodeForOrder, setShowQrCodeForOrder] = useState(null);
   const [addAmount, setAddAmount] = useState("");
   const [walletFeedback, setWalletFeedback] = useState("");

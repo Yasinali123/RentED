@@ -10,8 +10,12 @@ import PocDashboardView from "../components/dashboard/PocDashboardView";
 import AdminDashboardView from "../components/dashboard/AdminDashboardView";
 import NotificationsList from "../components/dashboard/NotificationsList";
 
+import { useSearchParams } from "react-router-dom";
+
 function DashboardPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab");
   const [dashboard, setDashboard] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(true);
@@ -67,15 +71,15 @@ function DashboardPage() {
   const renderRoleDashboard = () => {
     switch (role) {
       case "student":
-        return <StudentDashboardView dashboard={dashboard} onRefresh={loadDashboard} />;
+        return <StudentDashboardView dashboard={dashboard} onRefresh={loadDashboard} initialTab={initialTab} />;
       case "seller":
-        return <SellerDashboardView dashboard={dashboard} onRefresh={loadDashboard} />;
+        return <SellerDashboardView dashboard={dashboard} onRefresh={loadDashboard} initialTab={initialTab} />;
       case "poc":
-        return <PocDashboardView dashboard={dashboard} onRefresh={loadDashboard} />;
+        return <PocDashboardView dashboard={dashboard} onRefresh={loadDashboard} initialTab={initialTab} />;
       case "admin":
-        return <AdminDashboardView dashboard={dashboard} onRefresh={loadDashboard} />;
+        return <AdminDashboardView dashboard={dashboard} onRefresh={loadDashboard} initialTab={initialTab} />;
       default:
-        return <StudentDashboardView dashboard={dashboard} onRefresh={loadDashboard} />;
+        return <StudentDashboardView dashboard={dashboard} onRefresh={loadDashboard} initialTab={initialTab} />;
     }
   };
 

@@ -33,11 +33,17 @@ import { useAuth } from "../../context/AuthContext";
 import UserSettingsView from "./UserSettingsView";
 import NearbyMap from "../maps/NearbyMap";
 
-function PocDashboardView({ dashboard, onRefresh }) {
+function PocDashboardView({ dashboard, onRefresh, initialTab }) {
   const { user } = useAuth();
   const { stats = {}, rentedItems = [], incomingRequests = [], wishlistItems = [], nearbyItems = [], notifications = [] } = dashboard;
 
-  const [activeTab, setActiveTab] = useState("overview"); // operations console view
+  const [activeTab, setActiveTab] = useState(initialTab || "overview"); // operations console view
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   
   // Unread indicators state
   const [hasUnreadChat, setHasUnreadChat] = useState(true);

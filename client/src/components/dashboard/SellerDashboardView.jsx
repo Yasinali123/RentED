@@ -8,10 +8,16 @@ import { itemApi, rentalApi, disputeApi, paymentApi, invoiceApi, getErrorMessage
 import UserSettingsView from "./UserSettingsView";
 import { useAuth } from "../../context/AuthContext";
 
-function SellerDashboardView({ dashboard, onRefresh }) {
+function SellerDashboardView({ dashboard, onRefresh, initialTab }) {
   const { user } = useAuth();
   const { stats, listedItems, incomingRequests } = dashboard;
-  const [activeTab, setActiveTab] = useState("orders"); // "orders", "inventory", "new-listing"
+  const [activeTab, setActiveTab] = useState(initialTab || "orders"); // "orders", "inventory", "new-listing"
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [editingItem, setEditingItem] = useState(null);
   const [showQrCodeForOrder, setShowQrCodeForOrder] = useState(null);
 

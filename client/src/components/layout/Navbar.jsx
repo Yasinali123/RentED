@@ -64,11 +64,20 @@ function Navbar() {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
+  const isItemActive = (itemTo) => {
+    if (itemTo.includes("?")) {
+      const [path, query] = itemTo.split("?");
+      return location.pathname === path && location.search.includes(query);
+    }
+    return location.pathname === itemTo && (!location.search || location.search === "");
+  };
+
   const dynamicNavItems = [
     { to: "/", label: "🏠 Home" },
     { to: "/marketplace", label: "🛍️ Marketplace" },
     (!user || ["seller", "student", "admin"].includes(user?.role)) ? { to: "/sell-rent", label: "➕ Sell / Rent" } : null,
     user ? { to: "/dashboard", label: "📊 Dashboard" } : null,
+    user ? { to: "/dashboard?tab=settings", label: "⚙️ Settings" } : null,
   ].filter(Boolean);
 
   return (
@@ -91,21 +100,22 @@ function Navbar() {
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
-          {dynamicNavItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `text-sm font-medium transition ${
-                  isActive
+          {dynamicNavItems.map((item) => {
+            const active = isItemActive(item.to);
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={`text-sm font-medium transition ${
+                  active
                     ? "text-accent font-bold"
                     : "text-ink/75 hover:text-accent font-semibold"
-                }`
-              }
-            >
-              {item.label.replace(/^[^\s]+\s/, "")}
-            </NavLink>
-          ))}
+                }`}
+              >
+                {item.label.replace(/^[^\s]+\s/, "")}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
@@ -241,22 +251,23 @@ function Navbar() {
                 <div className="mt-2">
                   <p className="text-[10px] font-black uppercase tracking-[0.25em] text-ink/40 dark:text-slate-400 mb-2 px-1">Navigation Menu</p>
                   <nav className="flex flex-col gap-1.5">
-                    {dynamicNavItems.map((item) => (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        onClick={() => setOpen(false)}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition ${
-                            isActive
+                    {dynamicNavItems.map((item) => {
+                      const active = isItemActive(item.to);
+                      return (
+                        <NavLink
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setOpen(false)}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition ${
+                            active
                               ? "bg-accent text-white shadow-md shadow-accent/20"
                               : "text-ink/80 dark:text-slate-200 hover:bg-canvas dark:hover:bg-slate-800 hover:text-ink dark:hover:text-white"
-                          }`
-                        }
-                      >
-                        {item.label}
-                      </NavLink>
-                    ))}
+                          }`}
+                        >
+                          {item.label}
+                        </NavLink>
+                      );
+                    })}
                   </nav>
                 </div>
 

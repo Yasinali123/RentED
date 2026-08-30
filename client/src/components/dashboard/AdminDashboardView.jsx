@@ -51,10 +51,16 @@ import UserSettingsView from "./UserSettingsView";
 import LocationPicker from "../maps/LocationPicker";
 import NearbyMap from "../maps/NearbyMap";
 
-function AdminDashboardView({ dashboard, onRefresh }) {
+function AdminDashboardView({ dashboard, onRefresh, initialTab }) {
   const { stats = {}, disputes = [], users: initialUsers = [], transactions: initialTx = [], listedItems: initialListings = [], incomingRequests: initialOrders = [], withdrawals: initialWithdrawals = [] } = dashboard;
 
-  const [activeTab, setActiveTab] = useState("dashboard"); // sidebar navigation selection
+  const [activeTab, setActiveTab] = useState(initialTab || "dashboard"); // sidebar navigation selection
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   
   // Users state
   const [users, setUsers] = useState(initialUsers);
