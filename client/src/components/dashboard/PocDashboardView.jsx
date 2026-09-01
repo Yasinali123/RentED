@@ -469,13 +469,16 @@ function PocDashboardView({ dashboard, onRefresh, initialTab }) {
                     </div>
                     <div className="space-y-1">
                       <span className="text-ink/45 font-semibold">Seller Contacts:</span>
+                      <p className="font-bold text-ink text-xs">{task.owner?.name} {task.owner?.phone ? `(${task.owner.phone})` : ""}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <a href={`tel:${pocProfile.phone}`} className="px-2.5 py-1 bg-canvas hover:bg-ink/5 border border-ink/10 rounded-full font-bold inline-flex items-center gap-1">
-                          <Phone className="h-3 w-3" /> Call
+                        <a href={`tel:${task.owner?.phone || ""}`} className="px-2.5 py-1 bg-canvas hover:bg-ink/5 border border-ink/10 rounded-full font-bold inline-flex items-center gap-1">
+                          <Phone className="h-3 w-3" /> Call Seller ({task.owner?.phone || "No Phone"})
                         </a>
-                        <a href={`https://wa.me/${pocProfile.phone}`} target="_blank" className="px-2.5 py-1 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 rounded-full font-bold inline-flex items-center gap-1">
-                          WhatsApp
-                        </a>
+                        {task.owner?.phone && (
+                          <a href={`https://wa.me/${task.owner.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 rounded-full font-bold inline-flex items-center gap-1">
+                            WhatsApp
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -527,27 +530,25 @@ function PocDashboardView({ dashboard, onRefresh, initialTab }) {
                       <p className="font-bold text-ink">{task.deliveryAddress}</p>
                     </div>
                     <div className="space-y-1">
-                      <span className="text-ink/45 font-semibold">Contacts & Navigation:</span>
-                      <div className="flex items-center gap-2 mt-1">
+                      <span className="text-ink/45 font-semibold">Student / Customer Contacts:</span>
+                      <p className="font-bold text-ink text-xs">{task.renter?.name} {task.renter?.phone ? `(${task.renter.phone})` : ""}</p>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
                         <a 
                           href={`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${task.item?.pickupLatitude || task.owner?.latitude || 23.0225},${task.item?.pickupLongitude || task.owner?.longitude || 72.5714};${task.renter?.latitude || 23.0300},${task.renter?.longitude || 72.5800}`} 
                           target="_blank" 
                           rel="noopener noreferrer" 
-                          className="px-2.5 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 hover:bg-indigo-100 rounded-full font-bold inline-flex items-center gap-1"
+                          className="px-2.5 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 hover:bg-indigo-100 rounded-full font-bold inline-flex items-center gap-1 text-xs"
                         >
                           <Navigation className="h-3 w-3" /> OSM Route
                         </a>
-                        <a 
-                          href={`https://router.project-osrm.org/route/v1/driving/${task.item?.pickupLongitude || task.owner?.longitude || 72.5714},${task.item?.pickupLatitude || task.owner?.latitude || 23.0225};${task.renter?.longitude || 72.5800},${task.renter?.latitude || 23.0300}?overview=full&geometries=geojson`} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100 rounded-full font-bold inline-flex items-center gap-1 text-[10px]"
-                        >
-                          OSRM JSON Route
+                        <a href={`tel:${task.renter?.phone || ""}`} className="px-2.5 py-1 bg-canvas hover:bg-ink/5 border border-ink/10 rounded-full font-bold inline-flex items-center gap-1 text-xs">
+                          <Phone className="h-3 w-3" /> Call Student ({task.renter?.phone || "No Phone"})
                         </a>
-                        <a href={`tel:${pocProfile.phone}`} className="px-2.5 py-1 bg-canvas hover:bg-ink/5 border border-ink/10 rounded-full font-bold inline-flex items-center gap-1">
-                          Call
-                        </a>
+                        {task.renter?.phone && (
+                          <a href={`https://wa.me/${task.renter.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 rounded-full font-bold inline-flex items-center gap-1 text-xs">
+                            WhatsApp Student
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -617,6 +618,37 @@ function PocDashboardView({ dashboard, onRefresh, initialTab }) {
                       <span className="bg-ink/5 text-ink/50 px-2 py-0.5 rounded">Returned</span>
                       <span>→</span>
                       <span className="bg-ink/5 text-ink/50 px-2 py-0.5 rounded">Completed</span>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2 text-xs">
+                    <div className="space-y-1">
+                      <span className="text-ink/45 font-semibold">Student / Renter Contact:</span>
+                      <p className="font-bold text-ink">{task.renter?.name} {task.renter?.phone ? `(${task.renter.phone})` : ""}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <a href={`tel:${task.renter?.phone || ""}`} className="px-2.5 py-1 bg-canvas hover:bg-ink/5 border border-ink/10 rounded-full font-bold inline-flex items-center gap-1 text-xs">
+                          <Phone className="h-3 w-3" /> Call Renter ({task.renter?.phone || "No Phone"})
+                        </a>
+                        {task.renter?.phone && (
+                          <a href={`https://wa.me/${task.renter.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 rounded-full font-bold inline-flex items-center gap-1 text-xs">
+                            WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-ink/45 font-semibold">Seller Contact:</span>
+                      <p className="font-bold text-ink">{task.owner?.name} {task.owner?.phone ? `(${task.owner.phone})` : ""}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <a href={`tel:${task.owner?.phone || ""}`} className="px-2.5 py-1 bg-canvas hover:bg-ink/5 border border-ink/10 rounded-full font-bold inline-flex items-center gap-1 text-xs">
+                          <Phone className="h-3 w-3" /> Call Seller ({task.owner?.phone || "No Phone"})
+                        </a>
+                        {task.owner?.phone && (
+                          <a href={`https://wa.me/${task.owner.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 rounded-full font-bold inline-flex items-center gap-1 text-xs">
+                            WhatsApp
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
 

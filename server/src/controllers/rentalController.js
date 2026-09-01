@@ -17,9 +17,9 @@ import { createAndStoreInvoice } from "../services/invoiceService.js";
 const populateRequest = (query) =>
   query
     .populate("item")
-    .populate("owner", "name email campus location ratingsAverage ratingsCount avatarUrl balance pendingBalance qrCodeUrl upiId")
-    .populate("renter", "name email campus location ratingsAverage ratingsCount avatarUrl balance pendingBalance")
-    .populate("poc", "name email campus location balance qrCodeUrl upiId")
+    .populate("owner", "name email phone campus location ratingsAverage ratingsCount avatarUrl balance pendingBalance qrCodeUrl upiId")
+    .populate("renter", "name email phone campus location ratingsAverage ratingsCount avatarUrl balance pendingBalance")
+    .populate("poc", "name email phone campus location balance qrCodeUrl upiId")
     .populate("escrow");
 
 const getRentalDurationDays = (startDate, endDate) => {

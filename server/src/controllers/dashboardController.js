@@ -192,14 +192,14 @@ export const getDashboard = asyncHandler(async (req, res) => {
         status: { $in: ["Seller Accepted", "Return Requested"] },
       })
         .populate("item")
-        .populate("owner", "name email collegeName location")
-        .populate("renter", "name email collegeName location")
+        .populate("owner", "name email phone collegeName location")
+        .populate("renter", "name email phone collegeName location")
         .sort({ createdAt: -1 })
         .lean(),
       RentalRequest.find({ poc: req.user._id })
         .populate("item")
-        .populate("owner", "name email collegeName location")
-        .populate("renter", "name email collegeName location")
+        .populate("owner", "name email phone collegeName location")
+        .populate("renter", "name email phone collegeName location")
         .sort({ createdAt: -1 })
         .lean(),
     ]);
