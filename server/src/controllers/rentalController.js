@@ -87,6 +87,25 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     throw new Error("You already have an active booking or order for this item");
   }
 
+  // Prevent double booking for overlapping rental dates
+  if (normalizedRequestType === "rental" && startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const overlappingOrder = await RentalRequest.findOne({
+      item: item._id,
+      requestType: "rental",
+      status: { $nin: ["Cancelled", "Seller Rejected", "Completed", "Returned"] },
+      startDate: { $lte: end },
+      endDate: { $gte: start },
+    });
+
+    if (overlappingOrder) {
+      res.status(400);
+      throw new Error("This item is already booked for the selected dates. Please choose different dates.");
+    }
+  }
+
   const rawBasePrice =
     normalizedRequestType === "purchase"
       ? item.salePrice ?? item.rentalPrice ?? item.price
@@ -197,8 +216,7 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error(`Insufficient wallet balance. You need Rs. ${totalPrice} (Your Balance: Rs. ${renter.balance})`);
     }
-    renter.balance = roundCurrency(renter.balance - totalPrice);
-    await renter.save();
+    await User.findByIdAndUpdate(renter._id, { $inc: { balance: -totalPrice } });
   }
 
   // Generate QR Codes
@@ -268,8 +286,7 @@ export const createRentalRequest = asyncHandler(async (req, res) => {
     // Lock funds in Seller pending balance
     const seller = await User.findById(item.owner);
     if (seller) {
-      seller.pendingBalance = roundCurrency((seller.pendingBalance || 0) + payouts.sellerPayout);
-      await seller.save();
+      await User.findByIdAndUpdate(item.owner, { $inc: { pendingBalance: payouts.sellerPayout } });
     }
   }
 
@@ -431,12 +448,10 @@ export const rejectOrder = asyncHandler(async (req, res) => {
 
   // Refund renter if payment was made online
   if (request.paymentMethod !== "cod") {
-    const renter = await User.findById(request.renter);
-    renter.balance += request.totalPrice;
-    await renter.save();
+    await User.findByIdAndUpdate(request.renter, { $inc: { balance: request.totalPrice } });
 
     await Transaction.create({
-      user: renter._id,
+      user: request.renter,
       amount: request.totalPrice,
       type: "refund",
       status: "completed",
@@ -695,11 +710,12 @@ export const confirmReceipt = asyncHandler(async (req, res) => {
   const sellerEarnings = roundCurrency(request.sellerPayout ?? request.sellerEarnings ?? 0);
   const pocEarnings = roundCurrency(request.pocPayout ?? request.pocEarnings ?? 0);
   const platformCommission = roundCurrency(request.platformFee ?? request.commissionAmount ?? 0);
+  const platformDeliveryShare = roundCurrency(request.platformDeliveryShare ?? 0);
 
   // Release earnings to seller
   const seller = await User.findById(request.owner);
   if (seller) {
-    seller.balance = roundCurrency((seller.balance || 0) + sellerEarnings);
+    await User.findByIdAndUpdate(request.owner, { $inc: { balance: sellerEarnings } });
     seller.pendingBalance = Math.max(0, roundCurrency((seller.pendingBalance || 0) - sellerEarnings));
     await seller.save();
   }
@@ -708,8 +724,7 @@ export const confirmReceipt = asyncHandler(async (req, res) => {
   if (request.poc && pocEarnings > 0) {
     const pocUser = await User.findById(request.poc);
     if (pocUser) {
-      pocUser.balance = roundCurrency((pocUser.balance || 0) + pocEarnings);
-      await pocUser.save();
+      await User.findByIdAndUpdate(request.poc, { $inc: { balance: pocEarnings } });
 
       // Transaction log for POC
       await Transaction.create({
@@ -974,11 +989,10 @@ export const cancelRentalRequest = asyncHandler(async (req, res) => {
         });
       } catch (err) {
         console.error("Razorpay refund failed, fallback to wallet balance:", err.message);
-        renter.balance = roundCurrency((renter.balance || 0) + request.totalPrice);
-        await renter.save();
+        await User.findByIdAndUpdate(request.renter, { $inc: { balance: request.totalPrice } });
 
         await Transaction.create({
-          user: renter._id,
+          user: request.renter,
           order: request._id,
           amount: request.totalPrice,
           type: "refund",
@@ -986,10 +1000,7 @@ export const cancelRentalRequest = asyncHandler(async (req, res) => {
         });
       }
     } else {
-      if (renter) {
-        renter.balance = roundCurrency((renter.balance || 0) + request.totalPrice);
-        await renter.save();
-      }
+      await User.findByIdAndUpdate(request.renter, { $inc: { balance: request.totalPrice } });
 
       await Transaction.create({
         user: request.renter,
@@ -1271,28 +1282,22 @@ export const verifyCodCash = asyncHandler(async (req, res) => {
   const platformCommission = roundCurrency(request.platformFee ?? request.commissionAmount ?? 0);
 
   // Credit Seller Wallet
-  const seller = await User.findById(request.owner);
-  if (seller) {
-    seller.balance = roundCurrency((seller.balance || 0) + sellerEarnings);
-    await seller.save();
+  if (request.owner) {
+    await User.findByIdAndUpdate(request.owner, { $inc: { balance: sellerEarnings } });
   }
 
   // Credit POC Wallet with 5% transaction payout
   if (request.poc && pocEarnings > 0) {
-    const pocUser = await User.findById(request.poc);
-    if (pocUser) {
-      pocUser.balance = roundCurrency((pocUser.balance || 0) + pocEarnings);
-      await pocUser.save();
+    await User.findByIdAndUpdate(request.poc, { $inc: { balance: pocEarnings } });
 
-      await Transaction.create({
-        user: pocUser._id,
-        order: request._id,
-        amount: pocEarnings,
-        type: "delivery_income",
-        status: "completed",
-        paidAt: new Date(),
-      });
-    }
+    await Transaction.create({
+      user: request.poc,
+      order: request._id,
+      amount: pocEarnings,
+      type: "delivery_income",
+      status: "completed",
+      paidAt: new Date(),
+    });
   }
 
   // Record Transactions

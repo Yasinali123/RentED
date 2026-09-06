@@ -55,14 +55,15 @@ app.use(
 
       const normalizedOrigin = origin.replace(/\/$/, "");
       const isLocalhost = normalizedOrigin.startsWith("http://localhost:") || normalizedOrigin.startsWith("http://127.0.0.1:");
-      const isVercel = /\.vercel\.app$/.test(normalizedOrigin);
+      const clientDomain = process.env.CLIENT_URL ? process.env.CLIENT_URL.trim().replace(/\/$/, "") : null;
+      const isConfiguredClient = clientDomain && normalizedOrigin === clientDomain;
       const isAllowed = allowedOrigins.includes(normalizedOrigin);
 
-      if (isLocalhost || isVercel || isAllowed) {
+      if (isLocalhost || isConfiguredClient || isAllowed || process.env.NODE_ENV !== "production") {
         callback(null, true);
       } else {
-        console.warn(`[CORS Notice] Allowing request from origin: ${origin}`);
-        callback(null, true);
+        console.error(`[CORS Rejected] Blocked unauthorized origin: ${origin}`);
+        callback(new Error("CORS policy violation: Access from this origin is denied."));
       }
     },
     credentials: true,

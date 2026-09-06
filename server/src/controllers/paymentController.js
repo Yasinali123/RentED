@@ -190,14 +190,15 @@ export const verifyPayment = asyncHandler(async (req, res) => {
       throw new Error("Invalid deposit amount");
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $inc: { balance: depositAmount } },
+      { new: true }
+    );
     if (!user) {
       res.status(404);
       throw new Error("User not found");
     }
-
-    user.balance = roundCurrency((user.balance || 0) + depositAmount);
-    await user.save();
 
     await Transaction.create({
       user: user._id,
@@ -421,9 +422,11 @@ export const requestWithdrawal = asyncHandler(async (req, res) => {
     user.bankDetails = { ...user.bankDetails, ...bankDetails };
   }
 
-  // Debit balance upfront
-  user.balance = roundCurrency(user.balance - withdrawAmount);
-  await user.save();
+  // Debit balance upfront atomically
+  await User.findByIdAndUpdate(user._id, { $inc: { balance: -withdrawAmount } });
+  if (qrCodeUrl || upiId || typeof bankDetails === "object") {
+    await user.save();
+  }
 
   const formattedBankDetails = typeof bankDetails === "object"
     ? `Bank: ${bankDetails.bankName || ""}, A/C: ${bankDetails.accountNumber || ""}, IFSC: ${bankDetails.ifscCode || ""}`
@@ -537,8 +540,7 @@ export const processWithdrawal = asyncHandler(async (req, res) => {
     await request.save();
 
     if (user) {
-      user.balance = roundCurrency((user.balance || 0) + request.amount);
-      await user.save();
+      await User.findByIdAndUpdate(request.user, { $inc: { balance: request.amount } });
     }
 
     if (transaction) {

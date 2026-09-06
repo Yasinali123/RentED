@@ -39,11 +39,12 @@ export const checkAndAutoReleaseEscrow = async () => {
       const sellerEarnings = roundCurrency(request.sellerPayout ?? request.sellerEarnings ?? 0);
       const pocEarnings = roundCurrency(request.pocPayout ?? request.pocEarnings ?? 0);
       const platformCommission = roundCurrency(request.platformFee ?? request.commissionAmount ?? 0);
+      const platformDeliveryShare = roundCurrency(request.platformDeliveryShare ?? 0);
 
       // Release earnings to seller
       const seller = await User.findById(request.owner);
       if (seller) {
-        seller.balance = roundCurrency((seller.balance || 0) + sellerEarnings);
+        await User.findByIdAndUpdate(request.owner, { $inc: { balance: sellerEarnings } });
         seller.pendingBalance = Math.max(0, roundCurrency((seller.pendingBalance || 0) - sellerEarnings));
         await seller.save();
       }
@@ -52,8 +53,7 @@ export const checkAndAutoReleaseEscrow = async () => {
       if (request.poc && pocEarnings > 0) {
         const pocUser = await User.findById(request.poc);
         if (pocUser) {
-          pocUser.balance = roundCurrency((pocUser.balance || 0) + pocEarnings);
-          await pocUser.save();
+          await User.findByIdAndUpdate(request.poc, { $inc: { balance: pocEarnings } });
 
           await Transaction.create({
             user: pocUser._id,

@@ -166,11 +166,10 @@ export const resolveDispute = asyncHandler(async (req, res) => {
           });
         } catch (err) {
           console.error("Dispute Razorpay refund failed, fallback to wallet:", err.message);
-          renter.balance = roundCurrency((renter.balance || 0) + order.totalPrice);
-          await renter.save();
+          await User.findByIdAndUpdate(order.renter, { $inc: { balance: order.totalPrice } });
 
           await Transaction.create({
-            user: renter._id,
+            user: order.renter,
             order: order._id,
             amount: order.totalPrice,
             type: "refund",
@@ -178,10 +177,7 @@ export const resolveDispute = asyncHandler(async (req, res) => {
           });
         }
       } else {
-        if (renter) {
-          renter.balance = roundCurrency((renter.balance || 0) + order.totalPrice);
-          await renter.save();
-        }
+        await User.findByIdAndUpdate(order.renter, { $inc: { balance: order.totalPrice } });
 
         await Transaction.create({
           user: order.renter,
@@ -222,27 +218,23 @@ export const resolveDispute = asyncHandler(async (req, res) => {
 
     // 1. Credit seller balance and decrement pending balance
     if (seller) {
-      seller.balance = roundCurrency((seller.balance || 0) + sellerEarnings);
+      await User.findByIdAndUpdate(order.owner, { $inc: { balance: sellerEarnings } });
       seller.pendingBalance = Math.max(0, roundCurrency((seller.pendingBalance || 0) - sellerEarnings));
       await seller.save();
     }
 
     // 2. Credit POC balance if assigned
     if (order.poc) {
-      const pocUser = await User.findById(order.poc);
-      if (pocUser) {
-        pocUser.balance = roundCurrency((pocUser.balance || 0) + pocEarnings);
-        await pocUser.save();
+      await User.findByIdAndUpdate(order.poc, { $inc: { balance: pocEarnings } });
 
-        await Transaction.create({
-          user: pocUser._id,
-          order: order._id,
-          amount: pocEarnings,
-          type: "delivery_income",
-          status: "completed",
-          paidAt: new Date(),
-        });
-      }
+      await Transaction.create({
+        user: order.poc,
+        order: order._id,
+        amount: pocEarnings,
+        type: "delivery_income",
+        status: "completed",
+        paidAt: new Date(),
+      });
     }
 
     // 3. Update Escrow record

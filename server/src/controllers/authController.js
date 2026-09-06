@@ -896,14 +896,15 @@ export const addBalance = asyncHandler(async (req, res) => {
     throw new Error("Invalid deposit amount. Amount must be greater than zero.");
   }
 
-  const user = await User.findById(req.user._id);
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { $inc: { balance: depositAmount } },
+    { new: true }
+  );
   if (!user) {
     res.status(404);
     throw new Error("User not found");
   }
-
-  user.balance = (user.balance || 0) + depositAmount;
-  await user.save();
 
   await logSecurityEvent({
     userId: user._id,
