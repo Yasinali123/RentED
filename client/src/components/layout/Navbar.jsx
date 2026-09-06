@@ -19,6 +19,7 @@ function Navbar() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showMobileNotifications, setShowMobileNotifications] = useState(false);
   const containerRef = useRef(null);
   const location = useLocation();
 
@@ -183,19 +184,45 @@ function Navbar() {
         </div>
 
 
-        {/* Mobile Hamburger Button */}
-        <button
-          type="button"
-          aria-label="Toggle navigation menu"
-          className="rounded-full border border-accent/25 dark:border-slate-700 bg-gradient-to-br from-[#fff7f2] via-[#ffefe5] to-[#fde9dc] dark:bg-slate-800 shadow-sm p-3 md:hidden h-12 w-12 flex items-center justify-center text-black dark:text-white hover:border-accent/40 active:scale-95 transition"
-          onClick={() => setOpen((current) => !current)}
-        >
-          <Menu className="h-6 w-6 text-black dark:text-white" />
-        </button>
+        {/* Mobile Header Actions (Notifications Bell + Hamburger) */}
+        <div className="flex items-center gap-2 md:hidden">
+          {user && (
+            <div className="relative z-50">
+              <button
+                type="button"
+                onClick={() => setShowNotifications((current) => !current)}
+                className="p-2.5 border border-ink/10 rounded-2xl bg-white dark:bg-slate-800 text-ink/75 dark:text-white transition relative flex items-center justify-center min-h-[44px] min-w-[44px]"
+                title="View Alerts"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-accent text-white flex items-center justify-center text-[9px] font-black border-2 border-white animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 z-[9999] w-[300px] sm:w-[360px] animate-fadeIn">
+                  <NotificationsList
+                    notifications={notifications}
+                    unreadCount={unreadCount}
+                    onRefresh={fetchNotifications}
+                    onClose={() => setShowNotifications(false)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
-
-
-
+          <button
+            type="button"
+            aria-label="Toggle navigation menu"
+            className="rounded-full border border-accent/25 dark:border-slate-700 bg-gradient-to-br from-[#fff7f2] via-[#ffefe5] to-[#fde9dc] dark:bg-slate-800 shadow-sm p-3 h-12 w-12 flex items-center justify-center text-black dark:text-white hover:border-accent/40 active:scale-95 transition"
+            onClick={() => setOpen((current) => !current)}
+          >
+            <Menu className="h-6 w-6 text-black dark:text-white" />
+          </button>
+        </div>
       </div>
 
       {/* Mobile Slide-in Drawer & Overlay via Portal */}
@@ -271,14 +298,12 @@ function Navbar() {
                   </nav>
                 </div>
 
-                {/* Mobile Alerts Link */}
+                {/* Mobile Alerts Link with Inline Expansion */}
                 {user && (
                   <div className="mt-4 pt-4 border-t border-ink/10 dark:border-slate-800 space-y-2">
                     <button
-                      onClick={() => {
-                        setOpen(false);
-                        setShowNotifications(true);
-                      }}
+                      type="button"
+                      onClick={() => setShowMobileNotifications((current) => !current)}
                       className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-canvas dark:bg-slate-800 text-ink/80 dark:text-slate-200 text-sm font-bold hover:bg-ink/5 dark:hover:bg-slate-700"
                     >
                       <span className="flex items-center gap-2">
@@ -290,6 +315,16 @@ function Navbar() {
                         </span>
                       )}
                     </button>
+                    {showMobileNotifications && (
+                      <div className="mt-2 animate-fadeIn">
+                        <NotificationsList
+                          notifications={notifications}
+                          unreadCount={unreadCount}
+                          onRefresh={fetchNotifications}
+                          onClose={() => setShowMobileNotifications(false)}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
