@@ -13,6 +13,9 @@
     "server:start": "npm --prefix server run start",
     "seed": "npm --prefix server run seed"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "devDependencies": {
     "concurrently": "^9.1.2"
   }
