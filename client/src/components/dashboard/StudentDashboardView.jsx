@@ -283,12 +283,12 @@ function StudentDashboardView({ dashboard, onRefresh, initialTab }) {
     <div className="space-y-8">
       {/* Metrics Row */}
       <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="panel p-4 sm:p-5 bg-gradient-to-br from-indigo-50 to-white border-indigo-100 flex items-center justify-between gap-3">
+        <div className="panel p-4 sm:p-5 bg-gradient-to-br from-amber-50 to-white border-amber-100 flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-ink/40 truncate">Escrow Wallet</p>
-            <p className="text-xl sm:text-2xl font-black text-indigo-700 mt-1 truncate">Rs. {stats.balance}</p>
+            <p className="text-xl sm:text-2xl font-black text-accent mt-1 truncate">Rs. {stats.balance}</p>
           </div>
-          <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
+          <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-2xl bg-amber-100 flex items-center justify-center text-accent shrink-0">
             <Wallet className="h-5 w-5" />
           </div>
         </div>

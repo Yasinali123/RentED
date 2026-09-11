@@ -245,17 +245,17 @@ function SellRentPage() {
             </div>
 
             {/* Commission Policy Section */}
-            <div className="mt-6 rounded-3xl border border-pine/20 bg-pine/5 p-6 space-y-4">
+            <div className="mt-6 rounded-3xl border border-accent/25 bg-gradient-to-br from-accent/10 via-amber-500/5 to-orange-500/10 p-6 space-y-4 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-pine/10 text-pine">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent/15 text-accent shadow-xs">
                   <CircleDollarSign className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-display text-lg font-bold text-pine">Commission Policy</h3>
-                  <p className="text-xs text-pine/70 font-medium">Fair, simple, and transparent</p>
+                  <h3 className="font-display text-lg font-bold text-accent">Commission Policy</h3>
+                  <p className="text-xs text-accent/80 font-medium">Fair, simple, and transparent</p>
                 </div>
               </div>
-              <hr className="border-pine/10" />
+              <hr className="border-accent/15" />
               <ul className="space-y-3">
                 <li className="flex items-start gap-2.5">
                   <span className="text-lg shrink-0 select-none" role="img" aria-label="check">✅</span>

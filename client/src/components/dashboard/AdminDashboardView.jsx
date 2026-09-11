@@ -652,49 +652,49 @@ function AdminDashboardView({ dashboard, onRefresh, initialTab }) {
             </div>
 
             {/* Revenue & Escrow Financial Health Board */}
-            <div className="panel p-5 bg-gradient-to-r from-indigo-950 to-slate-950 text-white border-none shadow-xl space-y-4">
+            <div className="panel p-5 bg-gradient-to-r from-accent via-orange-600 to-amber-600 text-white border-none shadow-xl shadow-accent/20 space-y-4">
               <div>
-                <h3 className="text-sm font-black uppercase tracking-wider text-accent flex items-center gap-2">
+                <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
                   💳 Platform Financial Ledger & Escrow Health
                 </h3>
-                <p className="text-[11px] text-white/60">Real-time statistics of payments, escrows, and platform commissions.</p>
+                <p className="text-[11px] text-white/85">Real-time statistics of payments, escrows, and platform commissions.</p>
               </div>
 
               <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-                  <span className="text-[9px] font-black uppercase text-white/50 tracking-wider">Today's Sales</span>
+                <div className="bg-white/15 border border-white/20 backdrop-blur-xs rounded-2xl p-4 text-center">
+                  <span className="text-[9px] font-black uppercase text-white/80 tracking-wider">Today's Sales</span>
                   <p className="text-lg font-black text-white mt-1">Rs. {stats.todaySales || 0}</p>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-                  <span className="text-[9px] font-black uppercase text-white/50 tracking-wider">Monthly Sales</span>
+                <div className="bg-white/15 border border-white/20 backdrop-blur-xs rounded-2xl p-4 text-center">
+                  <span className="text-[9px] font-black uppercase text-white/80 tracking-wider">Monthly Sales</span>
                   <p className="text-lg font-black text-white mt-1">Rs. {stats.monthlySales || 0}</p>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-                  <span className="text-[9px] font-black uppercase text-amber-500 tracking-wider">Escrow Held</span>
-                  <p className="text-lg font-black text-amber-400 mt-1">Rs. {stats.pendingEscrow || 0}</p>
+                <div className="bg-white/15 border border-white/20 backdrop-blur-xs rounded-2xl p-4 text-center">
+                  <span className="text-[9px] font-black uppercase text-yellow-200 tracking-wider">Escrow Held</span>
+                  <p className="text-lg font-black text-yellow-100 mt-1">Rs. {stats.pendingEscrow || 0}</p>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-                  <span className="text-[9px] font-black uppercase text-emerald-500 tracking-wider">Released Escrow</span>
-                  <p className="text-lg font-black text-emerald-400 mt-1">Rs. {stats.releasedEscrow || 0}</p>
+                <div className="bg-white/15 border border-white/20 backdrop-blur-xs rounded-2xl p-4 text-center">
+                  <span className="text-[9px] font-black uppercase text-emerald-200 tracking-wider">Released Escrow</span>
+                  <p className="text-lg font-black text-emerald-100 mt-1">Rs. {stats.releasedEscrow || 0}</p>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-                  <span className="text-[9px] font-black uppercase text-red-400 tracking-wider">Total Refunds</span>
-                  <p className="text-lg font-black text-red-300 mt-1">Rs. {stats.totalRefunds || 0}</p>
+                <div className="bg-white/15 border border-white/20 backdrop-blur-xs rounded-2xl p-4 text-center">
+                  <span className="text-[9px] font-black uppercase text-red-200 tracking-wider">Total Refunds</span>
+                  <p className="text-lg font-black text-red-100 mt-1">Rs. {stats.totalRefunds || 0}</p>
                 </div>
               </div>
 
               <div className="grid gap-4 grid-cols-2 md:grid-cols-3 pt-2">
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex justify-between items-center px-4">
-                  <span className="text-[10px] font-bold text-white/70">Commission Earned</span>
-                  <span className="text-sm font-black text-purple-300">Rs. {stats.commissionEarned || 0}</span>
+                <div className="bg-white/15 border border-white/20 backdrop-blur-xs rounded-2xl p-3 flex justify-between items-center px-4">
+                  <span className="text-[10px] font-bold text-white/90">Commission Earned</span>
+                  <span className="text-sm font-black text-white">Rs. {stats.commissionEarned || 0}</span>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex justify-between items-center px-4">
-                  <span className="text-[10px] font-bold text-white/70">Total Withdrawals (Paid)</span>
-                  <span className="text-sm font-black text-blue-300">Rs. {stats.totalWithdrawals || 0}</span>
+                <div className="bg-white/15 border border-white/20 backdrop-blur-xs rounded-2xl p-3 flex justify-between items-center px-4">
+                  <span className="text-[10px] font-bold text-white/90">Total Withdrawals (Paid)</span>
+                  <span className="text-sm font-black text-white">Rs. {stats.totalWithdrawals || 0}</span>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex justify-between items-center px-4 border-red-500/20 bg-red-950/20">
-                  <span className="text-[10px] font-bold text-red-400">Failed Payments</span>
-                  <span className="text-sm font-black text-red-400">Rs. {stats.failedPayments || 0} ({stats.failedPaymentsCount || 0} txs)</span>
+                <div className="bg-white/15 border border-white/20 backdrop-blur-xs rounded-2xl p-3 flex justify-between items-center px-4 border-red-300/40 bg-red-900/30">
+                  <span className="text-[10px] font-bold text-red-100">Failed Payments</span>
+                  <span className="text-sm font-black text-red-100">Rs. {stats.failedPayments || 0} ({stats.failedPaymentsCount || 0} txs)</span>
                 </div>
               </div>
             </div>
@@ -2232,7 +2232,7 @@ function AdminDashboardView({ dashboard, onRefresh, initialTab }) {
                     const sPay = sampleAmount - pFee - pocPay;
 
                     return (
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white space-y-3 shadow-lg">
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-accent via-orange-600 to-amber-600 text-white space-y-3 shadow-lg shadow-accent/10">
                         <div className="flex justify-between items-center border-b border-white/10 pb-2">
                           <span className="text-xs font-black uppercase tracking-wider text-amber-400">📊 Admin Financial Live Preview</span>
                           <span className="text-[10px] text-slate-300 font-mono">For ₹1,000 Transaction</span>
