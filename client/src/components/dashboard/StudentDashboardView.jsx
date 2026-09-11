@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Wallet, Heart, ShoppingBag, MapPin, School, Plus, Bookmark, List, RefreshCw, FileText, Tag, Edit3, Trash2, QrCode, DollarSign, PackagePlus } from "lucide-react";
 
