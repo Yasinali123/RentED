@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import DemandAssistantChat from "../chat/DemandAssistantChat";
 
 function AppShell() {
   return (
@@ -12,6 +13,7 @@ function AppShell() {
           <Outlet />
         </main>
       </div>
+      <DemandAssistantChat />
       <Footer />
     </div>
   );

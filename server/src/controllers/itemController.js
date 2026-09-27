@@ -1,5 +1,7 @@
 import Item from "../models/Item.js";
 import RentalRequest from "../models/RentalRequest.js";
+import WantedItem from "../models/WantedItem.js";
+import Notification from "../models/Notification.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import cloudinary from "../config/cloudinary.js";
 
@@ -38,7 +40,9 @@ export const createItem = asyncHandler(async (req, res) => {
     district,
     city: pickupCity,
     state: pickupState,
-    country: pickupCountry
+    country: pickupCountry,
+    wantedRequestId,
+    wantedRequest,
   } = req.body;
 
   if (!title || !description || !category) {
@@ -160,6 +164,31 @@ export const createItem = asyncHandler(async (req, res) => {
     details: normalizedDetails,
     tags: normalizedTags,
   });
+
+  // Link newly created item to Demand Request if wantedRequestId is present
+  const targetDemandId = wantedRequestId || wantedRequest;
+  if (targetDemandId) {
+    try {
+      const demandReq = await WantedItem.findById(targetDemandId);
+      if (demandReq) {
+        demandReq.status = "MATCHED";
+        demandReq.fulfilledBy = req.user._id;
+        demandReq.fulfilledItem = item._id;
+        demandReq.responseCount += 1;
+        await demandReq.save();
+
+        // Notify the requester
+        await Notification.create({
+          user: demandReq.requestedBy,
+          title: `Listing Found for ${demandReq.itemName}!`,
+          message: `${req.user.name} created a listing "${item.title}" for your demand request! Tap to view details.`,
+          type: "info",
+        });
+      }
+    } catch (demandErr) {
+      console.error("Failed to associate item with demand request:", demandErr.message);
+    }
+  }
 
   const populatedItem = await item.populate("owner", itemOwnerProjection);
   res.status(201).json(populatedItem);

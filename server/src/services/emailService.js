@@ -185,6 +185,43 @@ export const sendAdminAlert = async (subject, message) => {
   }
 };
 
+/**
+ * Send Student Demand Notification email to potential seller/provider.
+ */
+export const sendDemandNotificationEmail = async (email, recipientName, wantedItem) => {
+  const frontendUrl = process.env.CLIENT_URL ? process.env.CLIENT_URL.trim().replace(/\/$/, "") : "http://localhost:5173";
+  const listUrl = `${frontendUrl}/sell-rent?wantedRequest=${wantedItem._id}`;
+  
+  const subject = `Someone is looking for ${wantedItem.itemName} on RentED`;
+  const content = `
+    <h2>Student Demand Alert 🎓</h2>
+    <p>Hello ${recipientName || "RentED Member"},</p>
+    <p>A RentED student is currently looking for an item that is not yet listed on the campus marketplace:</p>
+    
+    <div class="card">
+      <div class="card-title">Requested Item Details</div>
+      <p><b>Item:</b> ${wantedItem.itemName}</p>
+      <p><b>Requirement:</b> <span style="color: #6366f1; font-weight: 800;">${wantedItem.requestType}</span></p>
+      <p><b>College/Campus:</b> ${wantedItem.collegeName || wantedItem.college || "Campus"}</p>
+      <p><b>Location:</b> ${wantedItem.location || wantedItem.city || "Nearby"}</p>
+      ${wantedItem.description ? `<p><b>Note:</b> ${wantedItem.description}</p>` : ""}
+    </div>
+
+    <p>If you have this item available, you can list it on RentED in just a few clicks to connect with the requester!</p>
+
+    <div style="text-align: center;">
+      <a href="${listUrl}" class="btn">LIST THIS ITEM</a>
+    </div>
+
+    <p style="font-size: 11px; color: #64748b; margin-top: 16px;">
+      Privacy note: Private contact details are never exposed directly. All communications take place safely inside the RentED campus workflow.
+    </p>
+  `;
+
+  const html = baseLayout("Student Demand Alert - RentED", content);
+  return sendEmail({ to: email, subject, html });
+};
+
 export default {
   sendEmail,
   sendOTPEmail,
@@ -199,4 +236,6 @@ export default {
   sendWithdrawalEmail,
   sendDisputeEmail,
   sendAdminAlert,
+  sendDemandNotificationEmail,
 };
+

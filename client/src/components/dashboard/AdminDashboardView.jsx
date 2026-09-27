@@ -45,11 +45,13 @@ import {
   couponApi,
   paymentApi,
   invoiceApi,
+  wantedItemApi,
   getErrorMessage
 } from "../../api/client";
 import UserSettingsView from "./UserSettingsView";
 import LocationPicker from "../maps/LocationPicker";
 import NearbyMap from "../maps/NearbyMap";
+import { Sparkles } from "lucide-react";
 
 function AdminDashboardView({ dashboard, onRefresh, initialTab }) {
   const { stats = {}, disputes = [], users: initialUsers = [], transactions: initialTx = [], listedItems: initialListings = [], incomingRequests: initialOrders = [], withdrawals: initialWithdrawals = [] } = dashboard;
@@ -94,6 +96,46 @@ function AdminDashboardView({ dashboard, onRefresh, initialTab }) {
   const [invoices, setInvoices] = useState([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [invoiceSearch, setInvoiceSearch] = useState("");
+
+  // Demands state
+  const [allDemands, setAllDemands] = useState([]);
+  const [loadingDemands, setLoadingDemands] = useState(false);
+  const [demandSearch, setDemandSearch] = useState("");
+  const [demandStatusFilter, setDemandStatusFilter] = useState("all");
+
+  const fetchDemands = async () => {
+    setLoadingDemands(true);
+    try {
+      const data = await wantedItemApi.getAll();
+      setAllDemands(data);
+    } catch (err) {
+      console.error("Failed to load demand requests:", err);
+    } finally {
+      setLoadingDemands(false);
+    }
+  };
+
+  const handleCancelDemand = async (id) => {
+    if (!window.confirm("Cancel this demand request?")) return;
+    try {
+      await wantedItemApi.cancel(id);
+      alert("Demand request cancelled.");
+      fetchDemands();
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  const handleDeleteDemand = async (id) => {
+    if (!window.confirm("Delete this demand request permanently?")) return;
+    try {
+      await wantedItemApi.delete(id);
+      alert("Demand request deleted.");
+      fetchDemands();
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
 
   // Sync state with props
   useEffect(() => {
@@ -144,6 +186,8 @@ function AdminDashboardView({ dashboard, onRefresh, initialTab }) {
       fetchWithdrawals();
     } else if (activeTab === "invoices") {
       fetchInvoices();
+    } else if (activeTab === "demands") {
+      fetchDemands();
     }
   }, [activeTab]);
 
@@ -569,6 +613,7 @@ function AdminDashboardView({ dashboard, onRefresh, initialTab }) {
     { id: "colleges", label: "College Network", icon: School },
     { id: "coupons", label: "Coupon Codes", icon: Tag },
     { id: "invoices", label: "Invoice History", icon: FileText },
+    { id: "demands", label: "Demand Requests", icon: Sparkles },
     { id: "settings", label: "System Settings", icon: Settings },
     { id: "user-settings", label: "⚙️ User Settings", icon: Settings }
   ];
@@ -2427,6 +2472,141 @@ function AdminDashboardView({ dashboard, onRefresh, initialTab }) {
             </div>
           </div>
         )}
+
+      {/* TAB: DEMAND REQUESTS MANAGEMENT */}
+      {activeTab === "demands" && (
+        <div className="panel p-6 bg-white space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-ink/5 pb-4">
+            <div>
+              <h2 className="text-lg font-black text-ink flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-accent" /> Student Demand Requests ({allDemands.length})
+              </h2>
+              <p className="text-xs text-ink/40">Monitor, filter, cancel, or remove student demand requests across all campuses.</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <div className="flex items-center bg-canvas rounded-full px-3 py-1.5 border border-ink/10 w-full sm:w-auto">
+                <Search className="h-3.5 w-3.5 text-ink/45 mr-2" />
+                <input
+                  placeholder="Search item, requester, college..."
+                  className="bg-transparent outline-none text-xs w-full sm:w-48 text-ink"
+                  value={demandSearch}
+                  onChange={(e) => setDemandSearch(e.target.value)}
+                />
+              </div>
+
+              <select
+                className="bg-canvas border border-ink/10 rounded-full px-3 py-1.5 text-xs text-ink/75 outline-none font-bold"
+                value={demandStatusFilter}
+                onChange={(e) => setDemandStatusFilter(e.target.value)}
+              >
+                <option value="all">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="MATCHED">Matched</option>
+                <option value="FULFILLED">Fulfilled</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+
+              <button
+                onClick={fetchDemands}
+                className="p-2 border border-ink/10 rounded-full hover:bg-canvas text-ink/65"
+                title="Refresh Demands"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {loadingDemands ? (
+            <div className="p-10 text-center text-ink/50 font-bold text-xs">
+              <div className="h-8 w-8 rounded-full border-4 border-accent border-t-transparent animate-spin mx-auto mb-2" />
+              Syncing demand requests...
+            </div>
+          ) : allDemands.length === 0 ? (
+            <p className="text-xs text-ink/40 py-8 text-center">No demand requests found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-ink/5 text-ink/40 uppercase font-black text-[9px] tracking-wider">
+                    <th className="py-2.5">Item Requested</th>
+                    <th className="py-2.5">Category</th>
+                    <th className="py-2.5">Type</th>
+                    <th className="py-2.5">College / Campus</th>
+                    <th className="py-2.5">Requester</th>
+                    <th className="py-2.5">Notified</th>
+                    <th className="py-2.5">Date</th>
+                    <th className="py-2.5">Status</th>
+                    <th className="py-2.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ink/5">
+                  {allDemands
+                    .filter((d) => {
+                      const matchesSearch =
+                        d.itemName.toLowerCase().includes(demandSearch.toLowerCase()) ||
+                        (d.requestedBy?.name || "").toLowerCase().includes(demandSearch.toLowerCase()) ||
+                        (d.collegeName || "").toLowerCase().includes(demandSearch.toLowerCase());
+                      const matchesStatus = demandStatusFilter === "all" || d.status === demandStatusFilter;
+                      return matchesSearch && matchesStatus;
+                    })
+                    .map((d) => (
+                      <tr key={d._id} className="hover:bg-canvas/30 transition-colors">
+                        <td className="py-3 font-bold text-ink">{d.itemName}</td>
+                        <td className="py-3">
+                          <span className="chip text-[9px] py-0.5 px-2 bg-mist text-ink/75 font-bold uppercase">{d.category}</span>
+                        </td>
+                        <td className="py-3">
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            d.requestType === "RENT" ? "bg-indigo-50 text-indigo-700" : "bg-emerald-50 text-emerald-700"
+                          }`}>
+                            {d.requestType}
+                          </span>
+                        </td>
+                        <td className="py-3 text-ink/80">{d.collegeName || d.city || "General"}</td>
+                        <td className="py-3 font-medium text-ink">
+                          {d.requestedBy?.name || "Member"}
+                          <span className="text-[9px] text-ink/40 block">{d.requestedBy?.email}</span>
+                        </td>
+                        <td className="py-3 font-bold text-indigo-600">{d.notifiedUsers ? d.notifiedUsers.length : 0} sellers</td>
+                        <td className="py-3 text-ink/60">{new Date(d.createdAt).toLocaleDateString("en-IN")}</td>
+                        <td className="py-3">
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            d.status === "MATCHED" || d.status === "FULFILLED"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : d.status === "CANCELLED"
+                              ? "bg-gray-100 text-gray-600"
+                              : "bg-amber-50 text-amber-700"
+                          }`}>
+                            {d.status}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right">
+                          <div className="flex justify-end gap-1.5">
+                            {d.status === "ACTIVE" && (
+                              <button
+                                onClick={() => handleCancelDemand(d._id)}
+                                className="text-[10px] font-bold text-amber-700 hover:bg-amber-50 border border-amber-200 px-2 py-1 rounded-full"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteDemand(d._id)}
+                              className="text-[10px] font-bold text-red-600 hover:bg-red-50 border border-red-200 px-2 py-1 rounded-full"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       </div>
 

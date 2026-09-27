@@ -1,20 +1,25 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Wallet, Heart, ShoppingBag, MapPin, School, Plus, Bookmark, List, RefreshCw, FileText, Tag, Edit3, Trash2, QrCode, DollarSign, PackagePlus } from "lucide-react";
+import { Wallet, Heart, ShoppingBag, MapPin, School, Plus, Bookmark, List, RefreshCw, FileText, Tag, Edit3, Trash2, QrCode, DollarSign, PackagePlus, Sparkles, AlertCircle } from "lucide-react";
 
 import OrderTimeline from "./OrderTimeline";
 import ItemCard from "../items/ItemCard";
 import Button from "../ui/Button";
-import { rentalApi, authApi, disputeApi, reviewApi, paymentApi, invoiceApi, itemApi, getErrorMessage } from "../../api/client";
+import { rentalApi, authApi, disputeApi, reviewApi, paymentApi, invoiceApi, itemApi, wantedItemApi, getErrorMessage } from "../../api/client";
 import UserSettingsView from "./UserSettingsView";
 
 function StudentDashboardView({ dashboard, onRefresh, initialTab }) {
   const { stats, rentedItems = [], wishlistItems = [], nearbyItems = [], listedItems = [], incomingRequests = [] } = dashboard;
-  const [activeTab, setActiveTab] = useState(initialTab || "orders"); // "orders", "wishlist", "wallet", "sell-rent"
+  const [activeTab, setActiveTab] = useState(initialTab || "orders"); // "orders", "wishlist", "wallet", "sell-rent", "my-requests"
 
   useEffect(() => {
     if (initialTab) {
-      setActiveTab(initialTab);
+      if (initialTab === "my-requests" || initialTab === "demands") {
+        setActiveTab("my-requests");
+        fetchMyDemands();
+      } else {
+        setActiveTab(initialTab);
+      }
     }
   }, [initialTab]);
 
@@ -22,6 +27,39 @@ function StudentDashboardView({ dashboard, onRefresh, initialTab }) {
   const [addAmount, setAddAmount] = useState("");
   const [walletFeedback, setWalletFeedback] = useState("");
   const [cancellingId, setCancellingId] = useState("");
+
+  // Demand Requests state
+  const [myDemands, setMyDemands] = useState([]);
+  const [demandsLoading, setDemandsLoading] = useState(false);
+
+  const fetchMyDemands = async () => {
+    setDemandsLoading(true);
+    try {
+      const data = await wantedItemApi.getMine();
+      setMyDemands(data);
+    } catch (err) {
+      console.error("Failed to fetch demand requests:", err);
+    } finally {
+      setDemandsLoading(false);
+    }
+  };
+
+  const handleCancelDemand = async (id) => {
+    if (!window.confirm("Are you sure you want to cancel this demand request?")) return;
+    try {
+      await wantedItemApi.cancel(id);
+      fetchMyDemands();
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  // Fetch demands if tab is opened
+  useEffect(() => {
+    if (activeTab === "my-requests") {
+      fetchMyDemands();
+    }
+  }, [activeTab]);
 
   // Disputes & Reviews modal state
   const [disputeOrderId, setDisputeOrderId] = useState("");
@@ -349,6 +387,14 @@ function StudentDashboardView({ dashboard, onRefresh, initialTab }) {
           }`}
         >
           Wishlist ({wishlistItems.length})
+        </button>
+        <button
+          onClick={() => { setActiveTab("my-requests"); fetchMyDemands(); }}
+          className={`pb-2.5 sm:pb-3 px-2.5 sm:px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "my-requests" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
+          }`}
+        >
+          📦 My Demand Requests ({myDemands.length})
         </button>
         <button
           onClick={() => setActiveTab("wallet")}
@@ -838,6 +884,111 @@ function StudentDashboardView({ dashboard, onRefresh, initialTab }) {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "my-requests" && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-accent" />
+                My Student Demand Requests ({myDemands.length})
+              </h2>
+              <p className="text-xs text-ink/50 mt-1">
+                Items you requested through RentED Demand Assistant when unavailable in inventory.
+              </p>
+            </div>
+            <button
+              onClick={fetchMyDemands}
+              className="text-xs font-bold text-accent hover:underline flex items-center gap-1"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </button>
+          </div>
+
+          {demandsLoading ? (
+            <div className="panel p-10 text-center text-ink/50">
+              <div className="h-8 w-8 rounded-full border-4 border-accent border-t-transparent animate-spin mx-auto mb-2" />
+              <p className="font-bold text-xs">Syncing your demand requests...</p>
+            </div>
+          ) : myDemands.length === 0 ? (
+            <div className="panel p-10 text-center text-ink/50 space-y-3">
+              <Sparkles className="h-12 w-12 mx-auto text-ink/20" />
+              <p className="font-bold text-base text-ink">You don't have any active demand requests</p>
+              <p className="text-xs text-ink/50 max-w-md mx-auto">
+                Need a textbook, lab component, calculator, or PG room not listed on RentED? Use the floating "Ask RentED" button in the bottom right!
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {myDemands.map((demand) => (
+                <div key={demand._id} className="panel p-5 space-y-4 bg-white border border-ink/5 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="chip text-[10px] py-0.5 px-2 bg-mist text-ink/75 font-bold uppercase">{demand.category}</span>
+                      <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                        demand.status === "MATCHED" || demand.status === "FULFILLED"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : demand.status === "CANCELLED"
+                          ? "bg-gray-100 text-gray-600 border-gray-200"
+                          : "bg-indigo-50 text-indigo-700 border-indigo-200 animate-pulse"
+                      }`}>
+                        {demand.status === "MATCHED" ? "Listing Found" : demand.status}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-bold text-base text-ink">{demand.itemName}</h4>
+                      <p className="text-xs text-ink/65 mt-0.5">
+                        Requirement: <span className="font-extrabold text-accent">{demand.requestType}</span> • Campus: {demand.collegeName || demand.city || "General"}
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-canvas text-xs space-y-1">
+                      <div className="flex justify-between text-[11px] text-ink/65">
+                        <span>Created:</span>
+                        <span className="font-semibold">{new Date(demand.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-ink/65">
+                        <span>RentED Users Notified:</span>
+                        <span className="font-bold text-indigo-700">{demand.notifiedUsers ? demand.notifiedUsers.length : 0} sellers</span>
+                      </div>
+                    </div>
+
+                    {demand.fulfilledItem && (
+                      <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
+                        <p className="text-xs font-bold text-emerald-900 flex items-center gap-1">
+                          🎉 Seller Created Listing!
+                        </p>
+                        <p className="text-[11px] text-emerald-800 truncate">
+                          {demand.fulfilledItem.title}
+                        </p>
+                        <Link
+                          to={`/items/${demand.fulfilledItem._id || demand.fulfilledItem}`}
+                          className="inline-flex items-center gap-1 text-xs font-black text-white bg-emerald-600 px-3 py-1.5 rounded-full shadow-xs hover:bg-emerald-700 transition"
+                        >
+                          VIEW MATCHED ITEM →
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-ink/5 pt-3 flex justify-between items-center">
+                    <span className="text-[10px] text-ink/40">ID: {demand._id.slice(-6)}</span>
+                    {demand.status === "ACTIVE" && (
+                      <button
+                        onClick={() => handleCancelDemand(demand._id)}
+                        className="text-[11px] font-bold text-red-600 hover:underline"
+                      >
+                        Cancel Request
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

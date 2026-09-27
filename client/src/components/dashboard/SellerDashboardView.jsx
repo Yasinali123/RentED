@@ -1,25 +1,52 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { DollarSign, Tag, ShoppingCart, Activity, Plus, Edit3, Trash2, CheckCircle2, XCircle, QrCode, FileText, RefreshCw } from "lucide-react";
+import { DollarSign, Tag, ShoppingCart, Activity, Plus, Edit3, Trash2, CheckCircle2, XCircle, QrCode, FileText, RefreshCw, Sparkles } from "lucide-react";
 
 import ItemForm from "../items/ItemForm";
 import Button from "../ui/Button";
-import { itemApi, rentalApi, disputeApi, paymentApi, invoiceApi, getErrorMessage } from "../../api/client";
+import { itemApi, rentalApi, disputeApi, paymentApi, invoiceApi, wantedItemApi, getErrorMessage } from "../../api/client";
 import UserSettingsView from "./UserSettingsView";
 import { useAuth } from "../../context/AuthContext";
 
 function SellerDashboardView({ dashboard, onRefresh, initialTab }) {
   const { user } = useAuth();
   const { stats, listedItems, incomingRequests } = dashboard;
-  const [activeTab, setActiveTab] = useState(initialTab || "orders"); // "orders", "inventory", "new-listing"
+  const [activeTab, setActiveTab] = useState(initialTab || "orders"); // "orders", "inventory", "new-listing", "student-demand"
 
   useEffect(() => {
     if (initialTab) {
-      setActiveTab(initialTab);
+      if (initialTab === "student-demand" || initialTab === "demands") {
+        setActiveTab("student-demand");
+        fetchRelevantDemands();
+      } else {
+        setActiveTab(initialTab);
+      }
     }
   }, [initialTab]);
   const [editingItem, setEditingItem] = useState(null);
   const [showQrCodeForOrder, setShowQrCodeForOrder] = useState(null);
+
+  // Student Demand Requests state
+  const [relevantDemands, setRelevantDemands] = useState([]);
+  const [demandsLoading, setDemandsLoading] = useState(false);
+
+  const fetchRelevantDemands = async () => {
+    setDemandsLoading(true);
+    try {
+      const res = await wantedItemApi.getRelevant();
+      setRelevantDemands(res.aggregated || []);
+    } catch (err) {
+      console.error("Failed to fetch relevant demands:", err);
+    } finally {
+      setDemandsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "student-demand") {
+      fetchRelevantDemands();
+    }
+  }, [activeTab]);
 
   // Invoice state
   const [salesInvoices, setSalesInvoices] = useState([]);
@@ -294,6 +321,18 @@ function SellerDashboardView({ dashboard, onRefresh, initialTab }) {
         </button>
         <button
           onClick={() => {
+            setActiveTab("student-demand");
+            setEditingItem(null);
+            fetchRelevantDemands();
+          }}
+          className={`pb-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 transition-colors shrink-0 min-h-[44px] flex items-center ${
+            activeTab === "student-demand" ? "border-accent text-accent" : "border-transparent text-ink/60 hover:text-ink"
+          }`}
+        >
+          🔥 Student Demand ({relevantDemands.length})
+        </button>
+        <button
+          onClick={() => {
             setActiveTab("new-listing");
             setEditingItem(null);
           }}
@@ -531,6 +570,80 @@ function SellerDashboardView({ dashboard, onRefresh, initialTab }) {
                       </button>
                     </div>
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "student-demand" && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold flex items-center gap-2 text-ink">
+                <Sparkles className="h-5 w-5 text-accent" />
+                🔥 Student Demand Requests ({relevantDemands.length})
+              </h2>
+              <p className="text-xs text-ink/50 mt-1">
+                Textbooks, lab gear, calculators, and PG rooms requested by students on campus. Click "I Have This" to pre-fill a listing!
+              </p>
+            </div>
+            <button
+              onClick={fetchRelevantDemands}
+              className="text-xs font-bold text-accent hover:underline flex items-center gap-1"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </button>
+          </div>
+
+          {demandsLoading ? (
+            <div className="panel p-10 text-center text-ink/50">
+              <div className="h-8 w-8 rounded-full border-4 border-accent border-t-transparent animate-spin mx-auto mb-2" />
+              <p className="font-bold text-xs">Loading active student demands...</p>
+            </div>
+          ) : relevantDemands.length === 0 ? (
+            <div className="panel p-10 text-center text-ink/50 space-y-3">
+              <Sparkles className="h-12 w-12 mx-auto text-ink/20" />
+              <p className="font-bold text-base text-ink">No active student demands found right now</p>
+              <p className="text-xs text-ink/50 max-w-md mx-auto">
+                When students search for unlisted items, their demand requests will appear here so you can fulfill them.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {relevantDemands.map((agg, idx) => (
+                <div key={idx} className="panel p-5 space-y-4 bg-white border border-ink/5 flex flex-col justify-between hover:border-accent/30 transition shadow-xs">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="chip text-[10px] py-0.5 px-2 bg-mist font-bold uppercase">{agg.category}</span>
+                      <span className="text-[11px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+                        🔥 {agg.totalRequests} student{agg.totalRequests > 1 ? "s" : ""} looking
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-bold text-base text-ink capitalize">{agg.displayTitle}</h4>
+                      <p className="text-xs text-ink/60 mt-1 flex flex-wrap gap-2 font-semibold">
+                        <span>BUY: <b className="text-emerald-700">{agg.buyCount}</b></span> • 
+                        <span>RENT: <b className="text-indigo-700">{agg.rentCount}</b></span>
+                      </p>
+                    </div>
+
+                    {agg.colleges && agg.colleges.length > 0 && (
+                      <div className="p-2.5 rounded-xl bg-canvas text-[11px] text-ink/60">
+                        <span className="font-bold text-ink/80 block mb-0.5">Requested at:</span>
+                        <span className="truncate block">{agg.colleges.join(", ")}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <Link
+                    to={`/sell-rent?wantedRequest=${agg.sampleRequest?._id || ""}`}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-accent to-indigo-600 text-white font-extrabold text-xs rounded-2xl flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-95 transition"
+                  >
+                    I HAVE THIS →
+                  </Link>
                 </div>
               ))}
             </div>

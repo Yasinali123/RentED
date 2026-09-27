@@ -41,6 +41,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/create-listing"
+            element={
+              <ProtectedRoute allowedRoles={["seller", "student", "admin"]}>
+                <SellRentPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/items/:itemId" element={<ItemDetailsPage />} />
           <Route
             path="/checkout/:itemId"

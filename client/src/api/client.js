@@ -224,4 +224,16 @@ export const invoiceApi = {
   resend: async (id) => (await api.post(`/invoices/${id}/resend`)).data,
 };
 
+export const wantedItemApi = {
+  search: async (payload) => (await api.post("/wanted-items/search", payload)).data,
+  create: async (payload) => (await api.post("/wanted-items", payload)).data,
+  getMine: async () => (await api.get("/wanted-items/my")).data,
+  getRelevant: async (params) => (await api.get("/wanted-items/relevant", { params })).data,
+  getAll: async (params) => (await api.get("/wanted-items/all", { params })).data,
+  getById: async (id) => (await api.get(`/wanted-items/${id}`)).data,
+  cancel: async (id) => (await api.post(`/wanted-items/${id}/cancel`)).data,
+  fulfill: async (id, payload) => (await api.post(`/wanted-items/${id}/fulfill`, payload)).data,
+  delete: async (id) => (await api.delete(`/wanted-items/${id}`)).data,
+};
+
 export default api;

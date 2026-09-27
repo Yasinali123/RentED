@@ -25,6 +25,7 @@ import emailRoutes from "./routes/emailRoutes.js";
 import locationRoutes from "./routes/locationRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
 import invoiceRoutes from "./routes/invoiceRoutes.js";
+import wantedItemRoutes from "./routes/wantedItemRoutes.js";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
 const app = express();
@@ -111,6 +112,7 @@ app.use("/api/email", emailRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/invoices", invoiceRoutes);
+app.use("/api/wanted-items", wantedItemRoutes);
 
 if (hasBuiltClient) {
   app.use(express.static(clientDistPath));

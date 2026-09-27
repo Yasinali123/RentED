@@ -1,8 +1,8 @@
-import { Camera, CircleDollarSign, ClipboardList, PackagePlus } from "lucide-react";
+import { Camera, CircleDollarSign, ClipboardList, PackagePlus, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { getErrorMessage, itemApi, settingsApi } from "../api/client";
+import { getErrorMessage, itemApi, settingsApi, wantedItemApi } from "../api/client";
 import Button from "../components/ui/Button";
 import LocationPicker from "../components/maps/LocationPicker";
 import { useAuth } from "../context/AuthContext";
@@ -26,11 +26,14 @@ const initialState = {
 
 function SellRentPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const wantedRequestId = searchParams.get("wantedRequest");
   const { user } = useAuth();
   const [form, setForm] = useState({
     ...initialState,
     location: user?.location || "",
   });
+  const [wantedItemData, setWantedItemData] = useState(null);
   const [pickedLocation, setPickedLocation] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -40,6 +43,30 @@ function SellRentPage() {
   const [platformRate, setPlatformRate] = useState(10);
   const [pocRate, setPocRate] = useState(5);
   const isRoomCategory = form.category === "Rooms" || form.category === "Room / PG Listings";
+
+  // Fetch WantedItem demand request details if query param exists
+  useEffect(() => {
+    if (wantedRequestId) {
+      wantedItemApi
+        .getById(wantedRequestId)
+        .then((data) => {
+          if (data) {
+            setWantedItemData(data);
+            setForm((prev) => ({
+              ...prev,
+              title: data.itemName || prev.title,
+              category: data.category && data.category !== "Other" ? data.category : prev.category,
+              listingType: data.requestType === "BUY" ? "sale" : data.requestType === "RENT" ? "rent" : "both",
+              description: data.description ? `Fulfilling demand request for ${data.itemName}: ${data.description}` : `Available listing for ${data.itemName}`,
+              location: data.location || data.city || prev.location,
+            }));
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load demand request details:", err);
+        });
+    }
+  }, [wantedRequestId]);
 
   useEffect(() => {
     const fetchCommissionRates = async () => {
@@ -150,6 +177,10 @@ function SellRentPage() {
       formData.append("condition", form.condition);
       formData.append("brand", form.brand);
       formData.append("location", form.location);
+
+      if (wantedRequestId) {
+        formData.append("wantedRequestId", wantedRequestId);
+      }
 
       if (pickedLocation) {
         formData.append("pickupLatitude", String(pickedLocation.latitude));
@@ -277,6 +308,18 @@ function SellRentPage() {
         </div>
 
         <form className="panel space-y-6 p-7 sm:p-8" onSubmit={handleSubmit}>
+          {wantedItemData && (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-2 text-amber-900 animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-amber-600 shrink-0" />
+                <h3 className="font-bold text-sm">Pre-filled from Student Demand Request</h3>
+              </div>
+              <p className="text-xs leading-relaxed text-amber-800">
+                A student is actively looking for <b>"{wantedItemData.itemName}"</b> ({wantedItemData.requestType}) at <b>{wantedItemData.collegeName || "your campus"}</b>. Form fields have been pre-filled for you below!
+              </p>
+            </div>
+          )}
+
           <div>
             <p className="text-sm uppercase tracking-[0.24em] text-ink/45">New listing</p>
             <h2 className="mt-2 text-3xl font-semibold">Tell students what you are offering</h2>
