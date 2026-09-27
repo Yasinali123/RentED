@@ -3,6 +3,7 @@ import Item from "../models/Item.js";
 import Notification from "../models/Notification.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { normalizeItemName } from "../utils/normalizeItem.js";
+import { validateContent } from "../utils/contentModeration.js";
 import { findMatchingSellersForDemand } from "../services/matchingService.js";
 import { sendDemandNotificationEmail } from "../services/emailService.js";
 
@@ -19,6 +20,14 @@ export const searchInventory = asyncHandler(async (req, res) => {
   }
 
   const cleanQuery = query.trim();
+
+  // Content Moderation check
+  const moderation = validateContent(cleanQuery);
+  if (!moderation.isValid) {
+    res.status(400);
+    throw new Error(moderation.reason);
+  }
+
   const normalizedStr = normalizeItemName(cleanQuery);
   const keywords = normalizedStr.split(" ").filter((k) => k.length > 1);
 
@@ -104,6 +113,21 @@ export const createDemandRequest = asyncHandler(async (req, res) => {
   }
 
   const rawItemName = itemName.trim();
+
+  // Content Moderation check on Item Name & Description
+  const itemModeration = validateContent(rawItemName);
+  if (!itemModeration.isValid) {
+    res.status(400);
+    throw new Error(itemModeration.reason);
+  }
+
+  if (description && description.trim()) {
+    const descModeration = validateContent(description.trim());
+    if (!descModeration.isValid) {
+      res.status(400);
+      throw new Error(descModeration.reason);
+    }
+  }
   const normalized = normalizeItemName(rawItemName);
 
   // User Profile Defaults

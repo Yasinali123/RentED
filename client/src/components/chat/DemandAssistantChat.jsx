@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MessageSquare, X, Send, Sparkles, Search, CheckCircle2, ArrowRight, RefreshCw, AlertCircle, ShoppingBag, ShieldCheck } from "lucide-react";
 import { wantedItemApi, getErrorMessage } from "../../api/client";
+import { validateContent } from "../../utils/contentModeration";
 import { useAuth } from "../../context/AuthContext";
 import Button from "../ui/Button";
 
@@ -83,6 +84,22 @@ function DemandAssistantChat() {
       { id: userMsgId, sender: "user", text: query },
     ]);
     setInputQuery("");
+
+    // Validate content for explicit, abusive, sexual, or irrelevant words
+    const validation = validateContent(query);
+    if (!validation.isValid) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: userMsgId + 1,
+          sender: "bot",
+          text: `🚫 ${validation.reason}`,
+          type: "moderation_blocked",
+        },
+      ]);
+      return;
+    }
+
     setPendingItemName(query);
 
     // If request type is not selected yet, ask BUY vs RENT first
@@ -204,6 +221,20 @@ function DemandAssistantChat() {
 
     const itemName = itemNameOverride || pendingItemName;
     const requestType = reqTypeOverride || selectedRequestType || "RENT";
+
+    const validation = validateContent(itemName);
+    if (!validation.isValid) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          sender: "bot",
+          text: `🚫 ${validation.reason}`,
+          type: "moderation_blocked",
+        },
+      ]);
+      return;
+    }
 
     setLoading(true);
     try {
