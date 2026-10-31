@@ -121,11 +121,24 @@ jobs:
         if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'both' || github.event.inputs.build_type == '' }}
         run: |
           cd client/android
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          if ! ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee ../../gradle-debug.log; then
+            echo "### ❌ Gradle Debug Build Error" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            tail -n 120 ../../gradle-debug.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
           mkdir -p ../../release-apks
           cp app/build/outputs/apk/debug/app-debug.apk ../../release-apks/RentED-v${{ env.VERSION }}-debug.apk
           cp app/build/outputs/apk/debug/app-debug.apk ../../release-apks/rented-app-debug.apk
           cp app/build/outputs/apk/debug/app-debug.apk ../../release-apks/RentED-latest.apk
+
+      - name: Upload Build Failure Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-debug-logs
+          path: gradle-debug.log
 
       - name: Build Android Release APK
         if: ${{ github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both' }}
