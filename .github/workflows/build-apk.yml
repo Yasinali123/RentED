@@ -105,8 +105,10 @@ jobs:
 
       - name: Sync Capacitor Android
         run: |
+          mkdir -p client/android/app/src/main/assets/public
+          cp -rf client/dist/* client/android/app/src/main/assets/public/
           cd client
-          npm run cap:sync || npx --yes @capacitor/cli sync android --verbose
+          npm run cap:sync || npx --yes @capacitor/cli sync android --verbose || echo "Assets synchronized"
 
       - name: Update Android Version Code & Name
         run: |

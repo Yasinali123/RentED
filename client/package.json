@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "cap:sync": "cap sync",
+    "cap:sync": "cap sync android",
     "cap:copy": "cap copy",
     "cap:open": "cap open android",
     "cap:build": "vite build && cap sync android"
