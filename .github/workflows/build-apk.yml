@@ -66,11 +66,12 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Accept Android SDK Licenses
+      - name: Make Gradle Executable & Check Android SDK
         run: |
           echo "ANDROID_HOME: $ANDROID_HOME"
+          chmod +x client/android/gradlew
+          chmod -R +x client/android
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || yes | sdkmanager --licenses || true
 
       - name: Install Client Dependencies
@@ -105,7 +106,7 @@ jobs:
       - name: Sync Capacitor Android
         run: |
           cd client
-          npx cap sync android
+          npm run cap:sync || npx --yes @capacitor/cli sync android --verbose
 
       - name: Update Android Version Code & Name
         run: |
@@ -113,14 +114,11 @@ jobs:
           sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/g" $BUILD_FILE
           sed -i "s/versionName \".*\"/versionName \"${{ env.VERSION }}\"/g" $BUILD_FILE
 
-      - name: Make Gradle Wrapper Executable
-        run: chmod +x client/android/gradlew
-
       - name: Build Android Debug APK
         if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'both' || github.event.inputs.build_type == '' }}
         run: |
           cd client/android
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace
           mkdir -p ../../release-apks
           cp app/build/outputs/apk/debug/app-debug.apk ../../release-apks/RentED-v${{ env.VERSION }}-debug.apk
           cp app/build/outputs/apk/debug/app-debug.apk ../../release-apks/rented-app-debug.apk
@@ -130,7 +128,7 @@ jobs:
         if: ${{ github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both' }}
         run: |
           cd client/android
-          ./gradlew assembleRelease --stacktrace || echo "Release build completed"
+          ./gradlew assembleRelease --no-daemon --stacktrace || echo "Release build completed"
           mkdir -p ../../release-apks
           find app/build/outputs/apk/ -name "*.apk" -exec cp {} ../../release-apks/ \; || true
 
