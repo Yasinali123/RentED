@@ -1,0 +1,40 @@
+{
+  "appId": "com.rented.app",
+  "appName": "RentED",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": [
+      "rented-backend.onrender.com",
+      "*.onrender.com",
+      "localhost",
+      "10.0.2.2",
+      "checkout.razorpay.com",
+      "api.razorpay.com",
+      "*.cloudinary.com",
+      "*.google.com",
+      "*.googleapis.com",
+      "*.gstatic.com",
+      "*.tile.openstreetmap.org",
+      "*.openstreetmap.org",
+      "github.com",
+      "api.github.com"
+    ]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#0f172a",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0f172a",
+      "overlaysWebView": false
+    }
+  }
+}

@@ -26,6 +26,7 @@ import locationRoutes from "./routes/locationRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
 import invoiceRoutes from "./routes/invoiceRoutes.js";
 import wantedItemRoutes from "./routes/wantedItemRoutes.js";
+import appUpdateRoutes from "./routes/appUpdateRoutes.js";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
 const app = express();
@@ -39,6 +40,10 @@ const hasBuiltClient = fs.existsSync(clientDistPath);
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "capacitor://localhost",
+  "ionic://localhost",
+  "https://localhost",
+  "http://localhost",
   process.env.CLIENT_URL ? process.env.CLIENT_URL.trim().replace(/\/$/, "") : null,
   process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL.trim().replace(/\/$/, "") : null,
 ].filter(Boolean);
@@ -55,7 +60,13 @@ app.use(
       if (!origin) return callback(null, true);
 
       const normalizedOrigin = origin.replace(/\/$/, "");
-      const isLocalhost = normalizedOrigin.startsWith("http://localhost:") || normalizedOrigin.startsWith("http://127.0.0.1:");
+      const isLocalhost =
+        normalizedOrigin.startsWith("http://localhost:") ||
+        normalizedOrigin.startsWith("http://127.0.0.1:") ||
+        normalizedOrigin.startsWith("capacitor://") ||
+        normalizedOrigin.startsWith("ionic://") ||
+        normalizedOrigin === "https://localhost" ||
+        normalizedOrigin === "http://localhost";
       const clientDomain = process.env.CLIENT_URL ? process.env.CLIENT_URL.trim().replace(/\/$/, "") : null;
       const isConfiguredClient = clientDomain && normalizedOrigin === clientDomain;
       const isAllowed = allowedOrigins.includes(normalizedOrigin);
@@ -113,6 +124,7 @@ app.use("/api/location", locationRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/wanted-items", wantedItemRoutes);
+app.use("/api/app-update", appUpdateRoutes);
 
 if (hasBuiltClient) {
   app.use(express.static(clientDistPath));

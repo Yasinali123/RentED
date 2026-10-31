@@ -478,6 +478,7 @@ function UserSettingsView({ onRefresh }) {
     { id: "marketplace", label: "Marketplace Preferences", icon: Globe },
     { id: "support", label: "Help & Support", icon: HelpCircle },
     { id: "legal", label: "Legal", icon: FileText },
+    { id: "app-updates", label: "App & OTA Updates", icon: Smartphone },
   ];
 
   return (

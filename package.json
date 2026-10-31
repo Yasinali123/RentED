@@ -11,7 +11,10 @@
     "client:build": "npm --prefix client run build",
     "server:dev": "npm --prefix server run dev",
     "server:start": "npm --prefix server run start",
-    "seed": "npm --prefix server run seed"
+    "seed": "npm --prefix server run seed",
+    "android:sync": "npm --prefix client run cap:sync",
+    "android:open": "npm --prefix client run cap:open",
+    "android:build": "npm --prefix client run cap:build"
   },
   "engines": {
     "node": ">=18.0.0"

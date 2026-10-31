@@ -14,13 +14,18 @@ import MarketplacePage from "./pages/MarketplacePage";
 import SellRentPage from "./pages/SellRentPage";
 import SignupPage from "./pages/SignupPage";
 import EmailVerificationPage from "./pages/EmailVerificationPage";
+import UpdateModal from "./components/ui/UpdateModal";
+import { useMobileApp } from "./hooks/useMobileApp";
+import { getBaseUrl } from "./api/client";
 
 function App() {
-  // Warm up Render backend on app initial load
+  const { updateInfo, showUpdateModal, setShowUpdateModal } = useMobileApp();
+
+  // Warm up backend on app initial load
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL || "/api";
+    const apiUrl = getBaseUrl();
     const healthEndpoint = `${apiUrl.replace(/\/$/, "")}/health`;
-    
+
     // Non-blocking ping to wake up free-tier backend from sleep
     fetch(healthEndpoint, { method: "GET", mode: "cors" }).catch(() => {
       // Ignore background ping errors
@@ -29,6 +34,12 @@ function App() {
 
   return (
     <ErrorBoundary>
+      {showUpdateModal && updateInfo && (
+        <UpdateModal
+          updateInfo={updateInfo}
+          onClose={() => setShowUpdateModal(false)}
+        />
+      )}
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/" element={<HomePage />} />

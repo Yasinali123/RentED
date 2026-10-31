@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "470490421661",
+    "project_id": "rented-ff27d",
+    "storage_bucket": "rented-ff27d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:470490421661:android:e35acbc8059e612f067ffc",
+        "android_client_info": {
+          "package_name": "com.rented.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlrntTn-eas87dScAv__ZDh7jqETCj8-0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+

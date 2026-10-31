@@ -1,7 +1,26 @@
 import axios from "axios";
 
+const DEFAULT_API_URL = "https://rented-backend.onrender.com/api";
+
+export const getBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && envUrl.trim()) return envUrl.trim();
+
+  if (typeof window !== "undefined") {
+    const isNative =
+      window.location.protocol === "capacitor:" ||
+      window.location.protocol === "file:" ||
+      window.location.hostname === "localhost";
+    if (isNative) {
+      return DEFAULT_API_URL;
+    }
+  }
+
+  return "/api";
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api",
+  baseURL: getBaseUrl(),
   withCredentials: true,
   timeout: 30000,
 });
@@ -234,6 +253,11 @@ export const wantedItemApi = {
   cancel: async (id) => (await api.post(`/wanted-items/${id}/cancel`)).data,
   fulfill: async (id, payload) => (await api.post(`/wanted-items/${id}/fulfill`, payload)).data,
   delete: async (id) => (await api.delete(`/wanted-items/${id}`)).data,
+};
+
+
+export const appUpdateApi = {
+  checkUpdate: async (params = {}) => (await api.get("/app-update/check", { params })).data,
 };
 
 export default api;

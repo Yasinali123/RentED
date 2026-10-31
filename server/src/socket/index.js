@@ -15,10 +15,18 @@ export const initSocket = (server) => {
   const io = new Server(server, {
     cors: {
       origin: function (origin, callback) {
-        const isLocalhost = origin && (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:"));
+        const isLocalhost =
+          origin &&
+          (origin.startsWith("http://localhost") ||
+            origin.startsWith("http://127.0.0.1") ||
+            origin.startsWith("capacitor://") ||
+            origin.startsWith("ionic://") ||
+            origin === "https://localhost");
         const allowed = [
           "http://localhost:5173",
           "http://127.0.0.1:5173",
+          "capacitor://localhost",
+          "https://localhost",
           process.env.CLIENT_URL ? process.env.CLIENT_URL.trim().replace(/\/$/, "") : null,
           process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL.trim().replace(/\/$/, "") : null,
         ].filter(Boolean);

@@ -1,8 +1,27 @@
 import { io } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_API_URL 
-  ? import.meta.env.VITE_API_URL.replace("/api", "") 
-  : (typeof window !== "undefined" ? window.location.origin : "http://localhost:5000");
+const DEFAULT_SERVER_URL = "https://rented-backend.onrender.com";
+
+const getSocketUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && envUrl.trim()) {
+    return envUrl.trim().replace(/\/api\/?$/, "");
+  }
+
+  if (typeof window !== "undefined") {
+    const isNative =
+      window.location.protocol === "capacitor:" ||
+      window.location.protocol === "file:" ||
+      window.location.hostname === "localhost";
+    if (!isNative && window.location.origin) {
+      return window.location.origin;
+    }
+  }
+
+  return DEFAULT_SERVER_URL;
+};
+
+const SOCKET_URL = getSocketUrl();
 
 let socket = null;
 
@@ -16,6 +35,7 @@ export const getSocket = () => {
     auth: {
       token,
     },
+    transports: ["websocket", "polling"],
     autoConnect: false,
     reconnection: true,
     reconnectionAttempts: 5,
