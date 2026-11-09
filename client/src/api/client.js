@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const DEFAULT_API_URL = "https://rented-backend.onrender.com/api";
+const DEFAULT_API_URL = "https://rented-mtrl.onrender.com/api";
 
 export const getBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL;
@@ -22,7 +22,7 @@ export const getBaseUrl = () => {
 const api = axios.create({
   baseURL: getBaseUrl(),
   withCredentials: true,
-  timeout: 30000,
+  timeout: 60000,
 });
 
 api.interceptors.request.use((config) => {
@@ -70,8 +70,14 @@ api.interceptors.response.use(
   }
 );
 
-export const getErrorMessage = (error) =>
-  error?.response?.data?.message || error?.message || "Something went wrong";
+export const getErrorMessage = (error) => {
+  if (error?.response?.data?.message) return error.response.data.message;
+  if (error?.response?.data?.error) return error.response.data.error;
+  if (error?.message === "Network Error") {
+    return "Network error: Could not reach the server. Please check your internet connection.";
+  }
+  return error?.message || "Something went wrong";
+};
 
 export const authApi = {
   signup: async (payload) => (await api.post("/auth/signup", payload)).data,

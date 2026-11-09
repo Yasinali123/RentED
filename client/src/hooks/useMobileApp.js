@@ -5,6 +5,7 @@ import { App as CapApp } from "@capacitor/app";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { checkForAppUpdate } from "../services/updateService";
+import api from "../api/client";
 
 export function useMobileApp() {
   const navigate = useNavigate();
@@ -34,6 +35,9 @@ export function useMobileApp() {
 
   // Initialize native Capacitor settings
   useEffect(() => {
+    // Warm up backend cloud server immediately on app launch
+    api.get("/health").catch(() => {});
+
     if (!Capacitor.isNativePlatform()) {
       // In web browser, check updates silently after 3s
       const timer = setTimeout(() => checkUpdate(false), 3000);

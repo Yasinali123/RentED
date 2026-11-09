@@ -83,7 +83,7 @@ jobs:
       - name: Generate Production Environment File (.env.production)
         run: |
           cat << 'EOF' > client/.env.production
-          VITE_API_URL=${{ secrets.VITE_API_URL || 'https://rented-backend.onrender.com/api' }}
+          VITE_API_URL=${{ secrets.VITE_API_URL || 'https://rented-mtrl.onrender.com/api' }}
           VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY || 'AIzaSyAlrntTn-eas87dScAv__ZDh7jqETCj8-0' }}
           VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN || 'rented-ff27d.firebaseapp.com' }}
           VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID || 'rented-ff27d' }}

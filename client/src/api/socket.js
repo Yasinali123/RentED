@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 
-const DEFAULT_SERVER_URL = "https://rented-backend.onrender.com";
+const DEFAULT_SERVER_URL = "https://rented-mtrl.onrender.com";
 
 const getSocketUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL;

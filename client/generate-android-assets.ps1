@@ -236,3 +236,4 @@ foreach ($l in $landscapes) {
 $iconBmp.Dispose()
 $fullLogoBmp.Dispose()
 Write-Host "=== All Android assets successfully generated! ==="
+
