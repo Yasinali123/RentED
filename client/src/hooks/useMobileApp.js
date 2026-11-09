@@ -51,15 +51,14 @@ export function useMobileApp() {
     };
     setupStatusBar();
 
-    // Hide Splash Screen after React mounts
-    const hideSplash = async () => {
+    // Keep brand splash visible on startup and fade out smoothly
+    const splashTimer = setTimeout(async () => {
       try {
-        await SplashScreen.hide();
+        await SplashScreen.hide({ fadeOutDuration: 400 });
       } catch (err) {
         console.debug("SplashScreen error:", err);
       }
-    };
-    hideSplash();
+    }, 900);
 
     // Hardware Back Button listener on Android
     const backListener = CapApp.addListener("backButton", ({ canGoBack }) => {
@@ -74,6 +73,7 @@ export function useMobileApp() {
     const timer = setTimeout(() => checkUpdate(false), 2500);
 
     return () => {
+      clearTimeout(splashTimer);
       clearTimeout(timer);
       backListener.then((sub) => sub.remove()).catch(() => {});
     };
