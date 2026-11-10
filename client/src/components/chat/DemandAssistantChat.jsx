@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { MessageSquare, X, Send, Sparkles, Search, CheckCircle2, ArrowRight, RefreshCw, AlertCircle, ShoppingBag, ShieldCheck } from "lucide-react";
 import { wantedItemApi, getErrorMessage } from "../../api/client";
 import { validateContent } from "../../utils/contentModeration";
@@ -25,7 +25,23 @@ const CATEGORIES = [
 function DemandAssistantChat() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Strictly enforce visibility: ONLY visible on Home ("/") and Marketplace ("/marketplace")
+  const isAllowedPage = location.pathname === "/" || location.pathname === "/marketplace";
+
+  // Automatically dismiss assistant if navigating away from allowed pages
+  useEffect(() => {
+    if (!isAllowedPage && isOpen) {
+      setIsOpen(false);
+    }
+  }, [location.pathname, isAllowedPage, isOpen]);
+
+  // Do not render anything if not on allowed pages
+  if (!isAllowedPage) {
+    return null;
+  }
   
   // Conversation state
   const [messages, setMessages] = useState([]);

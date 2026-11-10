@@ -82,7 +82,7 @@ function Navbar() {
   ].filter(Boolean);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-ink/10 bg-white backdrop-blur-md transition-colors duration-300">
+    <header className="sticky top-0 z-50 border-b border-ink/10 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-colors duration-300">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-2.5 group">
           <img
@@ -92,9 +92,9 @@ function Navbar() {
           />
           <div>
             <p className="font-display text-xl font-black tracking-tight leading-none">
-              <span className="text-black">Rent</span><span className="text-accent">Ed</span>
+              <span className="text-black dark:text-white">Rent</span><span className="text-accent">Ed</span>
             </p>
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-ink/50 mt-1 leading-none">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-ink/50 dark:text-slate-400 mt-1 leading-none">
               Student Hub
             </p>
           </div>
@@ -110,7 +110,7 @@ function Navbar() {
                 className={`text-sm font-medium transition ${
                   active
                     ? "text-accent font-bold"
-                    : "text-ink/75 hover:text-accent font-semibold"
+                    : "text-ink/75 dark:text-slate-300 hover:text-accent font-semibold"
                 }`}
               >
                 {item.label.replace(/^[^\s]+\s/, "")}

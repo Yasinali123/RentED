@@ -10,7 +10,8 @@
   }
   
   body {
-    @apply bg-canvas font-body text-ink antialiased overflow-x-hidden transition-colors duration-300;
+    @apply bg-canvas font-body text-ink antialiased transition-colors duration-300;
+    overflow-x: clip;
     background-image:
       radial-gradient(circle at top left, rgba(242, 198, 109, 0.28), transparent 28%),
       radial-gradient(circle at right 15%, rgba(39, 82, 69, 0.14), transparent 24%),

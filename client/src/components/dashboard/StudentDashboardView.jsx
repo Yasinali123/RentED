@@ -919,8 +919,11 @@ function StudentDashboardView({ dashboard, onRefresh, initialTab }) {
               <Sparkles className="h-12 w-12 mx-auto text-ink/20" />
               <p className="font-bold text-base text-ink">You don't have any active demand requests</p>
               <p className="text-xs text-ink/50 max-w-md mx-auto">
-                Need a textbook, lab component, calculator, or PG room not listed on RentED? Use the floating "Ask RentED" button in the bottom right!
+                Need a textbook, lab component, calculator, or PG room not listed on RentED? Use the "Ask RentED" Demand Assistant on the Marketplace or Home page to find matched listings!
               </p>
+              <Link to="/marketplace" className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline">
+                Go to Marketplace & Ask RentED →
+              </Link>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
